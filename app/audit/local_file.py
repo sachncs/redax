@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 from datetime import UTC, datetime
 from pathlib import Path
 
-from app.audit.backend import AuditBackend, AuditEvent, event_to_dict
+from app.audit.backend import AuditEvent, event_to_dict
 
 
 class LocalFileAuditBackend:
@@ -60,7 +59,7 @@ class LocalFileAuditBackend:
             try:
                 line = json.dumps(event_to_dict(_with_timestamp(item))) + "\n"
                 await loop.run_in_executor(None, _append_line, str(self._path), line)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 pass
 
 

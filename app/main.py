@@ -12,6 +12,7 @@ from app.api import (
     register_redact,
     register_stream,
 )
+from app.audit.local_file import LocalFileAuditBackend
 from app.config import Settings
 from app.inference.regex_detector import RegexDetector
 from app.jobs.store import JobStore
@@ -58,6 +59,10 @@ async def lifespan(app: FastAPI):
         log.warning("redax.redis_unavailable", error=str(exc))
         model_state.job_store = None
 
+    audit = LocalFileAuditBackend(settings.audit_path)
+    await audit.start()
+    model_state.audit = audit
+
     log.info(
         "redax.startup",
         log_level=settings.log_level,
@@ -70,6 +75,8 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         log.info("redax.shutdown")
+        if model_state.audit is not None:
+            await model_state.audit.stop()
         if model_state.job_store is not None:
             await model_state.job_store.stop()
         model_state.ready = False

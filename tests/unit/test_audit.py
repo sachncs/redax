@@ -41,11 +41,7 @@ async def test_drops_when_queue_full(tmp_path: Path, monkeypatch) -> None:
     await backend.start()
     backend._queue = asyncio.Queue(maxsize=2)  # type: ignore[assignment]
     for _ in range(5):
-        await backend.record(
-            AuditEvent(
-                request_id="x", ts="t", policy_version="p", text_chars=0
-            )
-        )
+        await backend.record(AuditEvent(request_id="x", ts="t", policy_version="p", text_chars=0))
     assert backend._dropped >= 1
     await backend.stop()
 

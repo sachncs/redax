@@ -29,7 +29,7 @@ async def rate_limit(api_key: str) -> str:
             await client.expire(bucket, 60)
         if int(count) > limit:
             raise rate_limited(None, f"limit {limit}/min exceeded")  # type: ignore[arg-type]
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         if hasattr(exc, "status_code"):
             raise
         return api_key
@@ -37,6 +37,6 @@ async def rate_limit(api_key: str) -> str:
 
 
 def _minute_bucket() -> int:
-    import time  # noqa: PLC0415
+    import time
 
     return int(time.time() // 60)
