@@ -1,0 +1,95 @@
+from __future__ import annotations
+
+import pytest
+
+from app.inference.detector import Span
+from app.redaction.strategy import (
+    AutoDeID,
+    Hash,
+    Mask,
+    PassThrough,
+    Regex,
+    Strategy,
+    StrategyResult,
+)
+
+
+def test_strategies_satisfy_protocol() -> None:
+    for cls in (PassThrough(), Mask(), Hash(), Regex()):
+        assert isinstance(cls, Strategy)
+
+
+def test_pass_through_returns_unchanged() -> None:
+    s = PassThrough()
+    result = s.apply("hello", [], {})
+    assert result.text == "hello"
+    assert result.spans == []
+    assert result.relex_map == {}
+
+
+def test_mask_substitutes_with_format() -> None:
+    s = Mask()
+    spans = [Span(0, 5, "PERSON", 1.0)]
+    result = s.apply("Alice!", spans, {"format": "<GONE>"})
+    assert result.text == "<GONE>!"
+    assert result.relex_map == {}
+
+
+def test_hash_produces_deterministic_tokens() -> None:
+    s = Hash(salt="pepper")
+    spans = [Span(0, 5, "PERSON", 1.0)]
+    result1 = s.apply("Alice!", spans, {"length": 6})
+    spans2 = [Span(0, 5, "PERSON", 1.0)]
+    result2 = s.apply("Alice!", spans2, {"length": 6})
+    assert result1.text == result2.text
+    assert "[HASH:" in result1.text
+
+
+def test_hash_different_salts_yield_different_tokens() -> None:
+    a = Hash(salt="salt-a").apply("Alice!", [Span(0, 5, "PERSON", 1.0)], {"length": 6})
+    b = Hash(salt="salt-b").apply("Alice!", [Span(0, 5, "PERSON", 1.0)], {"length": 6})
+    assert a.text != b.text
+
+
+def test_regex_strategy_runs_detector() -> None:
+    s = Regex()
+    result = s.apply("Email a@b.com please", [], {"format": "<EMAIL>"})
+    assert "<EMAIL>" in result.text
+
+
+def test_auto_deid_emits_placeholders_when_relex_true() -> None:
+    class _Stub:
+        name = "stub"
+
+        async def detect(self, text, entity_types):
+            return [Span(0, 5, "PERSON", 0.9)]
+
+        async def warmup(self):
+            return None
+
+    s = AutoDeID(_Stub())
+    result = s.apply("Alice!", [], {"relex": True})
+    assert "[PERSON_0000]" in result.text
+    assert "Alice" in result.relex_map
+
+
+def test_auto_deid_emits_format_when_relex_false() -> None:
+    class _Stub:
+        name = "stub"
+
+        async def detect(self, text, entity_types):
+            return [Span(0, 5, "PERSON", 0.9)]
+
+        async def warmup(self):
+            return None
+
+    s = AutoDeID(_Stub())
+    result = s.apply("Alice!", [], {"format": "<NAME>"})
+    assert "<NAME>" in result.text
+    assert result.relex_map == {}
+
+
+def test_strategy_result_dataclass() -> None:
+    r = StrategyResult(text="x", spans=[], relex_map={})
+    assert r.text == "x"
+    assert r.spans == []
