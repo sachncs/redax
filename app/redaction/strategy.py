@@ -126,8 +126,7 @@ class AutoDeID:
         if relex:
             replacements = [f"[{s.type.upper()}_{i:04d}]" for i, s in enumerate(detected)]
             relex_map = {
-                text[s.start : s.end]: r
-                for s, r in zip(detected, replacements, strict=True)
+                text[s.start : s.end]: r for s, r in zip(detected, replacements, strict=True)
             }
         else:
             fmt = config.get("format", "[REDACTED]")

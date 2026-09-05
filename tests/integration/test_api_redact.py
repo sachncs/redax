@@ -15,7 +15,14 @@ class _StubDetector:
     name = "stub"
 
     async def detect(self, text: str, entity_types: list[str]) -> list[Span]:
-        return [Span(12, 19, "EMAIL", 1.0)] if "@" in text else []
+        idx = text.find("@")
+        if idx < 0:
+            return []
+        start = text.rfind(" ", 0, idx) + 1
+        end = text.find(" ", idx)
+        if end < 0:
+            end = len(text)
+        return [Span(start, end, "EMAIL", 1.0)]
 
     async def warmup(self) -> None:
         return None
