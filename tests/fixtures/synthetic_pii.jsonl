@@ -1,0 +1,7 @@
+{"text": "Reach me at alice@example.com or +1 415-555-2671", "entities": [{"start": 12, "end": 29, "type": "EMAIL", "confidence": 1.0}, {"start": 33, "end": 48, "type": "PHONE_E164", "confidence": 1.0}]}
+{"text": "Card 4532 0151 1283 0366 expires next year", "entities": [{"start": 5, "end": 24, "type": "CREDIT_CARD", "confidence": 1.0}]}
+{"text": "Server at 10.0.0.1 went down at midnight", "entities": [{"start": 10, "end": 18, "type": "IP_ADDRESS", "confidence": 1.0}]}
+{"text": "Pure free text with no PII whatsoever", "entities": []}
+{"text": "Visit https://example.com/path?x=1 for the docs", "entities": [{"start": 6, "end": 34, "type": "URL", "confidence": 1.0}]}
+{"text": "His IBAN is GB00FAKE00000000000000 says the bank", "entities": [{"start": 12, "end": 34, "type": "IBAN", "confidence": 1.0}]}
+
