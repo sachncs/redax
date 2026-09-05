@@ -20,7 +20,7 @@ class Strategy(Protocol):
 
     name: str
 
-    def apply(
+    async def apply(
         self,
         text: str,
         spans: list[Span],
@@ -33,7 +33,7 @@ class PassThrough:
 
     name = "passThrough"
 
-    def apply(self, text: str, spans: list[Span], config: dict) -> StrategyResult:
+    async def apply(self, text: str, spans: list[Span], config: dict) -> StrategyResult:
         return StrategyResult(text=text, spans=[], relex_map={})
 
 
@@ -42,8 +42,8 @@ class Mask:
 
     name = "mask"
 
-    def apply(self, text: str, spans: list[Span], config: dict) -> StrategyResult:
-        from app.redaction.apply import apply_spans  # noqa: PLC0415
+    async def apply(self, text: str, spans: list[Span], config: dict) -> StrategyResult:
+        from app.redaction.apply import apply_spans
 
         fmt = config.get("format", "[REDACTED]")
         masked = apply_spans(text, spans, fmt)
@@ -58,14 +58,16 @@ class Hash:
     def __init__(self, salt: str = "") -> None:
         self._salt = salt
 
-    def apply(self, text: str, spans: list[Span], config: dict) -> StrategyResult:
-        from app.redaction.apply import apply_spans  # noqa: PLC0415
+    async def apply(self, text: str, spans: list[Span], config: dict) -> StrategyResult:
+        import hashlib
 
-        import hashlib  # noqa: PLC0415
+        from app.redaction.apply import apply_spans
 
         replacements: list[str] = []
         for span in spans:
-            digest = hashlib.sha256(f"{self._salt}{text[span.start : span.end]}".encode()).hexdigest()
+            digest = hashlib.sha256(
+                f"{self._salt}{text[span.start : span.end]}".encode()
+            ).hexdigest()
             length = int(config.get("length", 8))
             replacements.append(f"[HASH:{digest[:length]}]")
         masked = apply_spans(text, spans, replacements)
@@ -82,21 +84,17 @@ class Regex:
 
     def _get_detector(self):
         if self._detector is None:
-            from app.inference.regex_detector import RegexDetector  # noqa: PLC0415
+            from app.inference.regex_detector import RegexDetector
 
             self._detector = RegexDetector()
         return self._detector
 
-    def apply(self, text: str, spans: list[Span], config: dict) -> StrategyResult:
-        from app.redaction.apply import apply_spans  # noqa: PLC0415
+    async def apply(self, text: str, spans: list[Span], config: dict) -> StrategyResult:
+        from app.redaction.apply import apply_spans
 
         detector = self._get_detector()
         entity_types = config.get("entity_types", [])
-        # We need to call the sync detect() because strategies are sync; the
-        # detector's detect() is async. Run it on a fresh event loop.
-        import asyncio  # noqa: PLC0415
-
-        detected = asyncio.run(detector.detect(text, entity_types))
+        detected = await detector.detect(text, entity_types)
         fmt = config.get("format", "[REDACTED]")
         masked = apply_spans(text, detected, fmt)
         return StrategyResult(text=masked, spans=detected, relex_map={})
@@ -105,10 +103,9 @@ class Regex:
 class AutoDeID:
     """Run a NER detector (possibly multi-pass) and apply relex/placeholders.
 
-    Calls into the configured Detector and optional multi_pass_detect when
-    passes > 1. Relex is handled in a later milestone; this strategy
-    currently emits [TYPE] placeholders so the upstream redactor can swap
-    them out.
+    Relex populates relex_map so the upstream redactor can swap originals
+    back in. When relex is false, every span is replaced with the
+    configured format string.
     """
 
     name = "autoDeID"
@@ -116,24 +113,22 @@ class AutoDeID:
     def __init__(self, detector) -> None:
         self._detector = detector
 
-    def apply(self, text: str, spans: list[Span], config: dict) -> StrategyResult:
-        import asyncio  # noqa: PLC0415
-
-        from app.inference.multi_pass import multi_pass_detect  # noqa: PLC0415
-        from app.redaction.apply import apply_spans  # noqa: PLC0415
+    async def apply(self, text: str, spans: list[Span], config: dict) -> StrategyResult:
+        from app.inference.multi_pass import multi_pass_detect
+        from app.redaction.apply import apply_spans
 
         entity_types = config.get("entity_types", [])
         passes = int(config.get("multi_pass", 1))
         relex = bool(config.get("relex", False))
 
-        async def run() -> list[Span]:
-            return await multi_pass_detect(self._detector, text, entity_types, passes)
-
-        detected = asyncio.run(run())
+        detected = await multi_pass_detect(self._detector, text, entity_types, passes)
 
         if relex:
             replacements = [f"[{s.type.upper()}_{i:04d}]" for i, s in enumerate(detected)]
-            relex_map = {text[s.start : s.end]: r for s, r in zip(detected, replacements)}
+            relex_map = {
+                text[s.start : s.end]: r
+                for s, r in zip(detected, replacements, strict=True)
+            }
         else:
             fmt = config.get("format", "[REDACTED]")
             replacements = [fmt] * len(detected)

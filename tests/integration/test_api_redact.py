@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from app.api.redact import register
 from app.inference.detector import Span
 from app.redaction.redactor import Redactor
+from app.redaction.strategy import AutoDeID, Mask, PassThrough, Regex
 from app.state import ModelState
 
 
@@ -24,7 +25,15 @@ class _StubDetector:
 def app_with_redactor(monkeypatch):
     test_state = ModelState()
     test_state.settings = type("S", (), {"max_text_chars": 1000})()
-    test_state.redactor = Redactor(detector=_StubDetector())
+    test_state.redactor = Redactor(
+        detector=_StubDetector(),
+        strategies={
+            "passThrough": PassThrough(),
+            "mask": Mask(),
+            "regex": Regex(),
+            "autoDeID": AutoDeID(_StubDetector()),
+        },
+    )
     test_state.ready = True
 
     monkeypatch.setattr("app.state.model_state", test_state)

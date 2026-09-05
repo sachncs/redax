@@ -10,7 +10,6 @@ from app.redaction.strategy import (
     PassThrough,
     Regex,
     Strategy,
-    StrategyResult,
 )
 
 
@@ -19,45 +18,51 @@ def test_strategies_satisfy_protocol() -> None:
         assert isinstance(cls, Strategy)
 
 
-def test_pass_through_returns_unchanged() -> None:
+@pytest.mark.asyncio
+async def test_pass_through_returns_unchanged() -> None:
     s = PassThrough()
-    result = s.apply("hello", [], {})
+    result = await s.apply("hello", [], {})
     assert result.text == "hello"
     assert result.spans == []
     assert result.relex_map == {}
 
 
-def test_mask_substitutes_with_format() -> None:
+@pytest.mark.asyncio
+async def test_mask_substitutes_with_format() -> None:
     s = Mask()
     spans = [Span(0, 5, "PERSON", 1.0)]
-    result = s.apply("Alice!", spans, {"format": "<GONE>"})
+    result = await s.apply("Alice!", spans, {"format": "<GONE>"})
     assert result.text == "<GONE>!"
     assert result.relex_map == {}
 
 
-def test_hash_produces_deterministic_tokens() -> None:
+@pytest.mark.asyncio
+async def test_hash_produces_deterministic_tokens() -> None:
     s = Hash(salt="pepper")
     spans = [Span(0, 5, "PERSON", 1.0)]
-    result1 = s.apply("Alice!", spans, {"length": 6})
-    spans2 = [Span(0, 5, "PERSON", 1.0)]
-    result2 = s.apply("Alice!", spans2, {"length": 6})
+    result1 = await s.apply("Alice!", spans, {"length": 6})
+    result2 = await s.apply("Alice!", [Span(0, 5, "PERSON", 1.0)], {"length": 6})
     assert result1.text == result2.text
     assert "[HASH:" in result1.text
 
 
-def test_hash_different_salts_yield_different_tokens() -> None:
-    a = Hash(salt="salt-a").apply("Alice!", [Span(0, 5, "PERSON", 1.0)], {"length": 6})
-    b = Hash(salt="salt-b").apply("Alice!", [Span(0, 5, "PERSON", 1.0)], {"length": 6})
+@pytest.mark.asyncio
+async def test_hash_different_salts_yield_different_tokens() -> None:
+    spans = [Span(0, 5, "PERSON", 1.0)]
+    a = await Hash(salt="salt-a").apply("Alice!", spans, {"length": 6})
+    b = await Hash(salt="salt-b").apply("Alice!", spans, {"length": 6})
     assert a.text != b.text
 
 
-def test_regex_strategy_runs_detector() -> None:
+@pytest.mark.asyncio
+async def test_regex_strategy_runs_detector() -> None:
     s = Regex()
-    result = s.apply("Email a@b.com please", [], {"format": "<EMAIL>"})
+    result = await s.apply("Email a@b.com please", [], {"format": "<EMAIL>"})
     assert "<EMAIL>" in result.text
 
 
-def test_auto_deid_emits_placeholders_when_relex_true() -> None:
+@pytest.mark.asyncio
+async def test_auto_deid_emits_placeholders_when_relex_true() -> None:
     class _Stub:
         name = "stub"
 
@@ -68,12 +73,13 @@ def test_auto_deid_emits_placeholders_when_relex_true() -> None:
             return None
 
     s = AutoDeID(_Stub())
-    result = s.apply("Alice!", [], {"relex": True})
+    result = await s.apply("Alice!", [], {"relex": True})
     assert "[PERSON_0000]" in result.text
     assert "Alice" in result.relex_map
 
 
-def test_auto_deid_emits_format_when_relex_false() -> None:
+@pytest.mark.asyncio
+async def test_auto_deid_emits_format_when_relex_false() -> None:
     class _Stub:
         name = "stub"
 
@@ -84,12 +90,6 @@ def test_auto_deid_emits_format_when_relex_false() -> None:
             return None
 
     s = AutoDeID(_Stub())
-    result = s.apply("Alice!", [], {"format": "<NAME>"})
+    result = await s.apply("Alice!", [], {"format": "<NAME>"})
     assert "<NAME>" in result.text
     assert result.relex_map == {}
-
-
-def test_strategy_result_dataclass() -> None:
-    r = StrategyResult(text="x", spans=[], relex_map={})
-    assert r.text == "x"
-    assert r.spans == []

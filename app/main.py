@@ -10,7 +10,18 @@ from app.inference.regex_detector import RegexDetector
 from app.logging import configure_logging, get_logger
 from app.observability import configure_tracing
 from app.redaction.redactor import Redactor
+from app.redaction.strategy import AutoDeID, Hash, Mask, PassThrough, Regex
 from app.state import model_state
+
+
+def build_strategies(settings: Settings) -> dict:
+    return {
+        "passThrough": PassThrough(),
+        "mask": Mask(),
+        "hash": Hash(salt=settings.hash_salt),
+        "regex": Regex(),
+        "autoDeID": AutoDeID(None),  # bound at lifespan time
+    }
 
 
 @asynccontextmanager
@@ -28,8 +39,11 @@ async def lifespan(app: FastAPI):
     model_state.regex_detector = regex
     model_state.detector = regex
 
+    strategies = build_strategies(settings)
+    strategies["autoDeID"] = AutoDeID(regex)
     model_state.redactor = Redactor(
         detector=regex,
+        strategies=strategies,
         replacement="[REDACTED]",
     )
 

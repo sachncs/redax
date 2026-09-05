@@ -26,9 +26,7 @@ async def multi_pass_detect(
         spans = await detector.detect(text, entity_types)
         return dedupe_overlaps(spans)
 
-    results = await asyncio.gather(
-        *(detector.detect(text, entity_types) for _ in range(passes))
-    )
+    results = await asyncio.gather(*(detector.detect(text, entity_types) for _ in range(passes)))
     unioned: list[Span] = []
     for batch in results:
         unioned.extend(batch)
