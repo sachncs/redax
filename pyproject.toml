@@ -1,0 +1,71 @@
+[project]
+name = "redax"
+version = "0.1.0"
+description = "Self-hosted PII redaction engine for use before a self-hosted LLM."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+authors = [{ name = "sachin", email = "sachncs@gmail.com" }]
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "structlog>=24.4",
+    "httpx>=0.27",
+    "redis>=5.2",
+    "arq>=0.26",
+    "prometheus-client>=0.21",
+    "opentelemetry-api>=1.27",
+    "opentelemetry-sdk>=1.27",
+    "opentelemetry-exporter-otlp>=1.27",
+    "transformers>=4.46",
+    "gliner>=0.2.13",
+    "optimum>=1.23",
+    "onnxruntime>=1.20",
+    "pyyaml>=6.0",
+    "sqlite-vss>=0.1.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "pytest-approvaltests>=0.0.31",
+    "hypothesis>=6.115",
+    "locust>=2.32",
+    "ruff>=0.7",
+    "mypy>=1.13",
+]
+
+[project.scripts]
+redax-server = "app.main:run"
+redax-worker = "app.jobs.queue:run"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "N", "SIM", "RUF"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B", "N"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
