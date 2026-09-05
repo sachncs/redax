@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api import register_health, register_redact
+from app.api import register_health, register_policies, register_redact
 from app.config import Settings
 from app.inference.regex_detector import RegexDetector
 from app.logging import configure_logging, get_logger
@@ -69,6 +69,7 @@ app = FastAPI(
 )
 
 register_health(app)
+register_policies(app)
 register_redact(app)
 
 

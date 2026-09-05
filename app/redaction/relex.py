@@ -55,7 +55,7 @@ def relexicalize(
         replacements[entity] = placeholder
         out_pairs.append((span, placeholder))
 
-    from app.redaction.apply import apply_spans  # noqa: PLC0415
+    from app.redaction.apply import apply_spans
 
     masked = apply_spans(
         text,
