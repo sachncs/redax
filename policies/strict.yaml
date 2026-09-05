@@ -1,0 +1,52 @@
+# policies/strict.yaml
+# Multi-pass=3, independent relex, expanded entity coverage.
+name: strict
+version: 1.0.0
+description: Maximum redaction. Three detection passes, every entity typed.
+
+fields:
+  free_text:
+    strategy: autoDeID
+    relex: true
+    multi_pass: 3
+    entity_types:
+      - person
+      - full_name
+      - first_name
+      - last_name
+      - email
+      - phone_number
+      - address
+      - street_address
+      - city
+      - state_or_region
+      - postal_code
+      - country
+      - national_id_number
+      - passport_number
+      - drivers_license_number
+      - tax_id
+      - bank_account
+      - account_number
+      - routing_number
+      - iban
+      - card_number
+      - card_expiry
+      - username
+      - ip_address
+      - account_id
+      - password
+      - api_key
+      - date_of_birth
+      - sensitive_date
+  structured_ids:
+    strategy: regex
+    format: "[ID]"
+    entity_types:
+      - SSN_US
+      - CREDIT_CARD
+  payment_cards:
+    strategy: regex
+    format: "[CC-{last4}]"
+    entity_types:
+      - CREDIT_CARD
