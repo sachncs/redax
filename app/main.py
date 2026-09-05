@@ -4,10 +4,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api import register_health
+from app.api import register_health, register_redact
 from app.config import Settings
+from app.inference.regex_detector import RegexDetector
 from app.logging import configure_logging, get_logger
 from app.observability import configure_tracing
+from app.redaction.redactor import Redactor
 from app.state import model_state
 
 
@@ -21,7 +23,22 @@ async def lifespan(app: FastAPI):
     model_state.settings = settings
     model_state.ready = False
 
-    log.info("redax.startup", log_level=settings.log_level, model=settings.model_name)
+    regex = RegexDetector()
+    await regex.warmup()
+    model_state.regex_detector = regex
+    model_state.detector = regex
+
+    model_state.redactor = Redactor(
+        detector=regex,
+        replacement="[REDACTED]",
+    )
+
+    log.info(
+        "redax.startup",
+        log_level=settings.log_level,
+        detector="regex",
+        model=settings.model_name,
+    )
     model_state.ready = True
     try:
         yield
@@ -38,10 +55,11 @@ app = FastAPI(
 )
 
 register_health(app)
+register_redact(app)
 
 
 def run() -> None:
-    import uvicorn
+    import uvicorn  # noqa: PLC0415
 
     settings = Settings()
     uvicorn.run(
