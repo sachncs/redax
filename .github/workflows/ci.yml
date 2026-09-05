@@ -33,3 +33,6 @@ jobs:
 
       - name: Pytest
         run: pytest
+
+      - name: Eval gate
+        run: python scripts/eval.py --fixture tests/fixtures/synthetic_pii.jsonl
