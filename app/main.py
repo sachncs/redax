@@ -4,14 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api import (
-    register_batch,
-    register_health,
-    register_jobs,
-    register_policies,
-    register_redact,
-    register_stream,
-)
+from app.api import register_health
 from app.config import Settings
 from app.logging import configure_logging, get_logger
 from app.observability import configure_tracing
@@ -45,11 +38,10 @@ app = FastAPI(
 )
 
 register_health(app)
-# Other route modules will be registered in later milestones.
 
 
 def run() -> None:
-    import uvicorn  # noqa: PLC0415
+    import uvicorn
 
     settings = Settings()
     uvicorn.run(

@@ -25,6 +25,7 @@ from your_llm_client import LLM
 
 redactor = Redactor(policy="llm-outbound")
 
+
 def chat(user_message, system=None):
     safe_user = redactor.redact(user_message)
     safe_system = redactor.redact(system) if system else None

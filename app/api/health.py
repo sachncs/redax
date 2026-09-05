@@ -5,8 +5,8 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 
 def register(app: FastAPI) -> None:
-    from app.observability import REGISTRY  # noqa: PLC0415
-    from app.state import model_state  # noqa: PLC0415
+    from app.observability import REGISTRY
+    from app.state import model_state
 
     @app.get("/healthz", include_in_schema=False)
     def healthz() -> dict[str, str]:

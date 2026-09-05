@@ -1,21 +1,24 @@
 from .metrics import (
     CACHE_HITS,
-    ERRORS,
     ENTITIES_DETECTED,
+    ERRORS,
     INFERENCE_LATENCY,
     QUEUE_DEPTH,
-    REQUESTS,
+    REGISTRY,
     REQUEST_LATENCY,
+    REQUESTS,
 )
-from .tracing import configure_tracing
+from .tracing import configure_tracing, current_trace_id_hex
 
 __all__ = [
     "CACHE_HITS",
-    "ERRORS",
     "ENTITIES_DETECTED",
+    "ERRORS",
     "INFERENCE_LATENCY",
     "QUEUE_DEPTH",
+    "REGISTRY",
     "REQUESTS",
     "REQUEST_LATENCY",
     "configure_tracing",
+    "current_trace_id_hex",
 ]

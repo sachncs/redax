@@ -17,7 +17,9 @@ def configure_tracing(service_name: str, otlp_endpoint: str | None = None) -> tr
         if otlp_endpoint:
             from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 
-            provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=otlp_endpoint)))
+            provider.add_span_processor(
+                BatchSpanProcessor(OTLPSpanExporter(endpoint=otlp_endpoint))
+            )
         trace.set_tracer_provider(provider)
         _initialized = True
     return trace.get_tracer(service_name)
