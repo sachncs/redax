@@ -4,6 +4,7 @@
 Usage:
     python scripts/bench.py --text-size 1000 --batch 200 --rounds 5
 """
+
 from __future__ import annotations
 
 import argparse
@@ -11,10 +12,8 @@ import asyncio
 import statistics
 import sys
 import time
-from pathlib import Path
 
 from app.inference.regex_detector import RegexDetector
-
 
 SAMPLE = (
     "Reach Dr. Adam Wilson at adam@example.com or +1 415-555-2671. "
@@ -38,7 +37,7 @@ async def bench(text: str, batch: int, rounds: int) -> dict:
     await detector.warmup()
     latencies_ms: list[float] = []
     total = 0
-    for r in range(rounds):
+    for _r in range(rounds):
         for _ in range(batch):
             start = time.perf_counter()
             await detector.detect(text, [])

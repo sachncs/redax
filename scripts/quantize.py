@@ -3,6 +3,7 @@
 
 Reads wasm/model.onnx and writes wasm/model.int8.onnx.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -23,7 +24,10 @@ def main() -> int:
         return 1
     dst.parent.mkdir(parents=True, exist_ok=True)
     try:
-        from onnxruntime.quantization import QuantType, quantize_dynamic  # type: ignore[import-not-found]
+        from onnxruntime.quantization import (  # type: ignore[import-not-found]
+            QuantType,
+            quantize_dynamic,
+        )
 
         quantize_dynamic(
             model_input=str(src),
@@ -31,7 +35,7 @@ def main() -> int:
             weight_type=QuantType.QInt8,
         )
         print(f"wrote {dst} ({dst.stat().st_size // 1024} KiB)", file=sys.stderr)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         print(f"quantize failed: {exc}", file=sys.stderr)
         return 1
     return 0

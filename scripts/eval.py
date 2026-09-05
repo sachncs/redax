@@ -9,6 +9,7 @@ Each line in the fixture is a JSON object:
 
 A span is considered correct if its (start, end, type) matches exactly.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -27,15 +28,11 @@ def load_fixture(path: Path) -> list[dict]:
 
 async def evaluate(fixture: list[dict]) -> dict:
     detector = RegexDetector()
-    by_type: dict[str, dict[str, int]] = defaultdict(
-        lambda: {"tp": 0, "fp": 0, "fn": 0}
-    )
+    by_type: dict[str, dict[str, int]] = defaultdict(lambda: {"tp": 0, "fp": 0, "fn": 0})
     for item in fixture:
         text = item["text"]
         gold = {(e["start"], e["end"], e["type"]) for e in item["entities"]}
-        predicted = {
-            (s.start, s.end, s.type) for s in await detector.detect(text, [])
-        }
+        predicted = {(s.start, s.end, s.type) for s in await detector.detect(text, [])}
         for g in gold:
             by_type[g[2]]["tp" if g in predicted else "fn"] += 1
         for p in predicted:

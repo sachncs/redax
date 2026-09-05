@@ -11,6 +11,7 @@ from redax import Redactor
 
 redactor = Redactor(policy="default")
 
+
 def chat(user_message: str) -> str:
     safe_input = redactor.redact(user_message)
     response = your_llm_call(safe_input)
@@ -22,6 +23,7 @@ def chat(user_message: str) -> str:
 
 ```python
 import httpx
+
 
 def redact(text: str) -> str:
     r = httpx.post(
@@ -53,7 +55,7 @@ with httpx.stream(
 ) as r:
     for line in r.iter_lines():
         if line.startswith("data:"):
-            payload = json.loads(line[len("data:"):].strip())
+            payload = json.loads(line[len("data:") :].strip())
             ...
 ```
 

@@ -47,6 +47,7 @@ Or via the SDK:
 
 ```python
 from redax import Redactor
+
 r = Redactor(policy="default")  # looks up policies/default.yaml
 ```
 

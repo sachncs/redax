@@ -3,6 +3,7 @@
 
 Reads the cached HF model and writes wasm/model.onnx.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -36,7 +37,7 @@ def main() -> int:
             opset=17,
         )
         print(f"wrote {args.out}", file=sys.stderr)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         print(f"export failed: {exc}", file=sys.stderr)
         return 1
     return 0
