@@ -5,9 +5,9 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api.redact import register
+from app.inference.detector import Span
 from app.redaction.redactor import Redactor
-from app.state import ModelState, model_state
-from app.inference.detector import Detector, Span
+from app.state import ModelState
 
 
 class _StubDetector:

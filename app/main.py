@@ -59,7 +59,7 @@ register_redact(app)
 
 
 def run() -> None:
-    import uvicorn  # noqa: PLC0415
+    import uvicorn
 
     settings = Settings()
     uvicorn.run(

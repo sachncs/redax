@@ -5,9 +5,9 @@ import time
 from fastapi import APIRouter, FastAPI, Request
 from pydantic import BaseModel, Field
 
-from app.errors import bad_request, internal_error, payload_too_large
+from app.errors import internal_error, payload_too_large
 from app.inference.detector import Span
-from app.observability import REQUESTS, REQUEST_LATENCY
+from app.observability import REQUEST_LATENCY, REQUESTS
 
 
 class RedactRequest(BaseModel):
@@ -26,7 +26,7 @@ def register(app: FastAPI) -> None:
 
     @router.post("/v1/redact", response_model=RedactResponse)
     async def redact(request: Request, body: RedactRequest) -> RedactResponse:
-        from app.state import model_state  # noqa: PLC0415
+        from app.state import model_state
 
         start = time.perf_counter()
         endpoint = "POST /v1/redact"
@@ -50,7 +50,7 @@ def register(app: FastAPI) -> None:
                 spans=result.spans,
                 relex_map=result.relex_map,
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             REQUESTS.labels(endpoint=endpoint, method=method, status="500").inc()
             return internal_error(request, str(exc))  # type: ignore[return-value]
         finally:

@@ -33,9 +33,7 @@ def normalize_gliner2_result(text: str, result: object) -> list[Span]:
                 end = start + len(text_value) if start >= 0 else -1
             if start is None or end is None or start < 0 or end < 0:
                 continue
-            spans.append(
-                Span(start=start, end=end, type=canonical, confidence=confidence)
-            )
+            spans.append(Span(start=start, end=end, type=canonical, confidence=confidence))
     spans.sort(key=lambda s: (s.start, s.end))
     return spans
 

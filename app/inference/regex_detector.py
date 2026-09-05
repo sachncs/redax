@@ -10,7 +10,7 @@ from app.inference.detector import Span
 class _Rule:
     type: str
     pattern: re.Pattern[str]
-    validator: "callable | None" = None  # noqa: F821
+    validator: callable | None = None
 
 
 def luhn_ok(number: str) -> bool:

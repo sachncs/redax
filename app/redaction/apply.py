@@ -41,7 +41,8 @@ def dedupe_overlaps(spans: list[Span]) -> list[Span]:
     kept: list[Span] = []
     for span in by_start:
         if any(
-            span.start < existing.end and span.end > existing.start
+            span.start < existing.end
+            and span.end > existing.start
             and span.confidence <= existing.confidence
             for existing in kept
         ):
