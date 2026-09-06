@@ -1,3 +1,5 @@
+"""OpenTelemetry tracing configuration."""
+
 from __future__ import annotations
 
 from opentelemetry import trace
@@ -9,7 +11,21 @@ _initialized = False
 
 
 def configure_tracing(service_name: str, otlp_endpoint: str | None = None) -> trace.Tracer:
-    """Configure OpenTelemetry tracing. Idempotent."""
+    """Configure the process-wide OpenTelemetry tracer.
+
+    Idempotent: subsequent calls only return the existing tracer without
+    reconfiguring the provider.
+
+    Args:
+        service_name: The ``service.name`` resource attribute attached to
+            every emitted span.
+        otlp_endpoint: Optional gRPC OTLP endpoint URL. If provided, a
+            ``BatchSpanProcessor`` is wired to push spans there. If
+            ``None``, spans are recorded in-memory only.
+
+    Returns:
+        The OpenTelemetry ``Tracer`` bound to ``service_name``.
+    """
     global _initialized
     if not _initialized:
         resource = Resource.create({"service.name": service_name})
@@ -26,6 +42,12 @@ def configure_tracing(service_name: str, otlp_endpoint: str | None = None) -> tr
 
 
 def current_trace_id_hex() -> str | None:
+    """Return the current span's trace ID as a 32-char hex string.
+
+    Returns:
+        The trace ID if the current context has a valid span, else
+        ``None``.
+    """
     span = trace.get_current_span()
     ctx = span.get_span_context()
     if not ctx.is_valid:
