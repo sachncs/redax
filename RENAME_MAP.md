@@ -62,7 +62,8 @@ module — each carrying only the methods that exercise it.
 | ``CircuitStats`` | ``Stats`` | drop compound prefix |
 | ``CircuitBreaker`` | ``Breaker`` | drop compound prefix |
 | ``AnnotationInput`` | ``Input`` | drop compound prefix |
-| ``LabelledSpan`` | ``Span`` | drop compound prefix |
+| ``LabelledSpan`` | ``Label`` | drop compound prefix; ``Span`` is taken by ``app.inference.detector.Span`` |
+| ``SpanCategory`` | ``Category`` | drop compound prefix |
 | ``PairRange`` | ``Range`` | drop compound prefix |
 | ``SpanGroup`` | ``Group`` | drop compound prefix |
 | ``ConnectorStructure`` | ``Structure`` | drop compound prefix |
@@ -77,6 +78,11 @@ module — each carrying only the methods that exercise it.
 Note on GLiNER2Detector / OpenMedPIIDetector: only one detector is
 instantiated per process, so the two classes share a single
 ``Detector`` name resolved at runtime from ``settings.detector``.
+
+Note on ``LabelledSpan``: ``app.inference.detector.Span`` already owns the
+name ``Span``. The renamed bench class uses ``Label`` to avoid the
+collision; ``Label`` is the cleanest single-word description of the
+concept (a character-level span with a category label attached).
 
 ## Methods
 
@@ -217,6 +223,7 @@ renamed to a public name. Examples:
 - ``app/redaction/circuit/breaker.py::_on_success`` → ``on_success``
 - ``app/redaction/circuit/breaker.py::_on_failure`` → ``on_failure``
 - ``app/redaction/stages/model_stage.py::_run_async`` → ``await_async``
+- ``app/inference/regex_detector.py::_Rule`` → ``Rule``
 
 Allowed dunders (Python protocol) are not renamed: ``__init__``,
 ``__repr__``, ``__str__``, ``__eq__``, ``__hash__``, ``__lt__``,
