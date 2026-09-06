@@ -178,7 +178,7 @@ def red_edges(
                 effective_markers.append(w)
 
 
-def _pair_ranges(
+def pair_ranges(
     spans: list[LabelledSpan],
     yellow_spans: list[LabelledSpan],
     text: str,
@@ -189,10 +189,10 @@ def _pair_ranges(
     delimiters using a stack. Pairs whose interior contains only yellow
     spans (no red) AND encloses at least one yellow span are recorded.
     """
-    pair_ranges: list[PairRange] = []
+    accumulated: list[PairRange] = []
     markers: list[str] = []
     if not yellow_spans:
-        return pair_ranges, markers
+        return accumulated, markers
 
     def overlaps_yellow(o: int, l_end: int) -> bool:
         """A yellow span overlaps `[o, l_end+1)` (the pair's inclusive range).
@@ -217,7 +217,7 @@ def _pair_ranges(
             if stack and text[stack[-1]] == ch:
                 opener_pos = stack.pop()
                 if overlaps_yellow(opener_pos, i) and not crosses_red(opener_pos, i):
-                    pair_ranges.append(PairRange(o=opener_pos, end=i))
+                    accumulated.append(PairRange(o=opener_pos, end=i))
                     markers.append(ch)
                     markers.append(ch)
             else:
@@ -236,11 +236,11 @@ def _pair_ranges(
                 continue
             if crosses_red(opener_pos, i):
                 continue
-            pair_ranges.append(PairRange(o=opener_pos, end=i))
+            accumulated.append(PairRange(o=opener_pos, end=i))
             markers.append(opener_ch)
             markers.append(ch)
 
-    return pair_ranges, markers
+    return accumulated, markers
 
 
 def connected_components(
@@ -294,7 +294,7 @@ def build_connector_structure(
     effective_markers: list[str] = []
 
     red_edges(spans, yellow_graph, red_graph, effective_markers, text)
-    pair_ranges, pair_markers = _pair_ranges(spans, yellow, text)
+    found_pairs, pair_markers = pair_ranges(spans, yellow, text)
     effective_markers.extend(pair_markers)
 
     red_groups = connected_components(list(red), red_graph)
@@ -303,7 +303,7 @@ def build_connector_structure(
     return ConnectorStructure(
         red_fusion_groups=tuple(red_groups),
         context_components=tuple(context_components),
-        pair_ranges=tuple(pair_ranges),
+        pair_ranges=tuple(found_pairs),
         effective_markers=tuple(effective_markers),
     )
 
