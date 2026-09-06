@@ -1,3 +1,5 @@
+"""Per-API-key fixed-window rate limit."""
+
 from __future__ import annotations
 
 import time
@@ -6,12 +8,24 @@ from fastapi import HTTPException
 
 
 async def rate_limit(api_key: str) -> str:
-    """Redis-backed fixed-window rate limit per API key.
+    """Enforce the per-API-key fixed-window rate limit.
 
-    Returns the key when allowed; raises 429 when over the limit. Fails
-    CLOSED: an authenticated key cannot bypass the limiter when Redis is
-    unavailable (503) or when settings are missing (503). A disabled limit
-    (rate_limit_per_minute <= 0) short-circuits without touching Redis.
+    Returns the ``api_key`` when the request is allowed; raises 429 when
+    the window is over the limit. Fails CLOSED: an authenticated key
+    cannot bypass the limiter when Redis is unavailable (503) or when
+    settings are missing (503). A disabled limit
+    (``rate_limit_per_minute <= 0``) short-circuits without touching Redis.
+
+    Args:
+        api_key: The authenticated API key (or ``"anonymous"`` for
+            unauthenticated probes; these are passed through).
+
+    Returns:
+        The ``api_key`` when the request is allowed.
+
+    Raises:
+        HTTPException: 429 if the per-minute limit is exceeded, 503 if
+            the limiter is misconfigured or Redis is unavailable.
     """
     from app.state import model_state
 
@@ -42,4 +56,9 @@ async def rate_limit(api_key: str) -> str:
 
 
 def minute_bucket() -> int:
+    """Return the current minute as an integer (seconds since epoch // 60).
+
+    Used as the Redis bucket key suffix so each minute is its own
+    counter.
+    """
     return int(time.time() // 60)
