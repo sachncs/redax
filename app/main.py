@@ -88,7 +88,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         replacement="[REDACTED]",
     )
 
-    store = JobStore(settings.redis_url)
+    store = JobStore(settings.redis_url, ttl_seconds=settings.job_ttl_seconds)
     try:
         await store.start()
         model_state.job_store = store

@@ -21,9 +21,9 @@ class JobStore:
     """Thin wrapper over Redis hashes for job lifecycle + result storage."""
 
     KEY = "redax:job:{id}"
-    TTL_SECONDS = 60 * 60 * 24  # 24h
 
-    def __init__(self, redis_url: str) -> None:
+    def __init__(self, redis_url: str, ttl_seconds: int = 86_400) -> None:
+        self.ttl_seconds = ttl_seconds
         self._url = redis_url
         self._client: aioredis.Redis | None = None
 
@@ -65,17 +65,17 @@ class JobStore:
 
     async def set_status(self, job_id: str, status: str) -> None:
         await self.client.hset(self.KEY.format(id=job_id), "status", status)  # type: ignore[misc]
-        await self.client.expire(self.KEY.format(id=job_id), self.TTL_SECONDS)
+        await self.client.expire(self.KEY.format(id=job_id), self.ttl_seconds)
 
     async def set_result(self, job_id: str, result: dict[str, Any]) -> None:
         await self.client.hset(self.KEY.format(id=job_id), "result", json.dumps(result))  # type: ignore[misc]
         await self.client.hset(self.KEY.format(id=job_id), "status", "done")  # type: ignore[misc]
-        await self.client.expire(self.KEY.format(id=job_id), self.TTL_SECONDS)
+        await self.client.expire(self.KEY.format(id=job_id), self.ttl_seconds)
 
     async def set_error(self, job_id: str, error: str) -> None:
         await self.client.hset(self.KEY.format(id=job_id), "error", error)  # type: ignore[misc]
         await self.client.hset(self.KEY.format(id=job_id), "status", "failed")  # type: ignore[misc]
-        await self.client.expire(self.KEY.format(id=job_id), self.TTL_SECONDS)
+        await self.client.expire(self.KEY.format(id=job_id), self.ttl_seconds)
 
     async def _set(self, record: JobRecord) -> None:
         await self.client.hset(  # type: ignore[misc]
@@ -87,7 +87,7 @@ class JobStore:
                 "error": record.error or "",
             },
         )
-        await self.client.expire(self.KEY.format(id=record.id), self.TTL_SECONDS)
+        await self.client.expire(self.KEY.format(id=record.id), self.ttl_seconds)
 
 
 def build_default_store(redis_url: str | None = None) -> JobStore:
