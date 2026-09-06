@@ -32,7 +32,7 @@ from app.bench.fusion import (
 GAP_THRESHOLD = 3
 
 
-def _prediction_chars(spans: Iterable[LabelledSpan], text_len: int) -> list[tuple[int, int]]:
+def prediction_chars(spans: Iterable[LabelledSpan], text_len: int) -> list[tuple[int, int]]:
     """Convert a list of prediction spans to disjoint character ranges.
 
     Predictions may overlap; we union them into disjoint runs before scoring.
@@ -52,9 +52,9 @@ def _prediction_chars(spans: Iterable[LabelledSpan], text_len: int) -> list[tupl
     return merged
 
 
-def _support_runs(spans: Iterable[LabelledSpan], text_len: int) -> list[tuple[int, int]]:
+def support_runs(spans: Iterable[LabelledSpan], text_len: int) -> list[tuple[int, int]]:
     """Union of mandatory + contextual spans as disjoint runs."""
-    return _prediction_chars(spans, text_len)
+    return prediction_chars(spans, text_len)
 
 
 def false_positive_runs(
@@ -88,7 +88,7 @@ def false_positive_runs(
     return fps
 
 
-def _gap_runs(support_runs: list[tuple[int, int]], text_len: int) -> list[tuple[int, int]]:
+def gap_runs(support_runs: list[tuple[int, int]], text_len: int) -> list[tuple[int, int]]:
     """Return disjoint contiguous non-support regions, possibly empty.
 
     A "gap" for R-Score purposes is any contiguous block of non-support
@@ -216,7 +216,7 @@ def score_document(
         5. Aggregate into RDocument.
     """
     text_len = len(text)
-    pred_runs = _prediction_chars(prediction_spans, text_len)
+    pred_runs = prediction_chars(prediction_spans, text_len)
     support_spans = [
         s
         for s in annotation_spans
@@ -226,7 +226,7 @@ def score_document(
             SpanCategory.CONTEXTUAL,
         )
     ]
-    support_runs = _support_runs(support_spans, text_len)
+    support_segments = support_runs(support_spans, text_len)
 
     mandatory = [s for s in annotation_spans if s.category is SpanCategory.MANDATORY]
     contextual = [s for s in annotation_spans if s.category is SpanCategory.CONTEXTUAL]
@@ -277,19 +277,19 @@ def score_document(
                 )
             )
 
-    fp_runs = false_positive_runs(pred_runs, support_runs, text_len)
-    gap_runs = _gap_runs(support_runs, text_len)
-    gaps_ge3 = [g for g in gap_runs if (g[1] - g[0]) >= GAP_THRESHOLD]
+    fp_runs = false_positive_runs(pred_runs, support_segments, text_len)
+    gaps = gap_runs(support_segments, text_len)
+    gaps_ge3 = [g for g in gaps if (g[1] - g[0]) >= GAP_THRESHOLD]
 
-    def _covers_entire_gap(fp: tuple[int, int]) -> bool:
+    def covers_gap(fp: tuple[int, int]) -> bool:
         return any(fp[0] <= g[0] and fp[1] >= g[1] for g in gaps_ge3)
 
     fp_scores = [
         FPScore(
             fp_index=i,
             n=0.0,
-            d=2.0 if _covers_entire_gap(fp) else 1.0,
-            covers_entire_gap=_covers_entire_gap(fp),
+            d=2.0 if covers_gap(fp) else 1.0,
+            covers_entire_gap=covers_gap(fp),
         )
         for i, fp in enumerate(fp_runs)
     ]
