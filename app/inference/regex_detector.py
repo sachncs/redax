@@ -67,9 +67,7 @@ class RegexDetector:
 
     async def detect(self, text: str, entity_types: list[str]) -> list[Span]:
         active = (
-            [r for r in self.rules if r.type in entity_types]
-            if entity_types
-            else list(self.rules)
+            [r for r in self.rules if r.type in entity_types] if entity_types else list(self.rules)
         )
         spans: list[Span] = []
         for rule in active:

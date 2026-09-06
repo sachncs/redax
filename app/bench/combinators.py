@@ -37,9 +37,7 @@ PAIRS: dict[str, str] = {
     "`": "`",
 }
 OPENERS: frozenset[str] = frozenset(c for c in PAIRS if c not in "\"'`")
-CLOSERS: frozenset[str] = frozenset(
-    c for c in PAIRS.values() if c not in "\"'`"
-)
+CLOSERS: frozenset[str] = frozenset(c for c in PAIRS.values() if c not in "\"'`")
 SYMMETRIC: frozenset[str] = frozenset("\"'`")
 
 
