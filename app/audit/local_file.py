@@ -1,3 +1,15 @@
+"""Append-only JSONL audit log with a single background flusher.
+
+Writes are coalesced through an ``asyncio.Queue`` and drained by a task
+that holds the file descriptor open across writes (so heavy redaction
+traffic doesn't open+close the file per event). File I/O runs in the
+default executor so it doesn't block the event loop.
+
+Hardening is configurable: optional fsync per line, size-based rotation
+with a bounded backup count, and a retention window enforced on
+startup.
+"""
+
 from __future__ import annotations
 
 import asyncio
