@@ -1,3 +1,10 @@
+"""Detector Protocol and shared Span value object.
+
+Every concrete detector (regex, GLiNER2, OpenMed PII, ...) implements the
+``Detector`` Protocol declared here. ``Span`` is the frozen value object
+that flows through detection, validation, dedupe, and substitution.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -21,10 +28,30 @@ class Span:
 
 @runtime_checkable
 class Detector(Protocol):
-    """Anything that can produce Spans from a text string."""
+    """Anything that can produce ``Span`` objects from a text string.
+
+    Attributes:
+        name: Stable identifier (used for metrics, audit, config).
+    """
 
     name: str
 
-    async def detect(self, text: str, entity_types: list[str]) -> list[Span]: ...
+    async def detect(self, text: str, entity_types: list[str]) -> list[Span]:
+        """Run detection on ``text`` and return every ``Span`` found.
 
-    async def warmup(self) -> None: ...
+        Args:
+            text: The input text to scan.
+            entity_types: Canonical PII labels to look for; an empty list
+                typically means "all supported types".
+
+        Returns:
+            The detected spans, in document order.
+        """
+        ...
+
+    async def warmup(self) -> None:
+        """Load any heavy model state so the first request is fast.
+
+        Called once during application startup.
+        """
+        ...
