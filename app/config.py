@@ -1,3 +1,12 @@
+"""Process-wide typed configuration for redax.
+
+Read from environment variables prefixed with ``REDAX_`` and (optionally)
+from a ``.env`` file in the working directory. Values are validated at
+construction; missing or unknown values raise so a typo or a stale var
+(e.g. the removed ``REDAX_JWT_SECRET``) can never silently change
+behavior.
+"""
+
 from __future__ import annotations
 
 import os
@@ -8,12 +17,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Process-wide configuration.
+    """Pydantic-settings container for every redax knob.
 
-    Read from environment variables prefixed with REDAX_. Values are
-    validated at construction; missing or unknown values raise so a typo
-    or a stale var (e.g. the removed REDAX_JWT_SECRET) can never silently
-    change behavior.
+    ``Settings()`` reads ``REDAX_*`` environment variables (and any
+    ``.env`` in the working directory). Every field is typed; passing a
+    string where a bool/int is expected raises at construction so a typo
+    in the deployment config cannot silently downgrade behavior.
     """
 
     model_config = SettingsConfigDict(
