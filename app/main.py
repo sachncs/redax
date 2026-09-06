@@ -1,3 +1,10 @@
+"""Redax FastAPI entrypoint.
+
+Defines the application lifespan that wires the detector registry,
+redactor, optional pipeline, audit backend, and Redis job store into
+``app.state``. Also exposes ``run()`` for ``python -m app.main``.
+"""
+
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
@@ -35,6 +42,14 @@ from app.state import model_state
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Initialise and tear down long-lived resources for the FastAPI app.
+
+    Args:
+        app: The FastAPI instance being brought up.
+
+    Yields:
+        ``None`` once every resource is wired into ``model_state``.
+    """
     settings = Settings()
     settings.verify()
     configure_logging(settings.log_level)
@@ -162,6 +177,11 @@ register_jobs(app)
 
 
 def run() -> None:
+    """Boot uvicorn with the redax application entrypoint.
+
+    Honours ``settings.host`` and ``settings.port``. Structured logging is
+    already configured by ``lifespan`` so ``log_config`` is disabled here.
+    """
     import uvicorn
 
     settings = Settings()
