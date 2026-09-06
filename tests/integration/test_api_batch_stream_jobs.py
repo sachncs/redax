@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import asyncio
+from typing import ClassVar
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -188,6 +191,56 @@ def test_stream_records_audited_entity_summary(app_with_state):
     assert len(audit.records) == 1
     assert audit.records[0].text_chars == 5000
     assert audit.records[0].entities_detected == []
+
+
+class _SlowDetector(_StubDetector):
+    seen: ClassVar[list[float]] = []
+
+    async def detect(self, text: str, entity_types: list[str]) -> list[Span]:
+        from app.observability.metrics import QUEUE_DEPTH
+
+        for metric in QUEUE_DEPTH.collect():
+            for sample in metric.samples:
+                _SlowDetector.seen.append(sample.value)
+        await asyncio.sleep(0.3)
+        return await super().detect(text, entity_types)
+
+
+@pytest.fixture
+def app_with_slow_redactor(monkeypatch):
+    test_state = ModelState()
+    test_state.settings = type("S", (), {"max_text_chars": 100_000, "api_key_set": lambda: set()})()
+    test_state.redactor = Redactor(detector=_SlowDetector(), strategies={})
+    test_state.job_store = _InMemoryJobStore()
+    test_state.audit = _MemoryAudit()
+    test_state.ready = True
+    monkeypatch.setattr("app.state.model_state", test_state)
+    app = FastAPI()
+    register_jobs(app)
+    return app
+
+
+def test_queue_depth_tracks_in_flight_job_and_returns_to_zero(app_with_slow_redactor):
+    from app.observability.metrics import QUEUE_DEPTH
+
+    _SlowDetector.seen.clear()
+    with TestClient(app_with_slow_redactor) as client:
+        sub = client.post("/v1/jobs", json={"text": "hi a@b.com"})
+        assert sub.status_code == 202
+        job_id = sub.json()["id"]
+        deadline = 5.0
+        import time
+
+        start = time.time()
+        while time.time() - start < deadline:
+            body = client.get(f"/v1/jobs/{job_id}").json()
+            if body["status"] == "done":
+                break
+            time.sleep(0.05)
+    assert body["status"] == "done"
+    assert _SlowDetector.seen == [1.0]
+    final = [s.value for m in QUEUE_DEPTH.collect() for s in m.samples]
+    assert final == [0.0]
 
 
 def test_job_records_audited_entity_summary(app_with_state):
