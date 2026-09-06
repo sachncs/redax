@@ -93,3 +93,39 @@ async def test_auto_deid_emits_format_when_relex_false() -> None:
     result = await s.apply("Alice!", [], {"format": "<NAME>"})
     assert "<NAME>" in result.text
     assert result.relex_map == {}
+
+
+@pytest.mark.asyncio
+async def test_auto_deid_selects_policy_detector_by_name() -> None:
+    class _Stub:
+        name = "stub"
+
+        async def detect(self, text, entity_types):
+            return [Span(0, 5, "PERSON", 0.9)]
+
+        async def warmup(self):
+            return None
+
+    class _Other(_Stub):
+        name = "other"
+
+    other = _Other()
+    s = AutoDeID(_Stub(), detectors={"stub": _Stub(), "other": other})
+    result = await s.apply("Alice!", [], {"detector": "other", "relex": True})
+    assert "[PERSON_0000]" in result.text
+
+
+@pytest.mark.asyncio
+async def test_auto_deid_rejects_unknown_policy_detector() -> None:
+    class _Stub:
+        name = "stub"
+
+        async def detect(self, text, entity_types):
+            return [Span(0, 5, "PERSON", 0.9)]
+
+        async def warmup(self):
+            return None
+
+    s = AutoDeID(_Stub(), detectors={"stub": _Stub()})
+    with pytest.raises(ValueError, match=r"unknown detector 'nope'"):
+        await s.apply("Alice!", [], {"detector": "nope"})

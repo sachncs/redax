@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
 
-from app.inference.detector import Span
+from app.inference.detector import Detector, Span
 from app.inference.regex_detector import RegexDetector
 
 
@@ -80,8 +81,8 @@ class Regex:
 
     name = "regex"
 
-    def __init__(self) -> None:
-        self._detector: RegexDetector | None = None
+    def __init__(self, detector: RegexDetector | None = None) -> None:
+        self._detector = detector
 
     def _get_detector(self) -> RegexDetector:
         if self._detector is None:
@@ -105,22 +106,37 @@ class AutoDeID:
     Relex populates relex_map so the upstream redactor can swap originals
     back in. When relex is false, every span is replaced with the
     configured format string.
+
+    The detector is selected by the policy via `config["detector"]` when a
+    `detectors` map is supplied; otherwise the bound default detector is
+    used. An unknown name raises instead of silently falling back.
     """
 
     name = "autoDeID"
 
-    def __init__(self, detector: Any) -> None:
+    def __init__(self, detector: Detector, detectors: Mapping[str, Detector] | None = None) -> None:
         self._detector = detector
+        self._detectors = detectors or {}
 
     async def apply(self, text: str, spans: list[Span], config: dict[str, Any]) -> StrategyResult:
         from app.inference.multi_pass import multi_pass_detect
         from app.redaction.apply import apply_spans
 
+        chosen = self._detector
+        per_policy = config.get("detector")
+        if per_policy is not None:
+            if per_policy not in self._detectors:
+                raise ValueError(
+                    f"policy requests unknown detector {per_policy!r}; "
+                    f"available: {sorted(self._detectors)}"
+                )
+            chosen = self._detectors[per_policy]
+
         entity_types = config.get("entity_types", [])
         passes = int(config.get("multi_pass", 1))
         relex = bool(config.get("relex", False))
 
-        detected = await multi_pass_detect(self._detector, text, entity_types, passes)
+        detected = await multi_pass_detect(chosen, text, entity_types, passes)
 
         if relex:
             replacements = [f"[{s.type.upper()}_{i:04d}]" for i, s in enumerate(detected)]
