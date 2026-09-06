@@ -50,10 +50,10 @@ class Redactor:
         entity_types: list[str] | None = None,
     ) -> RedactionResult:
         if policy is None:
-            return await self._plain_redact(text, entity_types)
-        return await self._policy_redact(text, policy)
+            return await self.plain(text, entity_types)
+        return await self.policy(text, policy)
 
-    async def _plain_redact(self, text: str, entity_types: list[str] | None) -> RedactionResult:
+    async def plain(self, text: str, entity_types: list[str] | None) -> RedactionResult:
         labels = entity_types or []
         with INFERENCE_LATENCY.labels(detector=self.detector.name).time():
             raw_spans = await self.detector.detect(text, labels)
@@ -65,7 +65,7 @@ class Redactor:
             spans=spans,
         )
 
-    async def _policy_redact(self, text: str, policy: dict[str, Any]) -> RedactionResult:
+    async def policy(self, text: str, policy: dict[str, Any]) -> RedactionResult:
         result_text = text
         result_spans: list[Span] = []
         relex_map: dict[str, str] = {}
