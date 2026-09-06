@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from app.auth import require_api_key
-from app.errors import internal_error, problem_response
+from app.errors import internal_error, payload_too_large, problem_response
 from app.jobs.store import JobStore
 from app.observability import REQUESTS
 
@@ -37,14 +37,26 @@ def register(app: FastAPI) -> None:
         endpoint = "POST /v1/jobs"
         method = "POST"
         request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
-        store: JobStore | None = getattr(model_state, "job_store", None)
-        if store is None:
-            REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
-            return internal_error(request, "job store not initialized")
-        record = await store.create()
-        background_tasks.add_task(run_job, record.id, body.model_dump(), store, request_id)
-        REQUESTS.labels(endpoint=endpoint, method=method, status="202").inc()
-        return {"id": record.id, "status": record.status}
+        from app.ratelimit import rate_limit
+
+        await rate_limit(api_key)
+        try:
+            settings = model_state.settings
+            max_chars = getattr(settings, "max_text_chars", 100_000)
+            if len(body.text) > max_chars:
+                REQUESTS.labels(endpoint=endpoint, method=method, status="413").inc()
+                return payload_too_large(request, f"text exceeds {max_chars} chars")
+            store: JobStore | None = getattr(model_state, "job_store", None)
+            if store is None:
+                REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
+                return internal_error(request, "job store not initialized")
+            record = await store.create()
+            background_tasks.add_task(run_job, record.id, body.model_dump(), store, request_id)
+            REQUESTS.labels(endpoint=endpoint, method=method, status="202").inc()
+            return {"id": record.id, "status": record.status}
+        except Exception:
+            REQUESTS.labels(endpoint=endpoint, method=method, status="500").inc()
+            return internal_error(request)
 
     @router.get("/v1/jobs/{job_id}", response_model=None)
     async def get_job(

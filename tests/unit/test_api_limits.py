@@ -6,7 +6,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.api import register_batch, register_stream
+from app.api import register_batch, register_jobs, register_stream
 from app.errors import install_error_handlers
 from app.state import model_state
 
@@ -81,6 +81,7 @@ def _app() -> FastAPI:
     install_error_handlers(app)
     register_batch(app)
     register_stream(app)
+    register_jobs(app)
     return app
 
 
@@ -185,6 +186,42 @@ def test_stream_payload_too_large_returns_413(monkeypatch: pytest.MonkeyPatch) -
     with TestClient(app) as client:
         resp = client.post(
             "/v1/redact/stream",
+            json={"text": "x" * 2000},
+            headers={"X-API-Key": "limited-key"},
+        )
+    assert resp.status_code == 413
+    assert resp.headers["content-type"].startswith("application/problem+json")
+
+
+def test_jobs_over_limit_returns_429(monkeypatch: pytest.MonkeyPatch) -> None:
+    _state(
+        monkeypatch,
+        redactor=_FastRedactor(),
+        client=_FakeClient([6]),
+        settings=_StubSettings(5),
+    )
+    app = _app()
+    with TestClient(app) as client:
+        resp = client.post(
+            "/v1/jobs",
+            json={"text": "hi"},
+            headers={"X-API-Key": "limited-key"},
+        )
+    assert resp.status_code == 429
+    assert resp.headers["content-type"].startswith("application/problem+json")
+
+
+def test_jobs_payload_too_large_returns_413(monkeypatch: pytest.MonkeyPatch) -> None:
+    _state(
+        monkeypatch,
+        redactor=_FastRedactor(),
+        client=_FakeClient([1]),
+        settings=_StubSettings(5),
+    )
+    app = _app()
+    with TestClient(app) as client:
+        resp = client.post(
+            "/v1/jobs",
             json={"text": "x" * 2000},
             headers={"X-API-Key": "limited-key"},
         )
