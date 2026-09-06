@@ -69,7 +69,7 @@ def app_with_state(monkeypatch):
     test_state.settings = type(
         "S",
         (),
-        {"max_text_chars": 1000, "api_key_set": lambda: set()},
+        {"max_text_chars": 100_000, "api_key_set": lambda: set()},
     )()
     test_state.redactor = Redactor(
         detector=_StubDetector(),

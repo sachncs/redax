@@ -1,15 +1,16 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import AsyncIterator
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, FastAPI, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.auth import require_api_key
-from app.errors import internal_error
+from app.errors import internal_error, payload_too_large
 from app.observability import REQUESTS
 
 
@@ -23,20 +24,29 @@ class StreamRequest(BaseModel):
 def register(app: FastAPI) -> None:
     router = APIRouter()
 
-    @router.post("/v1/redact/stream")
+    @router.post("/v1/redact/stream", response_model=None)
     async def redact_stream(
         request: Request,
         body: StreamRequest,
         api_key: Annotated[str, Depends(require_api_key)],
-    ) -> StreamingResponse:
+    ) -> StreamingResponse | JSONResponse:
         from app.state import model_state
 
         endpoint = "POST /v1/redact/stream"
         method = "POST"
+        settings = model_state.settings
         redactor = model_state.redactor
         if redactor is None:
             REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
-            return internal_error(request, "redactor not initialized")  # type: ignore[return-value]
+            return internal_error(request, "redactor not initialized")
+        max_chars = getattr(settings, "max_text_chars", 100_000)
+        if len(body.text) > max_chars:
+            REQUESTS.labels(endpoint=endpoint, method=method, status="413").inc()
+            return payload_too_large(request, f"text exceeds {max_chars} chars")
+        from app.ratelimit import rate_limit
+
+        await rate_limit(api_key)
+        timeout_seconds = getattr(settings, "request_timeout_seconds", 30.0)
 
         async def event_source() -> AsyncIterator[str]:
             text = body.text
@@ -44,11 +54,17 @@ def register(app: FastAPI) -> None:
             try:
                 for start in range(0, len(text), chunk):
                     piece = text[start : start + chunk]
-                    result = await redactor.redact(
-                        piece,
-                        policy=body.policy,
-                        entity_types=body.entity_types,
-                    )
+                    try:
+                        async with asyncio.timeout(timeout_seconds):
+                            result = await redactor.redact(
+                                piece,
+                                policy=body.policy,
+                                entity_types=body.entity_types,
+                            )
+                    except TimeoutError:
+                        REQUESTS.labels(endpoint=endpoint, method=method, status="504").inc()
+                        yield f"data: {json.dumps({'error': 'request timeout', 'status': 504})}\n\n"
+                        return
                     payload = {
                         "text": result.text,
                         "spans": [s.__dict__ for s in result.spans],

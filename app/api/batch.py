@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from app.auth import require_api_key
-from app.errors import internal_error, payload_too_large
+from app.errors import internal_error, payload_too_large, timeout_error
 from app.observability import REQUEST_LATENCY, REQUESTS
 
 
@@ -40,6 +40,9 @@ def register(app: FastAPI) -> None:
         start = time.perf_counter()
         endpoint = "POST /v1/redact/batch"
         method = "POST"
+        from app.ratelimit import rate_limit
+
+        await rate_limit(api_key)
         try:
             settings = model_state.settings
             redactor = model_state.redactor
@@ -51,9 +54,14 @@ def register(app: FastAPI) -> None:
                 if len(item.text) > max_chars:
                     REQUESTS.labels(endpoint=endpoint, method=method, status="413").inc()
                     return payload_too_large(request, f"item exceeds {max_chars} chars")
-            results = await asyncio.gather(
-                *(redactor.redact(item.text, entity_types=item.entity_types) for item in body.items)
-            )
+            timeout_seconds = getattr(settings, "request_timeout_seconds", 30.0)
+            async with asyncio.timeout(timeout_seconds):
+                results = await asyncio.gather(
+                    *(
+                        redactor.redact(item.text, entity_types=item.entity_types)
+                        for item in body.items
+                    )
+                )
             REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
             return BatchResponse(
                 results=[
@@ -65,6 +73,9 @@ def register(app: FastAPI) -> None:
                     for r in results
                 ]
             )
+        except TimeoutError:
+            REQUESTS.labels(endpoint=endpoint, method=method, status="504").inc()
+            return timeout_error(request)
         except Exception:
             REQUESTS.labels(endpoint=endpoint, method=method, status="500").inc()
             return internal_error(request)
