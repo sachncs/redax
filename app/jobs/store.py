@@ -15,44 +15,67 @@ class JobRecord:
     status: str  # queued | running | done | failed
     result: dict[str, Any] | None
     error: str | None
+    owner: str = ""
 
 
 class JobStore:
-    """Thin wrapper over Redis hashes for job lifecycle + result storage."""
+    """Redis-backed job lifecycle + result store.
+
+    Each job records its API-key owner so admission can be capped per key.
+    The terminal transitions (set_result / set_error) release the owner's
+    slot automatically.
+    """
 
     KEY = "redax:job:{id}"
+    COUNT_KEY = "redax:jobs:{owner}"
 
-    def __init__(self, redis_url: str, ttl_seconds: int = 86_400) -> None:
+    def __init__(
+        self,
+        redis_url: str,
+        ttl_seconds: int = 86_400,
+        client: aioredis.Redis | None = None,
+    ) -> None:
+        self.url = redis_url
         self.ttl_seconds = ttl_seconds
-        self._url = redis_url
-        self._client: aioredis.Redis | None = None
+        self.client = client
 
     async def start(self) -> None:
-        if self._client is None:
-            self._client = aioredis.from_url(  # type: ignore[no-untyped-call]
-                self._url, decode_responses=True
+        if self.client is None:
+            self.client = aioredis.from_url(  # type: ignore[no-untyped-call]
+                self.url, decode_responses=True
             )
-            await self._client.ping()
+            await self.client.ping()
 
     async def stop(self) -> None:
-        if self._client is not None:
-            await self._client.aclose()
-            self._client = None
+        if self.client is not None:
+            await self.client.aclose()
+            self.client = None
 
-    @property
-    def client(self) -> aioredis.Redis:
-        if self._client is None:
-            raise RuntimeError("JobStore not started")
-        return self._client
-
-    async def create(self) -> JobRecord:
+    async def create(self, owner: str = "") -> JobRecord:
+        client = self.client
+        if client is None:
+            raise RuntimeError("JobStore.start() must run before create()")
         job_id = uuid.uuid4().hex
-        record = JobRecord(id=job_id, status="queued", result=None, error=None)
-        await self._set(record)
+        record = JobRecord(id=job_id, status="queued", result=None, error=None, owner=owner)
+        await self.set_record(record)
+        if owner:
+            count_key = self.COUNT_KEY.format(owner=owner)
+            await client.incr(count_key)
+            await client.expire(count_key, self.ttl_seconds)
         return record
 
+    async def count_for_key(self, owner: str) -> int:
+        client = self.client
+        if client is None:
+            raise RuntimeError("JobStore.start() must run before count_for_key()")
+        raw = await client.get(self.COUNT_KEY.format(owner=owner))
+        return int(raw) if raw else 0
+
     async def get(self, job_id: str) -> JobRecord | None:
-        raw = await self.client.hgetall(self.KEY.format(id=job_id))  # type: ignore[misc]
+        client = self.client
+        if client is None:
+            raise RuntimeError("JobStore.start() must run before get()")
+        raw = await client.hgetall(self.KEY.format(id=job_id))  # type: ignore[misc]
         if not raw:
             return None
         result_raw = raw.get("result")
@@ -61,33 +84,66 @@ class JobStore:
             status=raw["status"],
             result=json.loads(result_raw) if result_raw else None,
             error=raw.get("error"),
+            owner=raw.get("owner", ""),
         )
 
     async def set_status(self, job_id: str, status: str) -> None:
-        await self.client.hset(self.KEY.format(id=job_id), "status", status)  # type: ignore[misc]
-        await self.client.expire(self.KEY.format(id=job_id), self.ttl_seconds)
+        client = self.client
+        if client is None:
+            raise RuntimeError("JobStore.start() must run before set_status()")
+        await client.hset(self.KEY.format(id=job_id), "status", status)  # type: ignore[misc]
+        await client.expire(self.KEY.format(id=job_id), self.ttl_seconds)
 
     async def set_result(self, job_id: str, result: dict[str, Any]) -> None:
-        await self.client.hset(self.KEY.format(id=job_id), "result", json.dumps(result))  # type: ignore[misc]
-        await self.client.hset(self.KEY.format(id=job_id), "status", "done")  # type: ignore[misc]
-        await self.client.expire(self.KEY.format(id=job_id), self.ttl_seconds)
+        client = self.client
+        if client is None:
+            raise RuntimeError("JobStore.start() must run before set_result()")
+        key = self.KEY.format(id=job_id)
+        await client.hset(key, "result", json.dumps(result))  # type: ignore[misc]
+        await client.hset(key, "status", "done")  # type: ignore[misc]
+        await client.expire(key, self.ttl_seconds)
+        await release_owner_count(client, key)
 
     async def set_error(self, job_id: str, error: str) -> None:
-        await self.client.hset(self.KEY.format(id=job_id), "error", error)  # type: ignore[misc]
-        await self.client.hset(self.KEY.format(id=job_id), "status", "failed")  # type: ignore[misc]
-        await self.client.expire(self.KEY.format(id=job_id), self.ttl_seconds)
+        client = self.client
+        if client is None:
+            raise RuntimeError("JobStore.start() must run before set_error()")
+        key = self.KEY.format(id=job_id)
+        await client.hset(key, "error", error)  # type: ignore[misc]
+        await client.hset(key, "status", "failed")  # type: ignore[misc]
+        await client.expire(key, self.ttl_seconds)
+        await release_owner_count(client, key)
 
-    async def _set(self, record: JobRecord) -> None:
-        await self.client.hset(  # type: ignore[misc]
+    async def set_record(self, record: JobRecord) -> None:
+        client = self.client
+        if client is None:
+            raise RuntimeError("JobStore.start() must run before set_record()")
+        await client.hset(  # type: ignore[misc]
             self.KEY.format(id=record.id),
             mapping={
                 "id": record.id,
                 "status": record.status,
                 "result": json.dumps(record.result) if record.result else "",
                 "error": record.error or "",
+                "owner": record.owner,
             },
         )
-        await self.client.expire(self.KEY.format(id=record.id), self.ttl_seconds)
+        await client.expire(self.KEY.format(id=record.id), self.ttl_seconds)
+
+
+async def release_owner_count(client: aioredis.Redis, job_key: str) -> None:
+    """Reclaim the job's per-key admission slot when it reaches a terminal state."""
+    owner = await client.hget(job_key, "owner")  # type: ignore[misc]
+    if not owner:
+        return
+    count_key = JobStore.COUNT_KEY.format(owner=owner)
+    raw = await client.get(count_key)
+    if raw is None:
+        return
+    if int(raw) <= 1:
+        await client.delete(count_key)
+    else:
+        await client.decr(count_key, 1)
 
 
 def build_default_store(redis_url: str | None = None) -> JobStore:

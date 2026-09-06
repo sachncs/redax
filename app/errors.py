@@ -96,6 +96,16 @@ def queue_full(request: Request, detail: str = "Job queue is full") -> JSONRespo
     )
 
 
+def job_limit(request: Request, detail: str = "Too many jobs for this API key") -> JSONResponse:
+    return problem_response(
+        request,
+        type="https://redax.ai/errors/job-limit",
+        title="Too Many Jobs",
+        status=429,
+        detail=detail,
+    )
+
+
 def payload_too_large(request: Request, detail: str) -> JSONResponse:
     return problem_response(
         request,

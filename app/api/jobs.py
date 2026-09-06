@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from app.auth import require_api_key
-from app.errors import internal_error, payload_too_large, problem_response, queue_full
+from app.errors import internal_error, job_limit, payload_too_large, problem_response, queue_full
 from app.jobs.store import JobStore
 from app.observability import QUEUE_DEPTH, REQUESTS, queue_depth
 
@@ -55,7 +55,11 @@ def register(app: FastAPI) -> None:
             if queue_depth() >= max_inflight:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="429").inc()
                 return queue_full(request)
-            record = await store.create()
+            max_jobs_per_key = getattr(settings, "max_jobs_per_key", 50)
+            if await store.count_for_key(api_key) >= max_jobs_per_key:
+                REQUESTS.labels(endpoint=endpoint, method=method, status="429").inc()
+                return job_limit(request)
+            record = await store.create(owner=api_key)
             QUEUE_DEPTH.inc()
             background_tasks.add_task(run_job, record.id, body.model_dump(), store, request_id)
             REQUESTS.labels(endpoint=endpoint, method=method, status="202").inc()
