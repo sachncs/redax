@@ -120,8 +120,9 @@ async def run_job(job_id: str, payload: dict[str, Any], store: JobStore, request
     logger = get_logger("redax.jobs")
     try:
         await store.set_status(job_id, "running")
-    except Exception:
+    except (OSError, TimeoutError, RuntimeError) as exc:
         ERRORS.labels(type="job_store_unavailable").inc()
+        logger.error("redax.job_store_unavailable", job_id=job_id, error=exc.__class__.__name__)
         QUEUE_DEPTH.dec()
         return
     start = time.perf_counter()
@@ -179,6 +180,6 @@ async def record_failure(job_id: str, store: JobStore, logger: Any) -> None:
 
     try:
         await store.set_error(job_id, JOB_FAILED)
-    except Exception:
+    except (OSError, TimeoutError, RuntimeError):
         logger.error("redax.job_store_write_failed", job_id=job_id)
         ERRORS.labels(type="job_store_write_failed").inc()
