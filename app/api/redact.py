@@ -18,7 +18,7 @@ from app.observability import CACHE_HITS, REQUEST_LATENCY, REQUESTS
 class RedactRequest(BaseModel):
     text: str = Field(min_length=1)
     entity_types: list[str] | None = None
-    policy: dict | None = None
+    policy: dict[str, Any] | None = None
 
 
 class RedactResponse(BaseModel):
@@ -67,15 +67,13 @@ def register(app: FastAPI) -> None:
             max_chars = getattr(settings, "max_text_chars", 100_000)
             if len(body.text) > max_chars:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="413").inc()
-                return payload_too_large(  # type: ignore[return-value]
-                    request, f"text exceeds {max_chars} chars"
-                )
+                return payload_too_large(request, f"text exceeds {max_chars} chars")
             redactor = model_state.redactor
             audit = model_state.audit
             job_store = getattr(model_state, "job_store", None)
             if redactor is None:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
-                return internal_error(request, "redactor not initialized")  # type: ignore[return-value]
+                return internal_error(request, "redactor not initialized")
 
             # Idempotency short-circuit
             if x_idempotency_key and job_store is not None:
@@ -150,9 +148,9 @@ def register(app: FastAPI) -> None:
                 spans=result.spans,
                 relex_map=response_body["relex_map"],
             )
-        except Exception as exc:
+        except Exception:
             REQUESTS.labels(endpoint=endpoint, method=method, status="500").inc()
-            return internal_error(request, str(exc))  # type: ignore[return-value]
+            return internal_error(request)
         finally:
             REQUEST_LATENCY.labels(endpoint=endpoint, method=method).observe(
                 time.perf_counter() - start

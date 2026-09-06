@@ -4,6 +4,7 @@ import json
 import os
 import uuid
 from dataclasses import dataclass
+from typing import Any
 
 import redis.asyncio as aioredis
 
@@ -12,7 +13,7 @@ import redis.asyncio as aioredis
 class JobRecord:
     id: str
     status: str  # queued | running | done | failed
-    result: dict | None
+    result: dict[str, Any] | None
     error: str | None
 
 
@@ -28,7 +29,9 @@ class JobStore:
 
     async def start(self) -> None:
         if self._client is None:
-            self._client = aioredis.from_url(self._url, decode_responses=True)
+            self._client = aioredis.from_url(  # type: ignore[no-untyped-call]
+                self._url, decode_responses=True
+            )
             await self._client.ping()
 
     async def stop(self) -> None:
@@ -49,7 +52,7 @@ class JobStore:
         return record
 
     async def get(self, job_id: str) -> JobRecord | None:
-        raw = await self.client.hgetall(self.KEY.format(id=job_id))
+        raw = await self.client.hgetall(self.KEY.format(id=job_id))  # type: ignore[misc]
         if not raw:
             return None
         result_raw = raw.get("result")
@@ -61,21 +64,21 @@ class JobStore:
         )
 
     async def set_status(self, job_id: str, status: str) -> None:
-        await self.client.hset(self.KEY.format(id=job_id), "status", status)
+        await self.client.hset(self.KEY.format(id=job_id), "status", status)  # type: ignore[misc]
         await self.client.expire(self.KEY.format(id=job_id), self.TTL_SECONDS)
 
-    async def set_result(self, job_id: str, result: dict) -> None:
-        await self.client.hset(self.KEY.format(id=job_id), "result", json.dumps(result))
-        await self.client.hset(self.KEY.format(id=job_id), "status", "done")
+    async def set_result(self, job_id: str, result: dict[str, Any]) -> None:
+        await self.client.hset(self.KEY.format(id=job_id), "result", json.dumps(result))  # type: ignore[misc]
+        await self.client.hset(self.KEY.format(id=job_id), "status", "done")  # type: ignore[misc]
         await self.client.expire(self.KEY.format(id=job_id), self.TTL_SECONDS)
 
     async def set_error(self, job_id: str, error: str) -> None:
-        await self.client.hset(self.KEY.format(id=job_id), "error", error)
-        await self.client.hset(self.KEY.format(id=job_id), "status", "failed")
+        await self.client.hset(self.KEY.format(id=job_id), "error", error)  # type: ignore[misc]
+        await self.client.hset(self.KEY.format(id=job_id), "status", "failed")  # type: ignore[misc]
         await self.client.expire(self.KEY.format(id=job_id), self.TTL_SECONDS)
 
     async def _set(self, record: JobRecord) -> None:
-        await self.client.hset(
+        await self.client.hset(  # type: ignore[misc]
             self.KEY.format(id=record.id),
             mapping={
                 "id": record.id,

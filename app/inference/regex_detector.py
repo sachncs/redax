@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from app.inference.detector import Span
@@ -10,7 +11,7 @@ from app.inference.detector import Span
 class _Rule:
     type: str
     pattern: re.Pattern[str]
-    validator: callable | None = None
+    validator: Callable[[str], bool] | None = None
 
 
 def luhn_ok(number: str) -> bool:

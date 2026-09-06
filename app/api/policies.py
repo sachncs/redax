@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, FastAPI
 
 from app.redaction.policies import list_policies
@@ -10,7 +12,7 @@ def register(app: FastAPI) -> None:
     router = APIRouter()
 
     @router.get("/v1/policies")
-    def policies() -> dict:
+    def policies() -> dict[str, Any]:
         settings = model_state.settings
         policies_dir = getattr(settings, "policies_dir", "./policies")
         loaded = list_policies(policies_dir)

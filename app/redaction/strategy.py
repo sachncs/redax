@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from app.inference.detector import Span
+from app.inference.regex_detector import RegexDetector
 
 
 @dataclass
@@ -24,7 +25,7 @@ class Strategy(Protocol):
         self,
         text: str,
         spans: list[Span],
-        config: dict,
+        config: dict[str, Any],
     ) -> StrategyResult: ...
 
 
@@ -33,7 +34,7 @@ class PassThrough:
 
     name = "passThrough"
 
-    async def apply(self, text: str, spans: list[Span], config: dict) -> StrategyResult:
+    async def apply(self, text: str, spans: list[Span], config: dict[str, Any]) -> StrategyResult:
         return StrategyResult(text=text, spans=[], relex_map={})
 
 
@@ -42,7 +43,7 @@ class Mask:
 
     name = "mask"
 
-    async def apply(self, text: str, spans: list[Span], config: dict) -> StrategyResult:
+    async def apply(self, text: str, spans: list[Span], config: dict[str, Any]) -> StrategyResult:
         from app.redaction.apply import apply_spans
 
         fmt = config.get("format", "[REDACTED]")
@@ -58,7 +59,7 @@ class Hash:
     def __init__(self, salt: str = "") -> None:
         self._salt = salt
 
-    async def apply(self, text: str, spans: list[Span], config: dict) -> StrategyResult:
+    async def apply(self, text: str, spans: list[Span], config: dict[str, Any]) -> StrategyResult:
         import hashlib
 
         from app.redaction.apply import apply_spans
@@ -80,16 +81,14 @@ class Regex:
     name = "regex"
 
     def __init__(self) -> None:
-        self._detector = None
+        self._detector: RegexDetector | None = None
 
-    def _get_detector(self):
+    def _get_detector(self) -> RegexDetector:
         if self._detector is None:
-            from app.inference.regex_detector import RegexDetector
-
             self._detector = RegexDetector()
         return self._detector
 
-    async def apply(self, text: str, spans: list[Span], config: dict) -> StrategyResult:
+    async def apply(self, text: str, spans: list[Span], config: dict[str, Any]) -> StrategyResult:
         from app.redaction.apply import apply_spans
 
         detector = self._get_detector()
@@ -110,10 +109,10 @@ class AutoDeID:
 
     name = "autoDeID"
 
-    def __init__(self, detector) -> None:
+    def __init__(self, detector: Any) -> None:
         self._detector = detector
 
-    async def apply(self, text: str, spans: list[Span], config: dict) -> StrategyResult:
+    async def apply(self, text: str, spans: list[Span], config: dict[str, Any]) -> StrategyResult:
         from app.inference.multi_pass import multi_pass_detect
         from app.redaction.apply import apply_spans
 

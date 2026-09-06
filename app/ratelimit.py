@@ -1,23 +1,28 @@
 from __future__ import annotations
 
-from app.errors import rate_limited
+import time
+
+from fastapi import HTTPException
+
 from app.state import model_state
 
 
 async def rate_limit(api_key: str) -> str:
     """Redis-backed fixed-window rate limit per API key.
 
-    Returns the key when allowed; raises 429 otherwise. Disabled when
-    JobStore is unavailable (degraded mode).
+    Returns the key when allowed; raises 429 when over the limit. Fails
+    CLOSED: an authenticated key cannot bypass the limiter when Redis is
+    unavailable (503) or when settings are missing (503). Degraded-mode
+    pass-through is removed on purpose.
     """
     if api_key == "anonymous":
         return api_key
-    job_store = getattr(model_state, "job_store", None)
+    job_store = model_state.job_store
     if job_store is None:
-        return api_key
+        raise HTTPException(status_code=503, detail="Rate limiting unavailable")
     settings = model_state.settings
     if settings is None:
-        return api_key
+        raise HTTPException(status_code=503, detail="Rate limiting unavailable")
     limit = settings.rate_limit_per_minute
     if limit <= 0:
         return api_key
@@ -28,15 +33,13 @@ async def rate_limit(api_key: str) -> str:
         if count == 1:
             await client.expire(bucket, 60)
         if int(count) > limit:
-            raise rate_limited(None, f"limit {limit}/min exceeded")  # type: ignore[arg-type]
-    except Exception as exc:
-        if hasattr(exc, "status_code"):
-            raise
-        return api_key
+            raise HTTPException(status_code=429, detail="Rate limit exceeded")
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=503, detail="Rate limiting unavailable") from None
     return api_key
 
 
 def _minute_bucket() -> int:
-    import time
-
     return int(time.time() // 60)

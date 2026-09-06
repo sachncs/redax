@@ -24,13 +24,13 @@ def load_policy(path: str | Path) -> Policy:
     return _parse_policy(raw, source=str(path))
 
 
-def parse_policy_dict(raw: dict, source: str = "<dict>") -> Policy:
+def parse_policy_dict(raw: dict[str, Any], source: str = "<dict>") -> Policy:
     """Parse an in-memory dict into a Policy. Useful for tests + API
     bodies that ship policies inline."""
     return _parse_policy(raw, source=source)
 
 
-def _parse_policy(raw: dict, source: str) -> Policy:
+def _parse_policy(raw: dict[str, Any], source: str) -> Policy:
     fields_raw = raw.get("fields", {}) or {}
     if not isinstance(fields_raw, dict):
         raise ValueError(f"{source}: 'fields' must be a mapping")

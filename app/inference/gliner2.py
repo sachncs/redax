@@ -65,15 +65,17 @@ class GLiNER2Detector:
             return
         os.environ.setdefault("HF_HOME", str(self._model_cache))
         self._model_cache.mkdir(parents=True, exist_ok=True)
-        from gliner2 import GLiNER2  # type: ignore[import-not-found]
+        from gliner2 import GLiNER2
 
         self._model = GLiNER2.from_pretrained(self._model_name)
 
     async def detect(self, text: str, entity_types: list[str]) -> list[Span]:
         self._load()
+        model = self._model
+        assert model is not None
         labels = entity_types if entity_types else self._default_labels()
         with INFERENCE_LATENCY.labels(detector=self.name).time():
-            result = self._model.extract_entities(  # type: ignore[union-attr]
+            result = model.extract_entities(
                 text,
                 labels,
                 threshold=self._threshold,

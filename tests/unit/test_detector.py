@@ -8,6 +8,8 @@ from app.inference.detector import Detector, Span
 @pytest.mark.asyncio
 async def test_detector_protocol_is_runtime_checkable() -> None:
     class Fake:
+        name = "fake"
+
         async def detect(self, text: str, entity_types: list[str]) -> list[Span]:
             return []
 

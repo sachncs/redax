@@ -23,6 +23,8 @@ class Span:
 class Detector(Protocol):
     """Anything that can produce Spans from a text string."""
 
+    name: str
+
     async def detect(self, text: str, entity_types: list[str]) -> list[Span]: ...
 
     async def warmup(self) -> None: ...

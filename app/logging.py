@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import sys
+from typing import Any
 
 import structlog
 
@@ -14,7 +15,7 @@ def configure_logging(level: str = "INFO") -> None:
     """
     log_level = getattr(logging, level.upper(), logging.INFO)
 
-    shared_processors: list = [
+    shared_processors: list[Any] = [
         structlog.contextvars.merge_contextvars,
         structlog.processors.add_log_level,
         structlog.processors.TimeStamper(fmt="iso", utc=True),
@@ -45,4 +46,4 @@ def configure_logging(level: str = "INFO") -> None:
 
 
 def get_logger(name: str | None = None) -> structlog.stdlib.BoundLogger:
-    return structlog.get_logger(name)
+    return structlog.get_logger(name)  # type: ignore[no-any-return]

@@ -20,7 +20,7 @@ class LocalFileAuditBackend:
     def __init__(self, path: str) -> None:
         self._path = Path(path)
         self._queue: asyncio.Queue[AuditEvent] | None = None
-        self._task: asyncio.Task | None = None
+        self._task: asyncio.Task[None] | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
         self._stopped = asyncio.Event()
         self._dropped = 0

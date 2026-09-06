@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from fastapi import Request
+
 
 @dataclass
 class ModelState:
@@ -15,7 +17,8 @@ class ModelState:
     shutdown_event: Any | None = None
     job_store: Any | None = None
     redis: Any | None = None
-    extras: dict = field(default_factory=dict)
+    extras: dict[str, Any] = field(default_factory=dict)
+    request: Request | None = None
 
 
 model_state = ModelState()

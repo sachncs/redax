@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import time
+from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, FastAPI, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from app.errors import internal_error
@@ -12,15 +14,19 @@ from app.observability import REQUESTS
 
 class JobSubmit(BaseModel):
     text: str = Field(min_length=1)
-    policy: dict | None = None
+    policy: dict[str, Any] | None = None
     entity_types: list[str] | None = None
 
 
 def register(app: FastAPI) -> None:
     router = APIRouter()
 
-    @router.post("/v1/jobs", status_code=202)
-    async def submit_job(body: JobSubmit, background_tasks: BackgroundTasks) -> dict:
+    @router.post("/v1/jobs", status_code=202, response_model=None)
+    async def submit_job(
+        body: JobSubmit,
+        background_tasks: BackgroundTasks,
+        request: Request,
+    ) -> dict[str, Any] | JSONResponse:
         from app.state import model_state
 
         endpoint = "POST /v1/jobs"
@@ -28,14 +34,14 @@ def register(app: FastAPI) -> None:
         store: JobStore | None = getattr(model_state, "job_store", None)
         if store is None:
             REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
-            return internal_error(None, "job store not initialized")  # type: ignore[arg-type]
+            return internal_error(request, "job store not initialized")
         record = await store.create()
         background_tasks.add_task(run_job, record.id, body.model_dump(), store)
         REQUESTS.labels(endpoint=endpoint, method=method, status="202").inc()
         return {"id": record.id, "status": record.status}
 
-    @router.get("/v1/jobs/{job_id}")
-    async def get_job(job_id: str, request: Request) -> dict:
+    @router.get("/v1/jobs/{job_id}", response_model=None)
+    async def get_job(job_id: str, request: Request) -> dict[str, Any] | JSONResponse:
         from app.state import model_state
 
         endpoint = "GET /v1/jobs/{id}"
@@ -43,7 +49,7 @@ def register(app: FastAPI) -> None:
         store: JobStore | None = getattr(model_state, "job_store", None)
         if store is None:
             REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
-            return internal_error(request, "job store not initialized")  # type: ignore[return-value]
+            return internal_error(request, "job store not initialized")
         record = await store.get(job_id)
         if record is None:
             REQUESTS.labels(endpoint=endpoint, method=method, status="404").inc()
@@ -59,7 +65,7 @@ def register(app: FastAPI) -> None:
     app.include_router(router)
 
 
-async def run_job(job_id: str, payload: dict, store: JobStore) -> None:
+async def run_job(job_id: str, payload: dict[str, Any], store: JobStore) -> None:
     from app.state import model_state
 
     await store.set_status(job_id, "running")
