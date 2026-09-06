@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import os
 from pathlib import Path
 
 from app.inference.detector import Span
-from app.observability import INFERENCE_LATENCY
 
 
 def normalize_gliner2_result(text: str, result: object) -> list[Span]:
@@ -38,11 +38,27 @@ def normalize_gliner2_result(text: str, result: object) -> list[Span]:
     return spans
 
 
-class GLiNER2Detector:
-    """GLiNER2 zero-shot NER detector.
+def run_extract_entities(model: object, text: str, labels: list[str], threshold: float) -> object:
+    """Blocking gliner2 inference; run inside a worker thread via to_thread."""
+    return model.extract_entities(  # type: ignore[attr-defined]
+        text,
+        labels,
+        threshold=threshold,
+        include_confidence=True,
+        include_spans=True,
+    )
 
-    Loads `fastino/gliner2-privacy-filter-PII-multi` from `model_cache`
-    (downloads on first run if cache is empty). Runs on CPU at float32.
+
+class GLiNER2Detector:
+    """GLiNER2 zero-shot NER detector bound to the app's shared resource.
+
+    A single instance is created in the app lifespan; the model is loaded
+    once (from the verified local snapshot, never the network), and
+    inference runs in a bounded thread pool so concurrent requests cannot
+    overload the CPU and never block the event loop.
+
+    Failures stay loud: detection before load(), a download failure, or a
+    missing cached snapshot all raise instead of degrading to regex.
     """
 
     name = "gliner2"
@@ -50,87 +66,113 @@ class GLiNER2Detector:
     def __init__(
         self,
         model_name: str = "fastino/gliner2-privacy-filter-PII-multi",
+        model_revision: str = "main",
         model_cache: str | os.PathLike[str] = "./models_cache",
         threshold: float = 0.5,
         device: str = "cpu",
+        concurrency: int = 2,
+        local_files_only: bool = True,
+        model: object | None = None,
     ) -> None:
-        self._model_name = model_name
-        self._model_cache = Path(model_cache)
-        self._threshold = threshold
-        self._device = device
-        self._model = None
+        self.model_name = model_name
+        self.model_revision = model_revision
+        self.model_cache = Path(model_cache)
+        self.threshold = threshold
+        self.device = device
+        self.concurrency = concurrency
+        self.local_files_only = local_files_only
+        self.model = model  # None until load(); injectable in tests
+        self._semaphore: asyncio.Semaphore | None = None
 
-    def _load(self) -> None:
-        if self._model is not None:
+    @property
+    def is_loaded(self) -> bool:
+        return self.model is not None
+
+    async def load(self) -> None:
+        if self.model is not None:
             return
-        os.environ.setdefault("HF_HOME", str(self._model_cache))
-        self._model_cache.mkdir(parents=True, exist_ok=True)
-        from gliner2 import GLiNER2
+        os.environ.setdefault("HF_HOME", str(self.model_cache))
+        self.model_cache.mkdir(parents=True, exist_ok=True)
+        if self._semaphore is None:
+            self._semaphore = asyncio.Semaphore(self.concurrency)
 
-        self._model = GLiNER2.from_pretrained(self._model_name)
+        def _load_blocking() -> object:
+            from gliner2 import GLiNER2
+
+            return GLiNER2.from_pretrained(
+                self.model_name,
+                revision=self.model_revision,
+                cache_dir=str(self.model_cache),
+                local_files_only=self.local_files_only,
+                map_location=self.device,
+            )
+
+        self.model = await asyncio.to_thread(_load_blocking)
 
     async def detect(self, text: str, entity_types: list[str]) -> list[Span]:
-        self._load()
-        model = self._model
-        assert model is not None
-        labels = entity_types if entity_types else self._default_labels()
-        with INFERENCE_LATENCY.labels(detector=self.name).time():
-            result = model.extract_entities(
-                text,
-                labels,
-                threshold=self._threshold,
-                include_confidence=True,
-                include_spans=True,
+        if not self.is_loaded:
+            raise RuntimeError(
+                "GLiNER2 model is not loaded; call load() in the app lifespan "
+                "before serving requests."
             )
+        model = self.model
+        labels = entity_types if entity_types else _default_labels()
+        semaphore = self._semaphore
+        if semaphore is None:
+            semaphore = asyncio.Semaphore(self.concurrency)
+            self._semaphore = semaphore
+        threshold = self.threshold
+        async with semaphore:
+            result = await asyncio.to_thread(run_extract_entities, model, text, labels, threshold)
         return normalize_gliner2_result(text, result)
 
     async def warmup(self) -> None:
-        self._load()
-        await self.detect("warmup", ["person"])
+        await self.load()
+        await self.detect("warmup", [self.name])
 
-    @staticmethod
-    def _default_labels() -> list[str]:
-        return [
-            "person",
-            "full_name",
-            "first_name",
-            "middle_name",
-            "last_name",
-            "date_of_birth",
-            "email",
-            "phone_number",
-            "address",
-            "street_address",
-            "city",
-            "state_or_region",
-            "postal_code",
-            "country",
-            "government_id",
-            "national_id_number",
-            "passport_number",
-            "drivers_license_number",
-            "license_number",
-            "tax_id",
-            "tax_number",
-            "bank_account",
-            "account_number",
-            "routing_number",
-            "iban",
-            "payment_card",
-            "card_number",
-            "card_expiry",
-            "card_cvv",
-            "username",
-            "ip_address",
-            "account_id",
-            "sensitive_account_id",
-            "password",
-            "secret",
-            "api_key",
-            "access_token",
-            "recovery_code",
-            "sensitive_date",
-            "document_date",
-            "expiration_date",
-            "transaction_date",
-        ]
+
+def _default_labels() -> list[str]:
+    return [
+        "person",
+        "full_name",
+        "first_name",
+        "middle_name",
+        "last_name",
+        "date_of_birth",
+        "email",
+        "phone_number",
+        "address",
+        "street_address",
+        "city",
+        "state_or_region",
+        "postal_code",
+        "country",
+        "government_id",
+        "national_id_number",
+        "passport_number",
+        "drivers_license_number",
+        "license_number",
+        "tax_id",
+        "tax_number",
+        "bank_account",
+        "account_number",
+        "routing_number",
+        "iban",
+        "payment_card",
+        "card_number",
+        "card_expiry",
+        "card_cvv",
+        "username",
+        "ip_address",
+        "account_id",
+        "sensitive_account_id",
+        "password",
+        "secret",
+        "api_key",
+        "access_token",
+        "recovery_code",
+        "sensitive_date",
+        "document_date",
+        "expiration_date",
+        "transaction_date",
+    ]
