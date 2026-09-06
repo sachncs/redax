@@ -48,9 +48,7 @@ def register(app: FastAPI) -> None:
             }
         except (OSError, ValueError, RuntimeError) as exc:
             REQUESTS.labels(endpoint=endpoint, method=method, status="500").inc()
-            get_logger("redax.api").error(
-                "redax.policies_failed", error=exc.__class__.__name__
-            )
+            get_logger("redax.api").error("redax.policies_failed", error=exc.__class__.__name__)
             raise
         finally:
             REQUEST_LATENCY.labels(endpoint=endpoint, method=method).observe(

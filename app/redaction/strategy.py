@@ -31,7 +31,7 @@ class Strategy(Protocol):
     ) -> StrategyResult: ...
 
 
-class PassThrough:
+class Skip:
     """Returns the input untouched. Used for non-PII fields like 'gender'."""
 
     name = "passThrough"
@@ -121,7 +121,7 @@ class Regex:
         )
 
 
-class AutoDeID:
+class Deid:
     """Run a NER detector (possibly multi-pass) and apply relex/placeholders.
 
     Relex populates relex_map so the upstream redactor can swap originals

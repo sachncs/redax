@@ -12,7 +12,7 @@ from app.audit.backend import Backend, Event
 from app.inference.detector import Span
 from app.jobs.store import JobStore
 from app.redaction.redactor import Redactor
-from app.redaction.strategy import AutoDeID, Mask, PassThrough, Regex
+from app.redaction.strategy import Deid, Mask, Regex, Skip
 from app.state import ModelState
 
 
@@ -103,10 +103,10 @@ def app_with_state(monkeypatch):
     test_state.redactor = Redactor(
         detector=_StubDetector(),
         strategies={
-            "passThrough": PassThrough(),
+            "passThrough": Skip(),
             "mask": Mask(),
             "regex": Regex(),
-            "autoDeID": AutoDeID(_StubDetector()),
+            "autoDeID": Deid(_StubDetector()),
         },
     )
     test_state.job_store = InMemoryJobStore()

@@ -4,23 +4,23 @@ import pytest
 
 from app.inference.detector import Span
 from app.redaction.strategy import (
-    AutoDeID,
+    Deid,
     Hash,
     Mask,
-    PassThrough,
     Regex,
+    Skip,
     Strategy,
 )
 
 
 def test_strategies_satisfy_protocol() -> None:
-    for cls in (PassThrough(), Mask(), Hash(), Regex()):
+    for cls in (Skip(), Mask(), Hash(), Regex()):
         assert isinstance(cls, Strategy)
 
 
 @pytest.mark.asyncio
 async def test_pass_through_returns_unchanged() -> None:
-    s = PassThrough()
+    s = Skip()
     result = await s.apply("hello", [], {})
     assert result.text == "hello"
     assert result.spans == []
@@ -72,7 +72,7 @@ async def test_auto_deid_emits_placeholders_when_relex_true() -> None:
         async def warmup(self):
             return None
 
-    s = AutoDeID(_Stub())
+    s = Deid(_Stub())
     result = await s.apply("Alice!", [], {"relex": True})
     assert "[PERSON_0000]" in result.text
     assert "Alice" in result.relex_map
@@ -89,7 +89,7 @@ async def test_auto_deid_emits_format_when_relex_false() -> None:
         async def warmup(self):
             return None
 
-    s = AutoDeID(_Stub())
+    s = Deid(_Stub())
     result = await s.apply("Alice!", [], {"format": "<NAME>"})
     assert "<NAME>" in result.text
     assert result.relex_map == {}
@@ -110,7 +110,7 @@ async def test_auto_deid_selects_policy_detector_by_name() -> None:
         name = "other"
 
     other = _Other()
-    s = AutoDeID(_Stub(), detectors={"stub": _Stub(), "other": other})
+    s = Deid(_Stub(), detectors={"stub": _Stub(), "other": other})
     result = await s.apply("Alice!", [], {"detector": "other", "relex": True})
     assert "[PERSON_0000]" in result.text
 
@@ -126,7 +126,7 @@ async def test_auto_deid_rejects_unknown_policy_detector() -> None:
         async def warmup(self):
             return None
 
-    s = AutoDeID(_Stub(), detectors={"stub": _Stub()})
+    s = Deid(_Stub(), detectors={"stub": _Stub()})
     with pytest.raises(ValueError, match=r"unknown detector 'nope'"):
         await s.apply("Alice!", [], {"detector": "nope"})
 
@@ -142,6 +142,6 @@ async def test_auto_deid_rejects_multi_pass_above_cap() -> None:
         async def warmup(self):
             return None
 
-    s = AutoDeID(_Stub(), max_passes=3)
+    s = Deid(_Stub(), max_passes=3)
     with pytest.raises(ValueError, match=r"max_passes \(3\)"):
         await s.apply("Alice!", [], {"multi_pass": 9})

@@ -11,7 +11,7 @@ class DetectorRegistry(Mapping[str, Detector]):
     """Name -> Detector lookup shared across strategies.
 
     Every detector the process owns (gliner2, regex) is registered once so
-    the Regex strategy and AutoDeID fall back to the *same* instances -
+    the Regex strategy and Deid fall back to the *same* instances -
     no duplicated rules, no divergent state.
 
     Attributes:

@@ -36,7 +36,7 @@ from app.redaction.pipeline import Pipeline
 from app.redaction.redactor import Redactor
 from app.redaction.stages.model_stage import ModelStage
 from app.redaction.stages.regex_gate import RegexGate
-from app.redaction.strategy import AutoDeID, Hash, Mask, PassThrough, Regex, Strategy
+from app.redaction.strategy import Deid, Hash, Mask, Regex, Skip, Strategy
 from app.state import model_state
 
 
@@ -95,11 +95,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     model_state.detector = active
 
     strategies: dict[str, Strategy] = {
-        "passThrough": PassThrough(),
+        "passThrough": Skip(),
         "mask": Mask(),
         "hash": Hash(salt=settings.hash_salt),
         "regex": Regex(detector=regex),
-        "autoDeID": AutoDeID(active, detectors=registry, max_passes=settings.multi_pass_max),
+        "autoDeID": Deid(active, detectors=registry, max_passes=settings.multi_pass_max),
     }
     model_state.redactor = Redactor(
         detector=active,

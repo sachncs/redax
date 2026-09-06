@@ -104,9 +104,7 @@ def register(app: FastAPI) -> None:
             return timeout_error(request)
         except (OSError, RuntimeError, ValueError, TypeError) as exc:
             REQUESTS.labels(endpoint=endpoint, method=method, status="500").inc()
-            get_logger("redax.api").error(
-                "redax.batch_failed", error=exc.__class__.__name__
-            )
+            get_logger("redax.api").error("redax.batch_failed", error=exc.__class__.__name__)
             return internal_error(request)
         finally:
             REQUEST_LATENCY.labels(endpoint=endpoint, method=method).observe(

@@ -75,9 +75,7 @@ def register(app: FastAPI) -> None:
             return {"id": record.id, "status": record.status}
         except (OSError, RuntimeError, ValueError, KeyError) as exc:
             REQUESTS.labels(endpoint=endpoint, method=method, status="500").inc()
-            get_logger("redax.api").error(
-                "redax.queue_failed", error=exc.__class__.__name__
-            )
+            get_logger("redax.api").error("redax.queue_failed", error=exc.__class__.__name__)
             return internal_error(request)
 
     @router.get("/v1/jobs/{job_id}", response_model=None)

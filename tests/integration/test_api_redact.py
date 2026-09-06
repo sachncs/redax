@@ -13,7 +13,7 @@ from app.redaction.pipeline import Pipeline
 from app.redaction.redactor import Redactor
 from app.redaction.stages.model_stage import ModelStage
 from app.redaction.stages.regex_gate import RegexGate
-from app.redaction.strategy import AutoDeID, Mask, PassThrough, Regex
+from app.redaction.strategy import Deid, Mask, Regex, Skip
 from app.state import ModelState
 
 
@@ -57,10 +57,10 @@ def app_with_redactor(monkeypatch):
     test_state.redactor = Redactor(
         detector=_StubDetector(),
         strategies={
-            "passThrough": PassThrough(),
+            "passThrough": Skip(),
             "mask": Mask(),
             "regex": Regex(),
-            "autoDeID": AutoDeID(_StubDetector()),
+            "autoDeID": Deid(_StubDetector()),
         },
     )
     test_state.audit = _MemoryAudit()
@@ -117,10 +117,10 @@ def test_redact_records_audit_event(monkeypatch):
     test_state.redactor = Redactor(
         detector=_StubDetector(),
         strategies={
-            "passThrough": PassThrough(),
+            "passThrough": Skip(),
             "mask": Mask(),
             "regex": Regex(),
-            "autoDeID": AutoDeID(_StubDetector()),
+            "autoDeID": Deid(_StubDetector()),
         },
     )
     test_state.job_store = None
@@ -179,10 +179,10 @@ def test_redact_pipeline_path_returns_used_pipeline_flag(monkeypatch):
     test_state.redactor = Redactor(
         detector=_StubDetector(),
         strategies={
-            "passThrough": PassThrough(),
+            "passThrough": Skip(),
             "mask": Mask(),
             "regex": Regex(),
-            "autoDeID": AutoDeID(_StubDetector()),
+            "autoDeID": Deid(_StubDetector()),
         },
     )
     test_state.audit = _MemoryAudit()
@@ -228,10 +228,10 @@ def test_redact_without_use_pipeline_uses_legacy_redactor(monkeypatch):
     test_state.redactor = Redactor(
         detector=_StubDetector(),
         strategies={
-            "passThrough": PassThrough(),
+            "passThrough": Skip(),
             "mask": Mask(),
             "regex": Regex(),
-            "autoDeID": AutoDeID(_StubDetector()),
+            "autoDeID": Deid(_StubDetector()),
         },
     )
     test_state.audit = _MemoryAudit()

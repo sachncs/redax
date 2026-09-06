@@ -4,7 +4,7 @@ import pytest
 
 from app.inference.detector import Span
 from app.redaction.redactor import Redactor
-from app.redaction.strategy import AutoDeID, Mask, PassThrough
+from app.redaction.strategy import Deid, Mask, Skip
 
 
 class _StubDetector:
@@ -29,8 +29,8 @@ async def test_redact_with_policy_runs_strategies_in_order() -> None:
     r = Redactor(
         detector=_StubDetector(),
         strategies={
-            "passThrough": PassThrough(),
-            "autoDeID": AutoDeID(_StubDetector()),
+            "passThrough": Skip(),
+            "autoDeID": Deid(_StubDetector()),
         },
     )
     policy = {
@@ -74,7 +74,7 @@ async def test_redact_with_policy_aggregates_relex_map() -> None:
 
     r = Redactor(
         detector=_StubDetector(),
-        strategies={"autoDeID": AutoDeID(_MultiDetector())},
+        strategies={"autoDeID": Deid(_MultiDetector())},
     )
     policy = {"fields": {"name_and_email": {"strategy": "autoDeID", "relex": True}}}
     out = await r.redact("Alice and a@b.c are friends", policy=policy)
@@ -102,7 +102,7 @@ async def test_policy_redact_remaps_span_coords_to_original_text() -> None:
 
     r = Redactor(
         detector=_TwoField(),
-        strategies={"autoDeID": AutoDeID(_TwoField())},
+        strategies={"autoDeID": Deid(_TwoField())},
     )
     policy = {
         "fields": {
