@@ -63,3 +63,16 @@ async def test_two_passes_with_same_output_dedupes() -> None:
     d = _VariableDetector("v", [[Span(0, 5, "PERSON", 0.9)], [Span(0, 5, "PERSON", 0.9)]])
     out = await multi_pass_detect(d, "alice", ["person"], passes=2)
     assert len(out) == 1
+
+
+@pytest.mark.asyncio
+async def test_passes_capped_by_max_passes() -> None:
+    d = _VariableDetector("v", [[Span(0, 5, "PERSON", 0.9)]])
+    with pytest.raises(ValueError, match=r"max_passes \(3\)"):
+        await multi_pass_detect(d, "alice", ["person"], passes=4)
+
+
+@pytest.mark.asyncio
+async def test_passes_allow_custom_max() -> None:
+    d = _VariableDetector("v", [[Span(0, 5, "PERSON", 0.9)]])
+    assert await multi_pass_detect(d, "alice", ["person"], passes=5, max_passes=5)

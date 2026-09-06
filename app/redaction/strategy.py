@@ -114,9 +114,15 @@ class AutoDeID:
 
     name = "autoDeID"
 
-    def __init__(self, detector: Detector, detectors: Mapping[str, Detector] | None = None) -> None:
+    def __init__(
+        self,
+        detector: Detector,
+        detectors: Mapping[str, Detector] | None = None,
+        max_passes: int = 3,
+    ) -> None:
         self._detector = detector
         self._detectors = detectors or {}
+        self._max_passes = max_passes
 
     async def apply(self, text: str, spans: list[Span], config: dict[str, Any]) -> StrategyResult:
         from app.inference.multi_pass import multi_pass_detect
@@ -136,7 +142,9 @@ class AutoDeID:
         passes = int(config.get("multi_pass", 1))
         relex = bool(config.get("relex", False))
 
-        detected = await multi_pass_detect(chosen, text, entity_types, passes)
+        detected = await multi_pass_detect(
+            chosen, text, entity_types, passes, max_passes=self._max_passes
+        )
 
         if relex:
             replacements = [f"[{s.type.upper()}_{i:04d}]" for i, s in enumerate(detected)]

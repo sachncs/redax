@@ -78,7 +78,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         "mask": Mask(),
         "hash": Hash(salt=settings.hash_salt),
         "regex": Regex(detector=regex),
-        "autoDeID": AutoDeID(active, detectors=registry),
+        "autoDeID": AutoDeID(active, detectors=registry, max_passes=settings.multi_pass_max),
     }
     model_state.redactor = Redactor(
         detector=active,

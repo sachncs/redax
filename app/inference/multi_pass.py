@@ -11,6 +11,7 @@ async def multi_pass_detect(
     text: str,
     entity_types: list[str],
     passes: int = 2,
+    max_passes: int = 3,
 ) -> list[Span]:
     """Run detection `passes` times and union the results.
 
@@ -19,9 +20,14 @@ async def multi_pass_detect(
     simply re-detect. The benefit of multi-pass is catching entities that
     a single stochastic or context-sensitive pass missed; for fully
     deterministic NER models this still serves as a defensive default.
+
+    `passes` is capped at `max_passes` to bound cost per request; an
+    excessive value raises rather than guessing at an acceptable one.
     """
     if passes < 1:
         raise ValueError("passes must be >= 1")
+    if passes > max_passes:
+        raise ValueError(f"passes must be <= max_passes ({max_passes}); got {passes}")
     if passes == 1:
         spans = await detector.detect(text, entity_types)
         return dedupe_overlaps(spans)

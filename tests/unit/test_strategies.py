@@ -129,3 +129,19 @@ async def test_auto_deid_rejects_unknown_policy_detector() -> None:
     s = AutoDeID(_Stub(), detectors={"stub": _Stub()})
     with pytest.raises(ValueError, match=r"unknown detector 'nope'"):
         await s.apply("Alice!", [], {"detector": "nope"})
+
+
+@pytest.mark.asyncio
+async def test_auto_deid_rejects_multi_pass_above_cap() -> None:
+    class _Stub:
+        name = "stub"
+
+        async def detect(self, text, entity_types):
+            return [Span(0, 5, "PERSON", 0.9)]
+
+        async def warmup(self):
+            return None
+
+    s = AutoDeID(_Stub(), max_passes=3)
+    with pytest.raises(ValueError, match=r"max_passes \(3\)"):
+        await s.apply("Alice!", [], {"multi_pass": 9})
