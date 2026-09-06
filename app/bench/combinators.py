@@ -22,12 +22,12 @@ from dataclasses import dataclass
 
 from app.bench.annotation import LabelledSpan, SpanCategory
 
-_PUNCT_EXCLUDED: frozenset[str] = frozenset("\\/@[]{}()<>\"'`")
+PUNCT: frozenset[str] = frozenset("\\/@[]{}()<>\"'`")
 
-_ASCII_LETTERS: frozenset[str] = frozenset("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-_ASCII_DIGITS: frozenset[str] = frozenset("0123456789")
+LETTERS: frozenset[str] = frozenset("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+DIGITS: frozenset[str] = frozenset("0123456789")
 
-_PAIR_OPEN_TO_CLOSE: dict[str, str] = {
+PAIRS: dict[str, str] = {
     "(": ")",
     "[": "]",
     "{": "}",
@@ -36,11 +36,11 @@ _PAIR_OPEN_TO_CLOSE: dict[str, str] = {
     "'": "'",
     "`": "`",
 }
-_PAIR_OPENERS: frozenset[str] = frozenset(c for c in _PAIR_OPEN_TO_CLOSE if c not in "\"'`")
-_PAIR_CLOSERS: frozenset[str] = frozenset(
-    c for c in _PAIR_OPEN_TO_CLOSE.values() if c not in "\"'`"
+OPENERS: frozenset[str] = frozenset(c for c in PAIRS if c not in "\"'`")
+CLOSERS: frozenset[str] = frozenset(
+    c for c in PAIRS.values() if c not in "\"'`"
 )
-_PAIR_SYMMETRIC: frozenset[str] = frozenset("\"'`")
+SYMMETRIC: frozenset[str] = frozenset("\"'`")
 
 
 def is_punct_char(ch: str) -> bool:
@@ -49,9 +49,9 @@ def is_punct_char(ch: str) -> bool:
     "excluding `\\ / @`, brackets, braces, parentheses, quotes, backticks,
     and ASCII letters/digits"
     """
-    if ch in _PUNCT_EXCLUDED:
+    if ch in PUNCT:
         return False
-    return ch not in _ASCII_LETTERS and ch not in _ASCII_DIGITS
+    return ch not in LETTERS and ch not in DIGITS
 
 
 def is_whitespace(ch: str) -> bool:
@@ -63,7 +63,7 @@ def _span_text(text: str, span: LabelledSpan) -> str:
 
 
 def _is_digit_only(text: str, span: LabelledSpan) -> bool:
-    return all(c in _ASCII_DIGITS for c in _span_text(text, span))
+    return all(c in DIGITS for c in _span_text(text, span))
 
 
 def iter_neighbor_pairs(
@@ -152,7 +152,7 @@ def red_edges(
         a_text = _span_text(text, a)
         ka = (a.start, a.end, a.category)
         kb = (b.start, b.end, b.category)
-        if between.startswith(" ") and a_text and a_text[-1] in _PAIR_CLOSERS:
+        if between.startswith(" ") and a_text and a_text[-1] in CLOSERS:
             yellow_graph.setdefault(ka, []).append(kb)
             yellow_graph.setdefault(kb, []).append(ka)
             effective_markers.append(a_text[-1])
@@ -173,7 +173,7 @@ def red_edges(
                 effective_markers.append(ch)
         elif len(between) == 2:
             d, w = between[0], between[1]
-            if d in _PAIR_CLOSERS and is_whitespace(w):
+            if d in CLOSERS and is_whitespace(w):
                 yellow_graph.setdefault(ka, []).append(kb)
                 yellow_graph.setdefault(kb, []).append(ka)
                 effective_markers.append(d)
@@ -215,7 +215,7 @@ def _pair_ranges(
 
     stack: list[int] = []
     for i, ch in enumerate(text):
-        if ch in _PAIR_SYMMETRIC:
+        if ch in SYMMETRIC:
             if stack and text[stack[-1]] == ch:
                 opener_pos = stack.pop()
                 if overlaps_yellow(opener_pos, i) and not crosses_red(opener_pos, i):
@@ -224,14 +224,14 @@ def _pair_ranges(
                     markers.append(ch)
             else:
                 stack.append(i)
-        elif ch in _PAIR_OPENERS:
+        elif ch in OPENERS:
             stack.append(i)
-        elif ch in _PAIR_CLOSERS:
+        elif ch in CLOSERS:
             if not stack:
                 continue
             opener_pos = stack.pop()
             opener_ch = text[opener_pos]
-            expected_close = _PAIR_OPEN_TO_CLOSE[opener_ch]
+            expected_close = PAIRS[opener_ch]
             if ch != expected_close:
                 continue
             if not overlaps_yellow(opener_pos, i):
