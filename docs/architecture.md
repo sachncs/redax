@@ -67,6 +67,15 @@ all of them.
 | `app/redaction/policies.py` | YAML policy loader |
 | `app/audit/` | `AuditBackend` Protocol + local-file implementation |
 | `app/jobs/store.py` | Redis-backed job lifecycle store |
+| `app/api/stream.py` | Byte- and char-budgeted SSE chunk splitting (`split_chunks`) |
+
+## Job execution model
+
+Jobs currently run in-process: `POST /v1/jobs` admits a record (subject to
+`max_inflight` and per-key `max_jobs_per_key`) and FastAPI background tasks
+execute `run_job`. `REDAX_WORKER_CONCURRENCY` and the `redax-worker` entry point
+are reserved for the planned background arq worker; settings that only take
+effect there are documented but not yet active.
 
 ## Observability
 

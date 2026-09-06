@@ -63,16 +63,18 @@ curl -N -X POST http://localhost:8000/v1/redact/stream \
 
 Requires an API key when configured. Rejects oversized payloads (413), enforces
 the shared rate limit (429/503), and a per-chunk timeout yields a
-`{"error": "request timeout", "status": 504}` SSE event. Emits one audit event
-per request.
+`{"error": "request timeout", "status": 504}` SSE event. Each event is capped
+at `REDAX_STREAM_CHUNK_BYTES` (default 4096) bytes and `chunk_chars` characters.
+Emits one audit event per request.
 
 ## POST /v1/jobs, GET /v1/jobs/{id}
 
 Submit an async redaction; poll the result. Useful for long documents or
 high-throughput pipelines. Both endpoints require an API key when configured;
 submission enforces `max_text_chars` (413), the shared rate limit (429/503),
-and the `max_inflight` admission cap (429, RFC 7807 `queue-full` when the
-in-flight job count is at capacity).
+the `max_inflight` admission cap (429, RFC 7807 `queue-full` when the
+in-flight job count is at capacity), and the per-key `max_jobs_per_key` quota
+(429, `job-limit`).
 
 **Submit**:
 

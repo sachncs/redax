@@ -23,6 +23,27 @@ class StreamRequest(BaseModel):
     chunk_chars: int = Field(default=2000, ge=100, le=50_000)
 
 
+def split_chunks(text: str, chunk_chars: int, chunk_bytes: int) -> list[str]:
+    """Split text into chunks bounded by char and UTF-8 byte budgets.
+
+    Chunks cover the text in order, are non-empty, and each is no longer
+    than `chunk_chars` characters and no larger than `chunk_bytes` bytes.
+    Boundaries fall between code points; a single character that alone
+    exceeds the byte budget becomes its own chunk rather than blocking.
+    """
+    chunks: list[str] = []
+    start = 0
+    while start < len(text):
+        end = min(start + chunk_chars, len(text))
+        while end > start and len(text[start:end].encode("utf-8")) > chunk_bytes:
+            end -= 1
+        if end == start:
+            end = start + 1
+        chunks.append(text[start:end])
+        start = end
+    return chunks
+
+
 def register(app: FastAPI) -> None:
     router = APIRouter()
 
@@ -52,6 +73,7 @@ def register(app: FastAPI) -> None:
 
         await rate_limit(api_key)
         timeout_seconds = getattr(settings, "request_timeout_seconds", 30.0)
+        chunk_bytes = getattr(settings, "stream_chunk_bytes", 4096)
         latency_start = time.perf_counter()
 
         async def event_source() -> AsyncIterator[str]:
@@ -60,8 +82,7 @@ def register(app: FastAPI) -> None:
                 chunk = body.chunk_chars
                 all_spans: list[Any] = []
                 inference_ms = 0
-                for start in range(0, len(text), chunk):
-                    piece = text[start : start + chunk]
+                for piece in split_chunks(text, chunk, chunk_bytes):
                     try:
                         async with asyncio.timeout(timeout_seconds):
                             inference_start = time.perf_counter()

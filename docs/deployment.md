@@ -33,7 +33,10 @@ All settings read from environment variables prefixed with `REDAX_`. See
 | `REDAX_CACHE_TTL_SECONDS` | `3600` | response cache TTL |
 | `REDAX_IDEMPOTENCY_TTL_SECONDS` | `86400` | idempotency cache TTL |
 | `REDAX_MAX_INFLIGHT` | `32` | jobs admitted while this many are in flight; else 429 |
+| `REDAX_MAX_JOBS_PER_KEY` | `50` | max admitted jobs per API key; else 429 |
 | `REDAX_JOB_TTL_SECONDS` | `86400` | how long job records live in Redis |
+| `REDAX_STREAM_CHUNK_BYTES` | `4096` | per-event UTF-8 byte ceiling in `/v1/redact/stream` |
+| `REDAX_WORKER_CONCURRENCY` | `1` | reserved for the planned arq worker (`redax-worker`); jobs currently run in-process via FastAPI background tasks |
 | `REDAX_OTLP_ENDPOINT` | `""` | OTLP gRPC endpoint for traces |
 
 ## Production checklist
