@@ -8,7 +8,7 @@ from app.api.redact import register
 from app.audit.backend import AuditBackend, AuditEvent
 from app.inference.detector import Span
 from app.inference.regex_detector import RegexDetector
-from app.redaction.circuit.breaker import CircuitBreaker
+from app.redaction.circuit.breaker import Breaker
 from app.redaction.pipeline import Pipeline
 from app.redaction.redactor import Redactor
 from app.redaction.stages.model_stage import ModelStage
@@ -174,7 +174,7 @@ def test_redact_pipeline_path_returns_used_pipeline_flag(monkeypatch):
     test_state.pipeline = Pipeline(
         regex_gate=RegexGate(detector=test_state.regex_detector),
         model_stage=ModelStage(detector=test_state.detector),
-        model_breaker=CircuitBreaker(name="m", failure_threshold=3, cooldown_s=5.0),
+        model_breaker=Breaker(name="m", failure_threshold=3, cooldown_s=5.0),
     )
     test_state.redactor = Redactor(
         detector=_StubDetector(),
@@ -223,7 +223,7 @@ def test_redact_without_use_pipeline_uses_legacy_redactor(monkeypatch):
     test_state.pipeline = Pipeline(
         regex_gate=RegexGate(detector=test_state.regex_detector),
         model_stage=ModelStage(detector=test_state.detector),
-        model_breaker=CircuitBreaker(name="m", failure_threshold=3, cooldown_s=5.0),
+        model_breaker=Breaker(name="m", failure_threshold=3, cooldown_s=5.0),
     )
     test_state.redactor = Redactor(
         detector=_StubDetector(),

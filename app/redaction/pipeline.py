@@ -7,7 +7,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
 from app.inference.detector import Span
-from app.redaction.circuit.breaker import CircuitBreaker, CircuitOpenError
+from app.redaction.circuit.breaker import Breaker, OpenError
 from app.redaction.stages.consensus import fuse
 from app.redaction.stages.fallback import from_regex_only
 from app.redaction.stages.model_stage import ModelStage
@@ -49,7 +49,7 @@ class Pipeline:
 
     regex_gate: RegexGate
     model_stage: ModelStage
-    model_breaker: CircuitBreaker
+    model_breaker: Breaker
     stages: list[PipelineStage] = field(default_factory=list)
 
     def __post_init__(self) -> None:
@@ -115,7 +115,7 @@ class Pipeline:
 
         try:
             spans = await asyncio.to_thread(self.model_breaker.call, sync_call)
-        except CircuitOpenError:
+        except OpenError:
             return StageOutcome(
                 name="model_stage",
                 spans=(),
@@ -153,7 +153,7 @@ class Pipeline:
         return {
             "regex_detector": self.regex_gate.detector.name,
             "model_detector": self.model_stage.detector.name,
-            "model_breaker": self.model_breaker.stats(),
+            "model_breaker": self.model_breaker.report(),
         }
 
 

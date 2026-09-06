@@ -6,8 +6,8 @@ single-file-pure. The state machine mirrors pybreaker's CLOSED / OPEN /
 HALF_OPEN behaviour:
 
 * CLOSED: calls pass through; consecutive failures counted.
-* OPEN: calls short-circuit with `CircuitOpenError`. After `cooldown_s`
-  the next call is allowed through as a probe (HALF_OPEN).
+* OPEN: calls short-circuit with `OpenError`. After `cooldown_s` the next
+  call is allowed through as a probe (HALF_OPEN).
 * HALF_OPEN: the probe either succeeds (back to CLOSED) or fails (back to
   OPEN with a fresh cooldown).
 
@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import TypeVar
 
 
-class CircuitOpenError(RuntimeError):
+class OpenError(RuntimeError):
     """Raised by the breaker when it is OPEN and no probe slot is free."""
 
 
@@ -32,7 +32,7 @@ T = TypeVar("T")
 
 
 @dataclass(frozen=True)
-class CircuitStats:
+class Stats:
     state: str
     consecutive_failures: int
     opened_at: float | None
@@ -41,7 +41,7 @@ class CircuitStats:
     total_failures: int
 
 
-class CircuitBreaker:
+class Breaker:
     """Per-process circuit breaker.
 
     `failure_threshold` is the number of *consecutive* transient failures
@@ -106,7 +106,7 @@ class CircuitBreaker:
         with self.lock:
             allow, is_probe = self.allow()
             if not allow:
-                raise CircuitOpenError(f"circuit '{self.name}' is open")
+                raise OpenError(f"circuit '{self.name}' is open")
             self.total_calls += 1
         try:
             result = fn(*args, **kwargs)
@@ -120,9 +120,9 @@ class CircuitBreaker:
                 self.on_success(is_probe)
             return result
 
-    def stats(self) -> CircuitStats:
+    def report(self) -> Stats:
         with self.lock:
-            return CircuitStats(
+            return Stats(
                 state=self.state,
                 consecutive_failures=self.consecutive_failures,
                 opened_at=self.opened_at,

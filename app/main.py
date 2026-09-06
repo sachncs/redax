@@ -31,7 +31,7 @@ from app.jobs.store import JobStore
 from app.logging import configure_logging, get_logger
 from app.middleware import register_request_context
 from app.observability import configure_tracing
-from app.redaction.circuit.breaker import CircuitBreaker
+from app.redaction.circuit.breaker import Breaker
 from app.redaction.pipeline import Pipeline
 from app.redaction.redactor import Redactor
 from app.redaction.stages.model_stage import ModelStage
@@ -112,7 +112,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         pipeline = Pipeline(
             regex_gate=RegexGate(detector=regex),
             model_stage=ModelStage(detector=active),
-            model_breaker=CircuitBreaker(
+            model_breaker=Breaker(
                 name="model",
                 failure_threshold=settings.pipeline_breaker_threshold,
                 cooldown_s=settings.pipeline_breaker_cooldown_s,

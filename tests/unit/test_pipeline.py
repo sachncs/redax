@@ -27,14 +27,14 @@ def _build_pipeline(
     threshold: int = 1,
     cooldown: float = 0.05,
 ) -> Pipeline:
-    from app.redaction.circuit.breaker import CircuitBreaker
+    from app.redaction.circuit.breaker import Breaker
 
     detector = detector or _FakeModel()
     regex = RegexDetector()
     return Pipeline(
         regex_gate=RegexGate(detector=regex),
         model_stage=ModelStage(detector=detector),
-        model_breaker=CircuitBreaker(name="m", failure_threshold=threshold, cooldown_s=cooldown),
+        model_breaker=Breaker(name="m", failure_threshold=threshold, cooldown_s=cooldown),
     )
 
 
