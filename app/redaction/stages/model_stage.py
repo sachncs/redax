@@ -1,8 +1,8 @@
-"""Stage 2: model stage. Runs the chosen OpenMed-PII encoder (or any
-`Detector` instance) over the text.
+"""Stage 2: model stage.
 
-The stage exposes a synchronous `detector_sync` method so the circuit
-breaker can wrap it from a threadpool without leaking asyncio.
+Runs the chosen OpenMed-PII encoder (or any ``Detector`` instance) over
+the text. The stage exposes a synchronous ``detector_sync`` method so the
+circuit breaker can wrap it from a threadpool without leaking asyncio.
 """
 
 from __future__ import annotations
@@ -17,12 +17,24 @@ from app.inference.detector import Span
 
 
 class SyncDetector(Protocol):
+    """Structural type for a sync-detector that the pipeline can call.
+
+    Attributes:
+        name: Human-readable detector name.
+    """
+
     name: str
 
     def detect_sync(self, text: str, entity_types: list[str]) -> list[Span]: ...
 
 
 class AsyncDetector(Protocol):
+    """Structural type for an async-only detector.
+
+    Attributes:
+        name: Human-readable detector name.
+    """
+
     name: str
 
     async def detect(self, text: str, entity_types: list[str]) -> list[Span]: ...
@@ -30,17 +42,30 @@ class AsyncDetector(Protocol):
 
 @dataclass
 class ModelStage:
-    """A pluggable model-backed detector.
+    """A pluggable model-backed detector usable by the pipeline.
 
-    The pipeline expects any object with a synchronous method that takes
-    ``(text, entity_types)`` and returns ``list[Span]``. The
-    `OpenMedPIIDetector` exposes `detect_sync` natively; the `RegexDetector`
-    is async-only and is wrapped by `run_async` as a fallback.
+    Attributes:
+        detector: Anything implementing ``detect_sync(text, entity_types)``
+            or ``async detect(text, entity_types)``. The ``OpenMedPIIDetector``
+            exposes ``detect_sync`` natively; the ``RegexDetector`` is
+            async-only and is wrapped by ``run_async`` as a fallback.
     """
 
     detector: SyncDetector | AsyncDetector | Any
 
     def detector_sync(self, text: str, entity_types: list[str]) -> list[Span]:
+        """Synchronously invoke the wrapped detector and return its spans.
+
+        Prefers the detector's ``detect_sync`` method; falls back to
+        scheduling the async ``detect`` coroutine via ``run_async``.
+
+        Args:
+            text: The input text to redact.
+            entity_types: Optional list of entity types to filter on.
+
+        Returns:
+            The detector's spans as a list.
+        """
         sync_attr: Callable[..., Any] | None = getattr(self.detector, "detect_sync", None)
         if callable(sync_attr):
             return list(sync_attr(text, entity_types))
@@ -49,7 +74,17 @@ class ModelStage:
 
 
 def run_async(coro: Any) -> list[Span]:
-    """Run ``coro`` synchronously, off the event loop."""
+    """Run ``coro`` synchronously, off the event loop.
+
+    Uses ``asyncio.run`` when no event loop is running, otherwise schedules
+    the coroutine on a single-thread executor and waits for the result.
+
+    Args:
+        coro: A coroutine returned from ``Detector.detect(...)``.
+
+    Returns:
+        The coroutine's result materialised as a list.
+    """
     try:
         loop = asyncio.get_event_loop()
         if loop.is_running():
