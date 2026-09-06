@@ -22,6 +22,7 @@ from app.inference.regex_detector import RegexDetector
 from app.inference.registry import DetectorRegistry
 from app.jobs.store import JobStore
 from app.logging import configure_logging, get_logger
+from app.middleware import register_request_context
 from app.observability import configure_tracing
 from app.redaction.redactor import Redactor
 from app.redaction.strategy import AutoDeID, Hash, Mask, PassThrough, Regex, Strategy
@@ -127,6 +128,7 @@ app = FastAPI(
 )
 
 install_error_handlers(app)
+register_request_context(app)
 
 register_health(app)
 register_policies(app)

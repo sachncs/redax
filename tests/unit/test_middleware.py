@@ -1,0 +1,68 @@
+from __future__ import annotations
+
+import structlog
+from fastapi import FastAPI, Request
+from fastapi.testclient import TestClient
+
+from app.middleware import register_request_context
+
+
+def _make_app_with_probe(seen: dict) -> FastAPI:
+    app = FastAPI()
+
+    @app.get("/probe")
+    def probe(request: Request) -> dict[str, bool]:
+        ctx = structlog.contextvars.get_contextvars()
+        seen["bound"] = ctx.get("request_id")
+        return {"ok": True}
+
+    register_request_context(app)
+    return app
+
+
+def test_request_context_echoes_client_request_id() -> None:
+    seen: dict = {}
+    app = _make_app_with_probe(seen)
+    with TestClient(app) as client:
+        resp = client.get("/probe", headers={"X-Request-ID": "req-abc"})
+    assert resp.status_code == 200
+    assert resp.headers["X-Request-ID"] == "req-abc"
+    assert seen["bound"] == "req-abc"
+    assert structlog.contextvars.get_contextvars().get("request_id") is None
+
+
+def test_request_context_generates_id_when_absent() -> None:
+    seen: dict = {}
+    app = _make_app_with_probe(seen)
+    with TestClient(app) as client:
+        resp = client.get("/probe")
+    assert resp.status_code == 200
+    request_id = resp.headers["X-Request-ID"]
+    assert len(request_id) == 32
+    assert seen["bound"] == request_id
+
+
+def test_request_context_echoes_on_problem_response() -> None:
+    from fastapi import HTTPException
+
+    app = FastAPI()
+
+    @app.get("/nope")
+    def nope() -> None:
+        raise HTTPException(status_code=404, detail="nope")
+
+    register_request_context(app)
+    with TestClient(app) as client:
+        resp = client.get("/nope", headers={"X-Request-ID": "req-x"})
+    assert resp.status_code == 404
+    assert resp.headers["X-Request-ID"] == "req-x"
+
+
+def test_request_context_clears_context_after_request() -> None:
+    seen: dict = {}
+    app = _make_app_with_probe(seen)
+    with TestClient(app) as client:
+        client.get("/probe", headers={"X-Request-ID": "req-1"})
+        client.get("/probe", headers={"X-Request-ID": "req-2"})
+    assert seen["bound"] == "req-2"
+    assert structlog.contextvars.get_contextvars().get("request_id") is None
