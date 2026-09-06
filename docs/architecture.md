@@ -49,6 +49,7 @@ all of them.
 | `app/main.py` | FastAPI app, lifespan wiring, route registration |
 | `app/config.py` | Pydantic-settings: REDAX_ env vars |
 | `app/logging.py` | structlog JSON logging |
+| `app/middleware.py` | request_id binding, X-Request-ID echo, per-request access log |
 | `app/errors.py` | RFC 7807 problem responses |
 | `app/auth.py` | API-key + JWT dependencies |
 | `app/ratelimit.py` | Redis fixed-window rate limit |
@@ -66,6 +67,23 @@ all of them.
 | `app/redaction/policies.py` | YAML policy loader |
 | `app/audit/` | `AuditBackend` Protocol + local-file implementation |
 | `app/jobs/store.py` | Redis-backed job lifecycle store |
+
+## Observability
+
+- Every route — including `GET /healthz`, `GET /readyz`, and the `GET /metrics`
+  scrape itself — increments `redax_requests_total` and observes
+  `redax_request_duration_seconds`. Streams observe request duration when the
+  SSE generator finishes, so the metric covers end-to-end streaming time.
+- Jobs use `redax_queue_depth` for the in-flight count and `redax_errors_total`
+  for each failure mode; `redax_inference_duration_seconds` and
+  `redax_entities_detected_total` are recorded by the detection pipeline.
+- The HTTP middleware emits one `redax.access` JSON line per request with
+  `method`, `path`, `status`, `duration_ms`, and `request_id`. The request ID
+  is the client's `X-Request-ID` when present, otherwise a generated hex id,
+  and is echoed back in the response header. On 500 responses the body is sent
+  by Starlette's `ServerErrorMiddleware` after the middleware has unwound, so
+  the access line still records status 500 even though the header echo is
+  skipped.
 
 ## Data flow for one request
 

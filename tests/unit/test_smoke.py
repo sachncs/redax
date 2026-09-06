@@ -73,3 +73,27 @@ def test_readyz_200_when_ready(monkeypatch) -> None:
         resp = client.get("/readyz")
     assert resp.status_code == 200
     assert resp.json() == {"status": "ready"}
+
+
+def test_health_metrics_instrumented(monkeypatch) -> None:
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from app.api.health import register
+    from app.state import model_state
+
+    monkeypatch.setattr(model_state, "ready", True)
+    monkeypatch.setattr(model_state, "redactor", object())
+    app = FastAPI()
+    register(app)
+    with TestClient(app) as client:
+        assert client.get("/healthz").status_code == 200
+        assert client.get("/readyz").status_code == 200
+        resp = client.get("/metrics")
+    assert resp.status_code == 200
+    body = resp.text
+    assert 'redax_requests_total{endpoint="GET /healthz",method="GET",status="200"}' in body
+    assert 'redax_requests_total{endpoint="GET /readyz",method="GET",status="200"}' in body
+    assert 'redax_requests_total{endpoint="GET /metrics",method="GET",status="200"}' in body
+    assert 'redax_request_duration_seconds_count{endpoint="GET /healthz",method="GET"}' in body
+    assert 'redax_request_duration_seconds_count{endpoint="GET /readyz",method="GET"}' in body
