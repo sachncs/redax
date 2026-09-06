@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -19,13 +20,14 @@ from app.jobs.store import JobStore
 from app.logging import configure_logging, get_logger
 from app.observability import configure_tracing
 from app.redaction.redactor import Redactor
-from app.redaction.strategy import AutoDeID, Hash, Mask, PassThrough, Regex
+from app.redaction.strategy import AutoDeID, Hash, Mask, PassThrough, Regex, Strategy
 from app.state import model_state
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = Settings()
+    settings.verify()
     configure_logging(settings.log_level)
     configure_tracing(settings.service_name, settings.otlp_endpoint)
     log = get_logger("redax.lifespan")
@@ -38,7 +40,7 @@ async def lifespan(app: FastAPI):
     model_state.regex_detector = regex
     model_state.detector = regex
 
-    strategies = {
+    strategies: dict[str, Strategy] = {
         "passThrough": PassThrough(),
         "mask": Mask(),
         "hash": Hash(salt=settings.hash_salt),
