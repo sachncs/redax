@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import json
 from collections.abc import AsyncIterator
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, FastAPI, Request
+from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from app.auth import require_api_key
 from app.errors import internal_error
 from app.observability import REQUESTS
 
@@ -23,7 +24,11 @@ def register(app: FastAPI) -> None:
     router = APIRouter()
 
     @router.post("/v1/redact/stream")
-    async def redact_stream(request: Request, body: StreamRequest) -> StreamingResponse:
+    async def redact_stream(
+        request: Request,
+        body: StreamRequest,
+        api_key: Annotated[str, Depends(require_api_key)],
+    ) -> StreamingResponse:
         from app.state import model_state
 
         endpoint = "POST /v1/redact/stream"

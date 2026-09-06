@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, FastAPI, Request
+from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from app.auth import require_api_key
 from app.errors import internal_error, payload_too_large
 from app.observability import REQUEST_LATENCY, REQUESTS
 
@@ -29,7 +30,11 @@ def register(app: FastAPI) -> None:
     router = APIRouter()
 
     @router.post("/v1/redact/batch", response_model=BatchResponse)
-    async def redact_batch(request: Request, body: BatchRequest) -> BatchResponse | JSONResponse:
+    async def redact_batch(
+        request: Request,
+        body: BatchRequest,
+        api_key: Annotated[str, Depends(require_api_key)],
+    ) -> BatchResponse | JSONResponse:
         from app.state import model_state
 
         start = time.perf_counter()

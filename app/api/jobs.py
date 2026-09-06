@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import time
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, BackgroundTasks, FastAPI, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from app.auth import require_api_key
 from app.errors import internal_error
 from app.jobs.store import JobStore
 from app.observability import REQUESTS
@@ -26,6 +27,7 @@ def register(app: FastAPI) -> None:
         body: JobSubmit,
         background_tasks: BackgroundTasks,
         request: Request,
+        api_key: Annotated[str, Depends(require_api_key)],
     ) -> dict[str, Any] | JSONResponse:
         from app.state import model_state
 
@@ -41,7 +43,11 @@ def register(app: FastAPI) -> None:
         return {"id": record.id, "status": record.status}
 
     @router.get("/v1/jobs/{job_id}", response_model=None)
-    async def get_job(job_id: str, request: Request) -> dict[str, Any] | JSONResponse:
+    async def get_job(
+        job_id: str,
+        request: Request,
+        api_key: Annotated[str, Depends(require_api_key)],
+    ) -> dict[str, Any] | JSONResponse:
         from app.state import model_state
 
         endpoint = "GET /v1/jobs/{id}"

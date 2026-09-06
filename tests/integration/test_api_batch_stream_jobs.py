@@ -66,7 +66,11 @@ class _InMemoryJobStore(JobStore):
 @pytest.fixture
 def app_with_state(monkeypatch):
     test_state = ModelState()
-    test_state.settings = type("S", (), {"max_text_chars": 1000})()
+    test_state.settings = type(
+        "S",
+        (),
+        {"max_text_chars": 1000, "api_key_set": lambda: set()},
+    )()
     test_state.redactor = Redactor(
         detector=_StubDetector(),
         strategies={
