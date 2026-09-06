@@ -102,19 +102,19 @@ class OpenMedPIIDetector:
     model_cache: Path | None = None
     threshold: float = 0.5
     device: str = "cpu"
-    _model: Any = None
-    _tokenizer: Any = None
+    model: Any = None
+    tokenizer: Any = None
 
     def _load(self) -> None:
-        if self._model is not None:
+        if self.model is not None:
             return
         from transformers import AutoModelForTokenClassification, AutoTokenizer
 
         cache_dir = str(self.model_cache) if self.model_cache else None
-        self._tokenizer = AutoTokenizer.from_pretrained(  # type: ignore[no-untyped-call]
+        self.tokenizer = AutoTokenizer.from_pretrained(  # type: ignore[no-untyped-call]
             self.model_name, cache_dir=cache_dir
         )
-        self._model = AutoModelForTokenClassification.from_pretrained(
+        self.model = AutoModelForTokenClassification.from_pretrained(
             self.model_name, cache_dir=cache_dir
         )
 
@@ -123,7 +123,7 @@ class OpenMedPIIDetector:
         self._load()
         import torch
 
-        assert self._tokenizer is not None and self._model is not None
+        assert self.tokenizer is not None and self.model is not None
         tokenizer_kwargs: dict[str, Any] = dict(
             truncation=True,
             max_length=384,
@@ -133,15 +133,15 @@ class OpenMedPIIDetector:
         # they cannot honour it. Fall back to the plain tokenizer output
         # in that case; we recover character offsets via str.find() below.
         try:
-            tokens = self._tokenizer(text, return_tensors="pt", **tokenizer_kwargs)
+            tokens = self.tokenizer(text, return_tensors="pt", **tokenizer_kwargs)
         except TypeError:
-            tokens = self._tokenizer(text, return_tensors="pt", truncation=True, max_length=384)
+            tokens = self.tokenizer(text, return_tensors="pt", truncation=True, max_length=384)
         with torch.no_grad():
             model_inputs = {k: v for k, v in tokens.items() if k != "offset_mapping"}
-            outputs = self._model(**model_inputs)
+            outputs = self.model(**model_inputs)
         preds = outputs.logits.argmax(dim=-1)[0].tolist()
         word_ids = tokens.word_ids(0)
-        id2label = self._model.config.id2label
+        id2label = self.model.config.id2label
         offset_mapping = tokens.get("offset_mapping")
         offsets: list[tuple[int, int]] = (
             [(int(s), int(e)) for s, e in offset_mapping[0].tolist()]

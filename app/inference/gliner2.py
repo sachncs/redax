@@ -90,7 +90,7 @@ class GLiNER2Detector:
         self.concurrency = concurrency
         self.local_files_only = local_files_only
         self.model = model  # None until load(); injectable in tests
-        self._semaphore: asyncio.Semaphore | None = None
+        self.semaphore: asyncio.Semaphore | None = None
 
     @property
     def is_loaded(self) -> bool:
@@ -101,8 +101,8 @@ class GLiNER2Detector:
             return
         os.environ.setdefault("HF_HOME", str(self.model_cache))
         self.model_cache.mkdir(parents=True, exist_ok=True)
-        if self._semaphore is None:
-            self._semaphore = asyncio.Semaphore(self.concurrency)
+        if self.semaphore is None:
+            self.semaphore = asyncio.Semaphore(self.concurrency)
 
         def _load_blocking() -> object:
             from gliner2 import GLiNER2
@@ -125,10 +125,10 @@ class GLiNER2Detector:
             )
         model = self.model
         labels = entity_types if entity_types else default_labels()
-        semaphore = self._semaphore
+        semaphore = self.semaphore
         if semaphore is None:
             semaphore = asyncio.Semaphore(self.concurrency)
-            self._semaphore = semaphore
+            self.semaphore = semaphore
         threshold = self.threshold
         async with semaphore:
             result = await asyncio.to_thread(run_extract_entities, model, text, labels, threshold)

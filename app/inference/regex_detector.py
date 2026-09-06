@@ -63,13 +63,13 @@ class RegexDetector:
     name = "regex"
 
     def __init__(self, rules: tuple[Rule, ...] = RULES) -> None:
-        self._rules = rules
+        self.rules = rules
 
     async def detect(self, text: str, entity_types: list[str]) -> list[Span]:
         active = (
-            [r for r in self._rules if r.type in entity_types]
+            [r for r in self.rules if r.type in entity_types]
             if entity_types
-            else list(self._rules)
+            else list(self.rules)
         )
         spans: list[Span] = []
         for rule in active:
