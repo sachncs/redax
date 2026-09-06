@@ -16,6 +16,7 @@ from app.api import (
 )
 from app.audit.local_file import LocalFileAuditBackend
 from app.config import Settings
+from app.errors import install_error_handlers
 from app.inference.gliner2 import GLiNER2Detector
 from app.inference.regex_detector import RegexDetector
 from app.inference.registry import DetectorRegistry
@@ -124,6 +125,8 @@ app = FastAPI(
     description="Self-hosted PII redaction engine.",
     lifespan=lifespan,
 )
+
+install_error_handlers(app)
 
 register_health(app)
 register_policies(app)

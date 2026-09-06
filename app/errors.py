@@ -3,8 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from fastapi import Request
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+from app.logging import get_logger
 
 
 @dataclass
@@ -100,3 +104,74 @@ def internal_error(request: Request, detail: str = "Internal server error") -> J
         status=500,
         detail=detail,
     )
+
+
+def timeout_error(
+    request: Request,
+    detail: str = "Request exceeded the service timeout",
+) -> JSONResponse:
+    """RFC 7807 response for per-request asyncio.timeout expiry (504)."""
+    return problem_response(
+        request,
+        type="https://redax.ai/errors/timeout",
+        title="Gateway Timeout",
+        status=504,
+        detail=detail,
+    )
+
+
+def _flatten_validation_errors(exc: RequestValidationError) -> list[str]:
+    out: list[str] = []
+    for error in exc.errors():
+        loc = ".".join(str(p) for p in error.get("loc", ()))
+        msg = error.get("msg", "invalid")
+        out.append(f"{loc}: {msg}")
+    return out
+
+
+def install_error_handlers(app: FastAPI) -> None:
+    """Route every error path to RFC 7807 application/problem+json bodies.
+
+    Unhandled exceptions become a generic 500 problem without leaking
+    internal details; HTTPException (e.g. auth 401) and validation errors
+    are converted too, so the public error surface is uniform.
+    TimeoutError (asyncio.timeout expiry) maps to a 504 problem.
+    """
+
+    @app.exception_handler(StarletteHTTPException)
+    async def _http_exception(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+        detail = exc.detail if isinstance(exc.detail, str) else None
+        title = detail or "Request failed"
+        return problem_response(
+            request,
+            type=f"https://redax.ai/errors/http-{exc.status_code}",
+            title=title,
+            status=exc.status_code,
+            detail=detail,
+        )
+
+    @app.exception_handler(RequestValidationError)
+    async def _validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+        issues = _flatten_validation_errors(exc)
+        return problem_response(
+            request,
+            type="https://redax.ai/errors/validation-error",
+            title="Validation error",
+            status=422,
+            detail="; ".join(issues) if issues else "Invalid request",
+        )
+
+    @app.exception_handler(TimeoutError)
+    async def _timeout_error(request: Request, exc: TimeoutError) -> JSONResponse:
+        get_logger("redax.errors").warning("redax.request_timeout", exc_info=exc)
+        return timeout_error(request)
+
+    @app.exception_handler(Exception)
+    async def _unhandled_error(request: Request, exc: Exception) -> JSONResponse:
+        get_logger("redax.errors").error("redax.unhandled_error", exc_info=exc)
+        return problem_response(
+            request,
+            type="https://redax.ai/errors/internal",
+            title="Internal Server Error",
+            status=500,
+        )
