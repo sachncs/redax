@@ -152,7 +152,7 @@ def prune_old_events(path: Path, retention_seconds: int) -> None:
                 kept.append(line)
             else:
                 removed = True
-        except Exception:
+        except (ValueError, TypeError):
             kept.append(line)
     if removed:
         path.write_text("\n".join(kept) + ("\n" if kept else ""), encoding="utf-8")
