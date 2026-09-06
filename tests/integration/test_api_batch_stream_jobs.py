@@ -132,6 +132,35 @@ def test_stream_emits_events(app_with_state):
     assert any("[DONE]" in c for c in chunks)
 
 
+def _stream_latency_count() -> float:
+    from app.observability import REQUEST_LATENCY
+
+    for metric in REQUEST_LATENCY.collect():
+        for sample in metric.samples:
+            if (
+                sample.name == "redax_request_duration_seconds_count"
+                and sample.labels["endpoint"] == "POST /v1/redact/stream"
+                and sample.labels["method"] == "POST"
+            ):
+                return sample.value
+    return 0.0
+
+
+def test_stream_records_end_to_end_request_latency(app_with_state):
+    before = _stream_latency_count()
+    with TestClient(app_with_state) as client:
+        resp = client.post(
+            "/v1/redact/stream",
+            json={"text": "x" * 5000, "chunk_chars": 1000},
+        )
+        assert resp.status_code == 200
+        for _ in resp.iter_lines():
+            pass
+    after = _stream_latency_count()
+    assert before >= 0.0
+    assert after >= before + 1.0
+
+
 def test_job_lifecycle(app_with_state):
     with TestClient(app_with_state) as client:
         sub = client.post("/v1/jobs", json={"text": "hi a@b.com"})

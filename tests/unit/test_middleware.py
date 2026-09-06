@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 import structlog
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
@@ -66,3 +67,52 @@ def test_request_context_clears_context_after_request() -> None:
         client.get("/probe", headers={"X-Request-ID": "req-2"})
     assert seen["bound"] == "req-2"
     assert structlog.contextvars.get_contextvars().get("request_id") is None
+
+
+def capture_access_line(monkeypatch: pytest.MonkeyPatch, captured: dict) -> None:
+    from app import middleware as mw
+
+    def spy(*, method: str, path: str, status: int, duration_ms: int, request_id: str) -> None:
+        captured.update(
+            method=method,
+            path=path,
+            status=status,
+            request_id=request_id,
+            duration_ms=duration_ms,
+        )
+
+    monkeypatch.setattr(mw, "emit_access_line", spy)
+
+
+def test_access_log_line_carries_request_fields(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict = {}
+    capture_access_line(monkeypatch, captured)
+    app = make_app_with_probe({})
+    with TestClient(app) as client:
+        resp = client.get("/probe", headers={"X-Request-ID": "req-access"})
+    assert resp.status_code == 200
+    assert captured["method"] == "GET"
+    assert captured["path"] == "/probe"
+    assert captured["status"] == 200
+    assert captured["request_id"] == "req-access"
+    assert captured["duration_ms"] >= 0
+
+
+def test_access_log_line_records_500_on_unhandled_exception(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict = {}
+    capture_access_line(monkeypatch, captured)
+
+    app = FastAPI()
+
+    @app.get("/boom")
+    def boom() -> None:
+        raise RuntimeError("boom")
+
+    register_request_context(app)
+    with TestClient(app, raise_server_exceptions=False) as client:
+        resp = client.get("/boom")
+    assert resp.status_code == 500
+    assert captured["status"] == 500
+    assert captured["path"] == "/boom"

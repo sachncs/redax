@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 
 from app.auth import require_api_key
 from app.errors import internal_error, payload_too_large
-from app.observability import REQUESTS
+from app.observability import REQUEST_LATENCY, REQUESTS
 
 
 class StreamRequest(BaseModel):
@@ -52,13 +52,14 @@ def register(app: FastAPI) -> None:
 
         await rate_limit(api_key)
         timeout_seconds = getattr(settings, "request_timeout_seconds", 30.0)
+        latency_start = time.perf_counter()
 
         async def event_source() -> AsyncIterator[str]:
-            text = body.text
-            chunk = body.chunk_chars
-            all_spans: list[Any] = []
-            inference_ms = 0
             try:
+                text = body.text
+                chunk = body.chunk_chars
+                all_spans: list[Any] = []
+                inference_ms = 0
                 for start in range(0, len(text), chunk):
                     piece = text[start : start + chunk]
                     try:
@@ -96,6 +97,10 @@ def register(app: FastAPI) -> None:
             except Exception:
                 yield f"data: {json.dumps({'error': 'internal error'})}\n\n"
                 REQUESTS.labels(endpoint=endpoint, method=method, status="500").inc()
+            finally:
+                REQUEST_LATENCY.labels(endpoint=endpoint, method=method).observe(
+                    time.perf_counter() - latency_start
+                )
 
         return StreamingResponse(event_source(), media_type="text/event-stream")
 
