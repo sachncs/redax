@@ -33,9 +33,9 @@ class Redactor:
         strategies: dict[str, Strategy],
         replacement: str = "[REDACTED]",
     ) -> None:
-        self._detector = detector
-        self._strategies = strategies
-        self._replacement = replacement
+        self.detector = detector
+        self.strategies = strategies
+        self.replacement = replacement
 
     async def redact(
         self,
@@ -49,13 +49,13 @@ class Redactor:
 
     async def _plain_redact(self, text: str, entity_types: list[str] | None) -> RedactionResult:
         labels = entity_types or []
-        with INFERENCE_LATENCY.labels(detector=self._detector.name).time():
-            raw_spans = await self._detector.detect(text, labels)
+        with INFERENCE_LATENCY.labels(detector=self.detector.name).time():
+            raw_spans = await self.detector.detect(text, labels)
         spans = dedupe_overlaps(validate_offsets(text, raw_spans))
         for span in spans:
             ENTITIES_DETECTED.labels(entity_type=span.type, strategy="auto").inc()
         return RedactionResult(
-            text=apply_spans(text, spans, self._replacement),
+            text=apply_spans(text, spans, self.replacement),
             spans=spans,
         )
 
@@ -67,9 +67,9 @@ class Redactor:
 
         for _field_name, field_config in policy.get("fields", {}).items():
             strategy_name = field_config.get("strategy")
-            if strategy_name is None or strategy_name not in self._strategies:
+            if strategy_name is None or strategy_name not in self.strategies:
                 continue
-            strategy = self._strategies[strategy_name]
+            strategy = self.strategies[strategy_name]
             strategy_result = await strategy.apply(result_text, [], field_config)
             for span in strategy_result.spans:
                 if remap_to_original is not None:
