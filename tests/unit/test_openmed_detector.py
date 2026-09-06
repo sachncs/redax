@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.inference.openmed import OpenMedPIIDetector, _entity_to_span, sanitize_label
+from app.inference.openmed import OpenMedPIIDetector, entity_to_span, sanitize_label
 
 
 def test_sanitize_label_maps_known_labels() -> None:
@@ -18,9 +18,9 @@ def test_sanitize_label_unknown_falls_back_to_url() -> None:
     assert sanitize_label("") == "URL"
 
 
-def test_entity_to_span_uses_char_offsets() -> None:
+def testentity_to_span_uses_char_offsets() -> None:
     """Regression: the original implementation stored token IDs as
-    start/end. _entity_to_span must use char_start / char_end.
+    start/end. entity_to_span must use char_start / char_end.
     """
     from app.inference.detector import Span
 
@@ -30,7 +30,7 @@ def test_entity_to_span_uses_char_offsets() -> None:
         "char_end": 12,
         "word_id": 1,
     }
-    span = _entity_to_span(entity)
+    span = entity_to_span(entity)
     assert span.start == 7
     assert span.end == 12
     assert span.type == "first_name"

@@ -159,7 +159,7 @@ class OpenMedPIIDetector:
             char_start, char_end = offsets[idx] if idx < len(offsets) else (0, 0)
             if label.startswith("B-"):
                 if current is not None:
-                    spans.append(_entity_to_span(current))
+                    spans.append(entity_to_span(current))
                 current = {
                     "label": label[2:],
                     "char_start": char_start,
@@ -170,10 +170,10 @@ class OpenMedPIIDetector:
                 current["char_end"] = char_end
             else:
                 if current is not None:
-                    spans.append(_entity_to_span(current))
+                    spans.append(entity_to_span(current))
                 current = None
         if current is not None:
-            spans.append(_entity_to_span(current))
+            spans.append(entity_to_span(current))
 
         return [
             Span(
@@ -201,7 +201,7 @@ class OpenMedPIIDetector:
         await asyncio.to_thread(self._load)
 
 
-def _entity_to_span(current: dict[str, Any]) -> Span:
+def entity_to_span(current: dict[str, Any]) -> Span:
     return Span(
         start=int(current["char_start"]),
         end=int(current["char_end"]),

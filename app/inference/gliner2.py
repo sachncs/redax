@@ -124,7 +124,7 @@ class GLiNER2Detector:
                 "before serving requests."
             )
         model = self.model
-        labels = entity_types if entity_types else _default_labels()
+        labels = entity_types if entity_types else default_labels()
         semaphore = self._semaphore
         if semaphore is None:
             semaphore = asyncio.Semaphore(self.concurrency)
@@ -139,7 +139,7 @@ class GLiNER2Detector:
         await self.detect("warmup", [self.name])
 
 
-def _default_labels() -> list[str]:
+def default_labels() -> list[str]:
     return [
         "person",
         "full_name",
