@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from app.auth import require_api_key
 from app.errors import internal_error, payload_too_large, problem_response
 from app.jobs.store import JobStore
-from app.observability import REQUESTS
+from app.observability import QUEUE_DEPTH, REQUESTS
 
 JOB_FAILED = "job failed"
 
@@ -51,6 +51,7 @@ def register(app: FastAPI) -> None:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
                 return internal_error(request, "job store not initialized")
             record = await store.create()
+            QUEUE_DEPTH.inc()
             background_tasks.add_task(run_job, record.id, body.model_dump(), store, request_id)
             REQUESTS.labels(endpoint=endpoint, method=method, status="202").inc()
             return {"id": record.id, "status": record.status}
@@ -104,6 +105,7 @@ async def run_job(job_id: str, payload: dict[str, Any], store: JobStore, request
         await store.set_status(job_id, "running")
     except Exception:
         ERRORS.labels(type="job_store_unavailable").inc()
+        QUEUE_DEPTH.dec()
         return
     start = time.perf_counter()
     redactor = model_state.redactor
@@ -111,6 +113,7 @@ async def run_job(job_id: str, payload: dict[str, Any], store: JobStore, request
         ERRORS.labels(type="job_redactor_unavailable").inc()
         await _record_failure(job_id, store, logger)
         logger.error("redax.job_failed", job_id=job_id, error="redactor not initialized")
+        QUEUE_DEPTH.dec()
         return
     try:
         result = await redactor.redact(
@@ -144,6 +147,8 @@ async def run_job(job_id: str, payload: dict[str, Any], store: JobStore, request
         logger.error("redax.job_failed", job_id=job_id, error=exc)
         ERRORS.labels(type="job_failed").inc()
         await _record_failure(job_id, store, logger)
+    finally:
+        QUEUE_DEPTH.dec()
 
 
 async def _record_failure(job_id: str, store: JobStore, logger: Any) -> None:
