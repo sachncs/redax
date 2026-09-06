@@ -1,3 +1,11 @@
+"""Redis-backed job lifecycle + result store for ``/v1/jobs``.
+
+The store is shared across the ``/v1/jobs`` submission, ``/v1/jobs/{id}``
+poll, and background-task worker. Records are kept as Redis hashes with a
+configurable TTL; the per-key in-flight counter is incremented on submit
+and decremented on terminal transitions.
+"""
+
 from __future__ import annotations
 
 import json
@@ -11,6 +19,19 @@ import redis.asyncio as aioredis
 
 @dataclass
 class JobRecord:
+    """A single job's lifecycle state plus its current result or error.
+
+    Attributes:
+        id: Server-assigned 32-char hex identifier.
+        status: One of ``queued``, ``running``, ``done``, ``failed``.
+        result: The serialized redaction output on success; ``None`` while
+            the job is still queued or running.
+        error: Human-readable failure reason; ``None`` unless ``status``
+            is ``failed``.
+        owner: The API key that submitted the job; used for per-key
+            admission control.
+    """
+
     id: str
     status: str  # queued | running | done | failed
     result: dict[str, Any] | None
@@ -19,11 +40,18 @@ class JobRecord:
 
 
 class JobStore:
-    """Redis-backed job lifecycle + result store.
+    """Async Redis-backed store for background redaction jobs.
 
     Each job records its API-key owner so admission can be capped per key.
     The terminal transitions (set_result / set_error) release the owner's
     slot automatically.
+
+    Attributes:
+        url: Redis URL used when ``client`` is not injected.
+        ttl_seconds: Time-to-live for both the per-job hash and the
+            per-owner counter.
+        client: Underlying ``redis.asyncio.Redis`` instance; populated by
+            ``start`` if not supplied at construction.
     """
 
     KEY = "redax:job:{id}"
