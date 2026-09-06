@@ -4,7 +4,7 @@ import pytest
 from fastapi import HTTPException
 
 import app.ratelimit as ratelimit_mod
-from app.ratelimit import _minute_bucket, rate_limit
+from app.ratelimit import minute_bucket, rate_limit
 from app.state import model_state
 
 
@@ -37,7 +37,7 @@ class FakeSettings:
         self.rate_limit_per_minute = rate_limit_per_minute
 
 
-def _patch_state(
+def patch_state(
     monkeypatch: pytest.MonkeyPatch,
     *,
     store: FakeStore | None,
@@ -49,13 +49,13 @@ def _patch_state(
 
 @pytest.mark.asyncio
 async def test_anonymous_passthrough_without_state(monkeypatch: pytest.MonkeyPatch) -> None:
-    _patch_state(monkeypatch, store=None, settings=None)
+    patch_state(monkeypatch, store=None, settings=None)
     assert await rate_limit("anonymous") == "anonymous"
 
 
 @pytest.mark.asyncio
 async def test_missing_job_store_fails_closed_503(monkeypatch: pytest.MonkeyPatch) -> None:
-    _patch_state(monkeypatch, store=None, settings=FakeSettings(5))
+    patch_state(monkeypatch, store=None, settings=FakeSettings(5))
     with pytest.raises(HTTPException) as exc_info:
         await rate_limit("key-1")
     assert exc_info.value.status_code == 503
@@ -64,7 +64,7 @@ async def test_missing_job_store_fails_closed_503(monkeypatch: pytest.MonkeyPatc
 @pytest.mark.asyncio
 async def test_missing_settings_fails_closed_503(monkeypatch: pytest.MonkeyPatch) -> None:
     store = FakeStore(FakeClient())
-    _patch_state(monkeypatch, store=store, settings=None)
+    patch_state(monkeypatch, store=store, settings=None)
     with pytest.raises(HTTPException) as exc_info:
         await rate_limit("key-1")
     assert exc_info.value.status_code == 503
@@ -75,7 +75,7 @@ async def test_missing_settings_fails_closed_503(monkeypatch: pytest.MonkeyPatch
 async def test_zero_limit_disables_ratelimit(monkeypatch: pytest.MonkeyPatch) -> None:
     client = FakeClient()
     store = FakeStore(client)
-    _patch_state(monkeypatch, store=store, settings=FakeSettings(0))
+    patch_state(monkeypatch, store=store, settings=FakeSettings(0))
     assert await rate_limit("key-1") == "key-1"
     assert client.incr_calls == []
 
@@ -86,10 +86,10 @@ async def test_within_limit_returns_key_and_sets_expiry_on_first_use(
 ) -> None:
     client = FakeClient(responses=[1, 2])
     store = FakeStore(client)
-    _patch_state(monkeypatch, store=store, settings=FakeSettings(5))
+    patch_state(monkeypatch, store=store, settings=FakeSettings(5))
     assert await rate_limit("key-1") == "key-1"
     assert await rate_limit("key-1") == "key-1"
-    bucket = _minute_bucket()
+    bucket = minute_bucket()
     assert client.incr_calls == [f"redax:rl:key-1:{bucket}", f"redax:rl:key-1:{bucket}"]
     assert client.expire_calls == [(f"redax:rl:key-1:{bucket}", 60)]
 
@@ -98,7 +98,7 @@ async def test_within_limit_returns_key_and_sets_expiry_on_first_use(
 async def test_over_limit_raises_429(monkeypatch: pytest.MonkeyPatch) -> None:
     client = FakeClient(responses=[6])
     store = FakeStore(client)
-    _patch_state(monkeypatch, store=store, settings=FakeSettings(5))
+    patch_state(monkeypatch, store=store, settings=FakeSettings(5))
     with pytest.raises(HTTPException) as exc_info:
         await rate_limit("key-1")
     assert exc_info.value.status_code == 429
@@ -108,7 +108,7 @@ async def test_over_limit_raises_429(monkeypatch: pytest.MonkeyPatch) -> None:
 async def test_redis_down_fails_closed_503(monkeypatch: pytest.MonkeyPatch) -> None:
     client = FakeClient(error=ConnectionRefusedError("redis down"))
     store = FakeStore(client)
-    _patch_state(monkeypatch, store=store, settings=FakeSettings(5))
+    patch_state(monkeypatch, store=store, settings=FakeSettings(5))
     with pytest.raises(HTTPException) as exc_info:
         await rate_limit("key-1")
     assert exc_info.value.status_code == 503
@@ -118,7 +118,7 @@ async def test_redis_down_fails_closed_503(monkeypatch: pytest.MonkeyPatch) -> N
 async def test_bucket_rotates_across_minute_boundary(monkeypatch: pytest.MonkeyPatch) -> None:
     client = FakeClient(responses=[1, 1])
     store = FakeStore(client)
-    _patch_state(monkeypatch, store=store, settings=FakeSettings(5))
+    patch_state(monkeypatch, store=store, settings=FakeSettings(5))
     base = 1_700_000_000
     monkeypatch.setattr(ratelimit_mod.time, "time", lambda: base)
     await rate_limit("key-1")
@@ -127,6 +127,6 @@ async def test_bucket_rotates_across_minute_boundary(monkeypatch: pytest.MonkeyP
     assert client.incr_calls == ["redax:rl:key-1:28333333", "redax:rl:key-1:28333334"]
 
 
-def test_minute_bucket_floors_to_minute(monkeypatch: pytest.MonkeyPatch) -> None:
+def testminute_bucket_floors_to_minute(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(ratelimit_mod.time, "time", lambda: 90)
-    assert _minute_bucket() == 1
+    assert minute_bucket() == 1

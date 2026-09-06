@@ -11,25 +11,25 @@ from app.errors import install_error_handlers
 from app.state import model_state
 
 
-class _Result:
+class Result:
     def __init__(self, text: str) -> None:
         self.text = text
         self.spans = []
         self.relex_map = {}
 
 
-class _FastRedactor:
+class FastRedactor:
     async def redact(self, text, policy=None, entity_types=None):
-        return _Result(text)
+        return Result(text)
 
 
-class _SlowRedactor(_FastRedactor):
+class SlowRedactor(FastRedactor):
     async def redact(self, text, policy=None, entity_types=None):
         await asyncio.sleep(0.1)
-        return _Result(text)
+        return Result(text)
 
 
-class _FakeClient:
+class FakeClient:
     def __init__(self, responses: list[int] | None = None, error: Exception | None = None) -> None:
         self.responses = list(responses or [1])
         self.error = error
@@ -43,12 +43,12 @@ class _FakeClient:
         return None
 
 
-class _FakeStore:
-    def __init__(self, client: _FakeClient) -> None:
+class FakeStore:
+    def __init__(self, client: FakeClient) -> None:
         self.client = client
 
 
-class _StubSettings:
+class StubSettings:
     max_text_chars = 1000
 
     def __init__(
@@ -64,19 +64,19 @@ class _StubSettings:
         return {"limited-key"}
 
 
-def _state(
+def patch_state(
     monkeypatch: pytest.MonkeyPatch,
     *,
-    redactor: _FastRedactor,
-    client: _FakeClient | None,
-    settings: _StubSettings,
+    redactor: FastRedactor,
+    client: FakeClient | None,
+    settings: StubSettings,
 ) -> None:
     monkeypatch.setattr(model_state, "redactor", redactor)
-    monkeypatch.setattr(model_state, "job_store", _FakeStore(client) if client else None)
+    monkeypatch.setattr(model_state, "job_store", FakeStore(client) if client else None)
     monkeypatch.setattr(model_state, "settings", settings)
 
 
-def _app() -> FastAPI:
+def build_app() -> FastAPI:
     app = FastAPI()
     install_error_handlers(app)
     register_batch(app)
@@ -86,13 +86,13 @@ def _app() -> FastAPI:
 
 
 def test_batch_over_limit_returns_429(monkeypatch: pytest.MonkeyPatch) -> None:
-    _state(
+    patch_state(
         monkeypatch,
-        redactor=_FastRedactor(),
-        client=_FakeClient([6]),
-        settings=_StubSettings(5),
+        redactor=FastRedactor(),
+        client=FakeClient([6]),
+        settings=StubSettings(5),
     )
-    app = _app()
+    app = build_app()
     with TestClient(app) as client:
         resp = client.post(
             "/v1/redact/batch",
@@ -104,13 +104,13 @@ def test_batch_over_limit_returns_429(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_batch_rate_limit_down_returns_503(monkeypatch: pytest.MonkeyPatch) -> None:
-    _state(
+    patch_state(
         monkeypatch,
-        redactor=_FastRedactor(),
-        client=_FakeClient(error=ConnectionRefusedError("redis down")),
-        settings=_StubSettings(5),
+        redactor=FastRedactor(),
+        client=FakeClient(error=ConnectionRefusedError("redis down")),
+        settings=StubSettings(5),
     )
-    app = _app()
+    app = build_app()
     with TestClient(app) as client:
         resp = client.post(
             "/v1/redact/batch",
@@ -122,13 +122,13 @@ def test_batch_rate_limit_down_returns_503(monkeypatch: pytest.MonkeyPatch) -> N
 
 
 def test_batch_timeout_returns_504(monkeypatch: pytest.MonkeyPatch) -> None:
-    _state(
+    patch_state(
         monkeypatch,
-        redactor=_SlowRedactor(),
-        client=_FakeClient([1]),
-        settings=_StubSettings(5, request_timeout_seconds=0.001),
+        redactor=SlowRedactor(),
+        client=FakeClient([1]),
+        settings=StubSettings(5, request_timeout_seconds=0.001),
     )
-    app = _app()
+    app = build_app()
     with TestClient(app) as client:
         resp = client.post(
             "/v1/redact/batch",
@@ -140,13 +140,13 @@ def test_batch_timeout_returns_504(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_batch_payload_too_large_returns_413(monkeypatch: pytest.MonkeyPatch) -> None:
-    _state(
+    patch_state(
         monkeypatch,
-        redactor=_FastRedactor(),
-        client=_FakeClient([1]),
-        settings=_StubSettings(5),
+        redactor=FastRedactor(),
+        client=FakeClient([1]),
+        settings=StubSettings(5),
     )
-    app = _app()
+    app = build_app()
     with TestClient(app) as client:
         resp = client.post(
             "/v1/redact/batch",
@@ -158,13 +158,13 @@ def test_batch_payload_too_large_returns_413(monkeypatch: pytest.MonkeyPatch) ->
 
 
 def test_stream_timeout_yields_504_event(monkeypatch: pytest.MonkeyPatch) -> None:
-    _state(
+    patch_state(
         monkeypatch,
-        redactor=_SlowRedactor(),
-        client=_FakeClient([1]),
-        settings=_StubSettings(5, request_timeout_seconds=0.001),
+        redactor=SlowRedactor(),
+        client=FakeClient([1]),
+        settings=StubSettings(5, request_timeout_seconds=0.001),
     )
-    app = _app()
+    app = build_app()
     with TestClient(app) as client:
         resp = client.post(
             "/v1/redact/stream",
@@ -176,13 +176,13 @@ def test_stream_timeout_yields_504_event(monkeypatch: pytest.MonkeyPatch) -> Non
 
 
 def test_stream_payload_too_large_returns_413(monkeypatch: pytest.MonkeyPatch) -> None:
-    _state(
+    patch_state(
         monkeypatch,
-        redactor=_FastRedactor(),
-        client=_FakeClient([1]),
-        settings=_StubSettings(5),
+        redactor=FastRedactor(),
+        client=FakeClient([1]),
+        settings=StubSettings(5),
     )
-    app = _app()
+    app = build_app()
     with TestClient(app) as client:
         resp = client.post(
             "/v1/redact/stream",
@@ -194,13 +194,13 @@ def test_stream_payload_too_large_returns_413(monkeypatch: pytest.MonkeyPatch) -
 
 
 def test_jobs_over_limit_returns_429(monkeypatch: pytest.MonkeyPatch) -> None:
-    _state(
+    patch_state(
         monkeypatch,
-        redactor=_FastRedactor(),
-        client=_FakeClient([6]),
-        settings=_StubSettings(5),
+        redactor=FastRedactor(),
+        client=FakeClient([6]),
+        settings=StubSettings(5),
     )
-    app = _app()
+    app = build_app()
     with TestClient(app) as client:
         resp = client.post(
             "/v1/jobs",
@@ -212,13 +212,13 @@ def test_jobs_over_limit_returns_429(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_jobs_payload_too_large_returns_413(monkeypatch: pytest.MonkeyPatch) -> None:
-    _state(
+    patch_state(
         monkeypatch,
-        redactor=_FastRedactor(),
-        client=_FakeClient([1]),
-        settings=_StubSettings(5),
+        redactor=FastRedactor(),
+        client=FakeClient([1]),
+        settings=StubSettings(5),
     )
-    app = _app()
+    app = build_app()
     with TestClient(app) as client:
         resp = client.post(
             "/v1/jobs",

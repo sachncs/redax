@@ -16,7 +16,7 @@ from app.redaction.strategy import AutoDeID, Mask, PassThrough, Regex
 from app.state import ModelState
 
 
-class _MemoryAudit(AuditBackend):
+class MemoryAudit(AuditBackend):
     def __init__(self) -> None:
         self.records: list[AuditEvent] = []
 
@@ -47,9 +47,9 @@ class _StubDetector:
         return None
 
 
-class _InMemoryJobStore(JobStore):
+class InMemoryJobStore(JobStore):
     def __init__(self) -> None:
-        self._records: dict[str, dict] = {}
+        self.records: dict[str, dict] = {}
 
     async def start(self) -> None:
         return None
@@ -63,22 +63,22 @@ class _InMemoryJobStore(JobStore):
         from app.jobs.store import JobRecord
 
         rec = JobRecord(id=uuid.uuid4().hex, status="queued", result=None, error=None)
-        self._records[rec.id] = rec
+        self.records[rec.id] = rec
         return rec
 
     async def get(self, job_id):
-        return self._records.get(job_id)
+        return self.records.get(job_id)
 
     async def set_status(self, job_id, status):
-        self._records[job_id].status = status
+        self.records[job_id].status = status
 
     async def set_result(self, job_id, result):
-        self._records[job_id].result = result
-        self._records[job_id].status = "done"
+        self.records[job_id].result = result
+        self.records[job_id].status = "done"
 
     async def set_error(self, job_id, error):
-        self._records[job_id].error = error
-        self._records[job_id].status = "failed"
+        self.records[job_id].error = error
+        self.records[job_id].status = "failed"
 
 
 @pytest.fixture
@@ -98,8 +98,8 @@ def app_with_state(monkeypatch):
             "autoDeID": AutoDeID(_StubDetector()),
         },
     )
-    test_state.job_store = _InMemoryJobStore()
-    test_state.audit = _MemoryAudit()
+    test_state.job_store = InMemoryJobStore()
+    test_state.audit = MemoryAudit()
     test_state.ready = True
     monkeypatch.setattr("app.state.model_state", test_state)
     app = FastAPI()
@@ -155,7 +155,7 @@ def test_job_lifecycle(app_with_state):
 def app_with_no_redactor(monkeypatch):
     test_state = ModelState()
     test_state.settings = type("S", (), {"max_text_chars": 1000, "api_key_set": lambda: set()})()
-    test_state.job_store = _InMemoryJobStore()
+    test_state.job_store = InMemoryJobStore()
     test_state.ready = True
     monkeypatch.setattr("app.state.model_state", test_state)
     app = FastAPI()
@@ -193,7 +193,7 @@ def test_stream_records_audited_entity_summary(app_with_state):
     assert audit.records[0].entities_detected == []
 
 
-class _SlowDetector(_StubDetector):
+class SlowDetector(_StubDetector):
     seen: ClassVar[list[float]] = []
 
     async def detect(self, text: str, entity_types: list[str]) -> list[Span]:
@@ -201,7 +201,7 @@ class _SlowDetector(_StubDetector):
 
         for metric in QUEUE_DEPTH.collect():
             for sample in metric.samples:
-                _SlowDetector.seen.append(sample.value)
+                SlowDetector.seen.append(sample.value)
         await asyncio.sleep(0.3)
         return await super().detect(text, entity_types)
 
@@ -210,9 +210,9 @@ class _SlowDetector(_StubDetector):
 def app_with_slow_redactor(monkeypatch):
     test_state = ModelState()
     test_state.settings = type("S", (), {"max_text_chars": 100_000, "api_key_set": lambda: set()})()
-    test_state.redactor = Redactor(detector=_SlowDetector(), strategies={})
-    test_state.job_store = _InMemoryJobStore()
-    test_state.audit = _MemoryAudit()
+    test_state.redactor = Redactor(detector=SlowDetector(), strategies={})
+    test_state.job_store = InMemoryJobStore()
+    test_state.audit = MemoryAudit()
     test_state.ready = True
     monkeypatch.setattr("app.state.model_state", test_state)
     app = FastAPI()
@@ -223,7 +223,7 @@ def app_with_slow_redactor(monkeypatch):
 def test_queue_depth_tracks_in_flight_job_and_returns_to_zero(app_with_slow_redactor):
     from app.observability.metrics import QUEUE_DEPTH
 
-    _SlowDetector.seen.clear()
+    SlowDetector.seen.clear()
     with TestClient(app_with_slow_redactor) as client:
         sub = client.post("/v1/jobs", json={"text": "hi a@b.com"})
         assert sub.status_code == 202
@@ -238,7 +238,7 @@ def test_queue_depth_tracks_in_flight_job_and_returns_to_zero(app_with_slow_reda
                 break
             time.sleep(0.05)
     assert body["status"] == "done"
-    assert _SlowDetector.seen == [1.0]
+    assert SlowDetector.seen == [1.0]
     final = [s.value for m in QUEUE_DEPTH.collect() for s in m.samples]
     assert final == [0.0]
 

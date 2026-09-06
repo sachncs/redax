@@ -26,7 +26,7 @@ async def rate_limit(api_key: str) -> str:
     job_store = model_state.job_store
     if job_store is None:
         raise HTTPException(status_code=503, detail="Rate limiting unavailable")
-    bucket = f"redax:rl:{api_key}:{_minute_bucket()}"
+    bucket = f"redax:rl:{api_key}:{minute_bucket()}"
     client = job_store.client
     try:
         count = await client.incr(bucket)
@@ -41,5 +41,5 @@ async def rate_limit(api_key: str) -> str:
     return api_key
 
 
-def _minute_bucket() -> int:
+def minute_bucket() -> int:
     return int(time.time() // 60)

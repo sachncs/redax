@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from app.middleware import register_request_context
 
 
-def _make_app_with_probe(seen: dict) -> FastAPI:
+def make_app_with_probe(seen: dict) -> FastAPI:
     app = FastAPI()
 
     @app.get("/probe")
@@ -22,7 +22,7 @@ def _make_app_with_probe(seen: dict) -> FastAPI:
 
 def test_request_context_echoes_client_request_id() -> None:
     seen: dict = {}
-    app = _make_app_with_probe(seen)
+    app = make_app_with_probe(seen)
     with TestClient(app) as client:
         resp = client.get("/probe", headers={"X-Request-ID": "req-abc"})
     assert resp.status_code == 200
@@ -33,7 +33,7 @@ def test_request_context_echoes_client_request_id() -> None:
 
 def test_request_context_generates_id_when_absent() -> None:
     seen: dict = {}
-    app = _make_app_with_probe(seen)
+    app = make_app_with_probe(seen)
     with TestClient(app) as client:
         resp = client.get("/probe")
     assert resp.status_code == 200
@@ -60,7 +60,7 @@ def test_request_context_echoes_on_problem_response() -> None:
 
 def test_request_context_clears_context_after_request() -> None:
     seen: dict = {}
-    app = _make_app_with_probe(seen)
+    app = make_app_with_probe(seen)
     with TestClient(app) as client:
         client.get("/probe", headers={"X-Request-ID": "req-1"})
         client.get("/probe", headers={"X-Request-ID": "req-2"})

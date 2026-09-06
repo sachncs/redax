@@ -16,21 +16,21 @@ from app.errors import install_error_handlers
 from app.state import model_state
 
 
-class _StubResult:
+class StubResult:
     def __init__(self, text: str) -> None:
         self.text = text
         self.spans = []
         self.relex_map = {}
 
 
-class _StubRedactor:
+class StubRedactor:
     async def redact(
         self, text: str, policy: dict | None = None, entity_types: list[str] | None = None
     ):
-        return _StubResult(text)
+        return StubResult(text)
 
 
-class _StubSettings:
+class StubSettings:
     max_text_chars = 100_000
     request_timeout_seconds = 10.0
     cache_ttl_seconds = 3600
@@ -40,18 +40,18 @@ class _StubSettings:
     policies_dir = "./policies"
 
     def __init__(self, api_keys: set[str]) -> None:
-        self._api_keys = api_keys
+        self.api_keys = api_keys
 
     def api_key_set(self) -> set[str]:
-        return self._api_keys
+        return self.api_keys
 
 
-def _stub_state(monkeypatch: pytest.MonkeyPatch, *, api_keys: set[str]) -> None:
-    monkeypatch.setattr(model_state, "settings", _StubSettings(api_keys))
-    monkeypatch.setattr(model_state, "redactor", _StubRedactor())
+def stub_state(monkeypatch: pytest.MonkeyPatch, *, api_keys: set[str]) -> None:
+    monkeypatch.setattr(model_state, "settings", StubSettings(api_keys))
+    monkeypatch.setattr(model_state, "redactor", StubRedactor())
 
 
-def _make_app() -> FastAPI:
+def make_app() -> FastAPI:
     app = FastAPI()
     install_error_handlers(app)
     register_redact(app)
@@ -63,26 +63,26 @@ def _make_app() -> FastAPI:
 
 
 def test_require_api_key_missing_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
-    _stub_state(monkeypatch, api_keys={"k1"})
+    stub_state(monkeypatch, api_keys={"k1"})
     with pytest.raises(HTTPException) as exc_info:
         require_api_key()
     assert exc_info.value.status_code == 401
 
 
 def test_require_api_key_invalid_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
-    _stub_state(monkeypatch, api_keys={"k1"})
+    stub_state(monkeypatch, api_keys={"k1"})
     with pytest.raises(HTTPException) as exc_info:
         require_api_key("wrong")
     assert exc_info.value.status_code == 401
 
 
 def test_require_api_key_valid_returns_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    _stub_state(monkeypatch, api_keys={"k1"})
+    stub_state(monkeypatch, api_keys={"k1"})
     assert require_api_key("k1") == "k1"
 
 
 def test_require_api_key_disabled_passthrough(monkeypatch: pytest.MonkeyPatch) -> None:
-    _stub_state(monkeypatch, api_keys=set())
+    stub_state(monkeypatch, api_keys=set())
     assert require_api_key() == "anonymous"
 
 
@@ -105,8 +105,8 @@ def test_protected_routes_reject_missing_key(
     path: str,
     payload: dict,
 ) -> None:
-    _stub_state(monkeypatch, api_keys={"test-key"})
-    app = _make_app()
+    stub_state(monkeypatch, api_keys={"test-key"})
+    app = make_app()
     with TestClient(app) as client:
         resp = client.post(path, json=payload)
     assert resp.status_code == 401
@@ -114,16 +114,16 @@ def test_protected_routes_reject_missing_key(
 
 
 def test_jobs_get_rejects_missing_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    _stub_state(monkeypatch, api_keys={"test-key"})
-    app = _make_app()
+    stub_state(monkeypatch, api_keys={"test-key"})
+    app = make_app()
     with TestClient(app) as client:
         resp = client.get("/v1/jobs/xyz")
     assert resp.status_code == 401
 
 
 def test_policies_rejects_missing_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    _stub_state(monkeypatch, api_keys={"test-key"})
-    app = _make_app()
+    stub_state(monkeypatch, api_keys={"test-key"})
+    app = make_app()
     with TestClient(app) as client:
         resp = client.get("/v1/policies")
     assert resp.status_code == 401
@@ -131,12 +131,12 @@ def test_policies_rejects_missing_key(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_policies_accepts_valid_key(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
-    _stub_state(monkeypatch, api_keys={"test-key"})
+    stub_state(monkeypatch, api_keys={"test-key"})
     (tmp_path / "default.yaml").write_text(
         '{"name": "default", "version": "1.0.0", "description": "d", "fields": {}}'
     )
     monkeypatch.setattr(model_state.settings, "policies_dir", str(tmp_path))
-    app = _make_app()
+    app = make_app()
     with TestClient(app) as client:
         resp = client.get("/v1/policies", headers={"X-API-Key": "test-key"})
     assert resp.status_code == 200
@@ -144,8 +144,8 @@ def test_policies_accepts_valid_key(monkeypatch: pytest.MonkeyPatch, tmp_path) -
 
 
 def test_batch_accepts_valid_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    _stub_state(monkeypatch, api_keys={"test-key"})
-    app = _make_app()
+    stub_state(monkeypatch, api_keys={"test-key"})
+    app = make_app()
     with TestClient(app) as client:
         resp = client.post(
             "/v1/redact/batch",

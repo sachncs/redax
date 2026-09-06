@@ -111,7 +111,7 @@ async def run_job(job_id: str, payload: dict[str, Any], store: JobStore, request
     redactor = model_state.redactor
     if redactor is None:
         ERRORS.labels(type="job_redactor_unavailable").inc()
-        await _record_failure(job_id, store, logger)
+        await record_failure(job_id, store, logger)
         logger.error("redax.job_failed", job_id=job_id, error="redactor not initialized")
         QUEUE_DEPTH.dec()
         return
@@ -146,12 +146,12 @@ async def run_job(job_id: str, payload: dict[str, Any], store: JobStore, request
     except Exception as exc:
         logger.error("redax.job_failed", job_id=job_id, error=exc)
         ERRORS.labels(type="job_failed").inc()
-        await _record_failure(job_id, store, logger)
+        await record_failure(job_id, store, logger)
     finally:
         QUEUE_DEPTH.dec()
 
 
-async def _record_failure(job_id: str, store: JobStore, logger: Any) -> None:
+async def record_failure(job_id: str, store: JobStore, logger: Any) -> None:
     from app.observability import ERRORS
 
     try:
