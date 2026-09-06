@@ -1,3 +1,5 @@
+"""Prometheus metrics for the redax FastAPI app."""
+
 from __future__ import annotations
 
 from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram
@@ -56,9 +58,11 @@ QUEUE_DEPTH = Gauge(
 
 
 def queue_depth() -> float:
-    """Current in-flight job count (the QUEUE_DEPTH gauge reading).
+    """Read the current ``QUEUE_DEPTH`` gauge.
 
-    Used by job submission to enforce the max_inflight admission cap.
+    Returns:
+        The current in-flight job count. Defaults to 0.0 if the gauge
+        has no samples yet.
     """
     for metric in QUEUE_DEPTH.collect():
         for sample in metric.samples:
