@@ -1,3 +1,5 @@
+"""Streaming NDJSON chunk transport for /v1/redact/stream."""
+
 from __future__ import annotations
 
 import asyncio
