@@ -13,6 +13,7 @@ class StrategyResult:
     text: str
     spans: list[Span]
     relex_map: dict[str, str]
+    substitutions: list[tuple[Span, str]] | None = None
 
 
 @runtime_checkable
@@ -49,7 +50,12 @@ class Mask:
 
         fmt = config.get("format", "[REDACTED]")
         masked = apply_spans(text, spans, fmt)
-        return StrategyResult(text=masked, spans=spans, relex_map={})
+        return StrategyResult(
+            text=masked,
+            spans=spans,
+            relex_map={},
+            substitutions=[(s, fmt) for s in spans],
+        )
 
 
 class Hash:
@@ -73,7 +79,12 @@ class Hash:
             length = int(config.get("length", 8))
             replacements.append(f"[HASH:{digest[:length]}]")
         masked = apply_spans(text, spans, replacements)
-        return StrategyResult(text=masked, spans=spans, relex_map={})
+        return StrategyResult(
+            text=masked,
+            spans=spans,
+            relex_map={},
+            substitutions=list(zip(spans, replacements, strict=True)),
+        )
 
 
 class Regex:
@@ -97,7 +108,12 @@ class Regex:
         detected = await detector.detect(text, entity_types)
         fmt = config.get("format", "[REDACTED]")
         masked = apply_spans(text, detected, fmt)
-        return StrategyResult(text=masked, spans=detected, relex_map={})
+        return StrategyResult(
+            text=masked,
+            spans=detected,
+            relex_map={},
+            substitutions=[(s, fmt) for s in detected],
+        )
 
 
 class AutoDeID:
@@ -157,4 +173,9 @@ class AutoDeID:
             relex_map = {}
 
         masked = apply_spans(text, detected, replacements)
-        return StrategyResult(text=masked, spans=detected, relex_map=relex_map)
+        return StrategyResult(
+            text=masked,
+            spans=detected,
+            relex_map=relex_map,
+            substitutions=list(zip(detected, replacements, strict=True)),
+        )

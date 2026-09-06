@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import bisect
+from collections.abc import Callable
+
 from app.inference.detector import Span
 
 
@@ -27,6 +30,48 @@ def apply_spans(text: str, spans: list[Span], replacement: str | list[str] = "[R
         span = spans[i]
         out = out[: span.start] + replacements[i] + out[span.end :]
     return out
+
+
+def inverse_position_remap(
+    text: str,
+    spans: list[Span],
+    replacements: list[str],
+) -> Callable[[int], int]:
+    """Return a function mapping a position in the substituted text back into `text`.
+
+    Assumes the same substitution layout as `apply_spans`: kept segments
+    survive verbatim and map linearly, while any position inside a replaced
+    range maps to the start of that span. Spans must be non-overlapping.
+    """
+    if len(replacements) != len(spans):
+        raise ValueError("replacement list length must match spans length")
+
+    ordered = sorted(zip(spans, replacements, strict=True), key=lambda pr: pr[0].start)
+    segments: list[tuple[int, int, int, bool]] = []
+    new_pos = 0
+    prev = 0
+    for span, replacement in ordered:
+        if span.start > prev:
+            segments.append((new_pos, prev, span.start - prev, False))
+            new_pos += span.start - prev
+        segments.append((new_pos, span.start, len(replacement), True))
+        new_pos += len(replacement)
+        prev = span.end
+    if prev < len(text):
+        segments.append((new_pos, prev, len(text) - prev, False))
+
+    starts = [segment[0] for segment in segments]
+
+    def remap(position: int) -> int:
+        if position < 0:
+            return 0
+        index = bisect.bisect_right(starts, position) - 1
+        new_start, old_start, _length, replaced = segments[index]
+        if replaced:
+            return old_start
+        return old_start + (position - new_start)
+
+    return remap
 
 
 def dedupe_overlaps(spans: list[Span]) -> list[Span]:

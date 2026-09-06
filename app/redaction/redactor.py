@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
 from app.inference.detector import Detector, Span
 from app.observability import ENTITIES_DETECTED, INFERENCE_LATENCY
-from app.redaction.apply import apply_spans, dedupe_overlaps
+from app.redaction.apply import apply_spans, dedupe_overlaps, inverse_position_remap
 from app.redaction.offsets import validate_offsets
 from app.redaction.strategy import Strategy
 
@@ -62,6 +63,7 @@ class Redactor:
         result_text = text
         result_spans: list[Span] = []
         relex_map: dict[str, str] = {}
+        remap_to_original: Callable[[int], int] | None = None
 
         for _field_name, field_config in policy.get("fields", {}).items():
             strategy_name = field_config.get("strategy")
@@ -69,8 +71,31 @@ class Redactor:
                 continue
             strategy = self._strategies[strategy_name]
             strategy_result = await strategy.apply(result_text, [], field_config)
+            for span in strategy_result.spans:
+                if remap_to_original is not None:
+                    recast = Span(
+                        start=remap_to_original(span.start),
+                        end=remap_to_original(span.end - 1) + 1,
+                        type=span.type,
+                        confidence=span.confidence,
+                    )
+                else:
+                    recast = span
+                result_spans.append(recast)
+            substitutions = strategy_result.substitutions or []
+            if substitutions:
+                spans_to_replace, replacements = zip(*substitutions, strict=True)
+                new_to_current = inverse_position_remap(
+                    result_text,
+                    list(spans_to_replace),
+                    list(replacements),
+                )
+                if remap_to_original is None:
+                    remap_to_original = new_to_current
+                else:
+                    previous = remap_to_original
+                    remap_to_original = lambda p, f=new_to_current, g=previous: g(f(p))  # noqa: E731
             result_text = strategy_result.text
-            result_spans.extend(strategy_result.spans)
             relex_map.update(strategy_result.relex_map)
             for span in strategy_result.spans:
                 ENTITIES_DETECTED.labels(entity_type=span.type, strategy=strategy_name).inc()
