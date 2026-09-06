@@ -1,3 +1,9 @@
+"""High-level orchestrator: detect, validate, dedupe, substitute.
+
+A ``Redactor`` owns a ``Detector`` plus a name -> ``Strategy`` map. It is
+constructed once in ``app/main.py`` lifespan and reused across requests.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Callable
