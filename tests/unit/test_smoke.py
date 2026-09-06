@@ -38,3 +38,38 @@ def test_healthz(client) -> None:
     resp = client.get("/healthz")
     assert resp.status_code == 200
     assert resp.json() == {"status": "ok"}
+
+
+def test_readyz_returns_503_problem_until_ready(monkeypatch) -> None:
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from app.api.health import register
+    from app.state import model_state
+
+    monkeypatch.setattr(model_state, "ready", False)
+    monkeypatch.setattr(model_state, "redactor", None)
+    app = FastAPI()
+    register(app)
+    with TestClient(app) as client:
+        resp = client.get("/readyz")
+    assert resp.status_code == 503
+    assert resp.headers["content-type"].startswith("application/problem+json")
+    assert resp.json()["title"] == "Not ready"
+
+
+def test_readyz_200_when_ready(monkeypatch) -> None:
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from app.api.health import register
+    from app.state import model_state
+
+    monkeypatch.setattr(model_state, "ready", True)
+    monkeypatch.setattr(model_state, "redactor", object())
+    app = FastAPI()
+    register(app)
+    with TestClient(app) as client:
+        resp = client.get("/readyz")
+    assert resp.status_code == 200
+    assert resp.json() == {"status": "ready"}
