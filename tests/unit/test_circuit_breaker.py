@@ -6,7 +6,7 @@ from app.redaction.circuit.breaker import Breaker, OpenError
 
 
 def test_closed_breaker_passes_calls() -> None:
-    cb = Breaker(name="t", failure_threshold=2, cooldown_s=0.1)
+    cb = Breaker(name="t", threshold=2, cooldown_s=0.1)
 
     def add(a: int, b: int) -> int:
         return a + b
@@ -17,7 +17,7 @@ def test_closed_breaker_passes_calls() -> None:
 
 
 def test_breaker_opens_after_repeated_failures() -> None:
-    cb = Breaker(name="t", failure_threshold=2, cooldown_s=0.1)
+    cb = Breaker(name="t", threshold=2, cooldown_s=0.1)
 
     def boom() -> None:
         raise RuntimeError("nope")
@@ -32,7 +32,7 @@ def test_breaker_opens_after_repeated_failures() -> None:
 
 
 def test_breaker_half_opens_after_cooldown_and_recovers_on_success() -> None:
-    cb = Breaker(name="t", failure_threshold=1, cooldown_s=0.05)
+    cb = Breaker(name="t", threshold=1, cooldown_s=0.05)
 
     def boom() -> None:
         raise RuntimeError("nope")
@@ -51,7 +51,7 @@ def test_breaker_half_opens_after_cooldown_and_recovers_on_success() -> None:
 
 
 def test_breaker_half_open_failure_reopens() -> None:
-    cb = Breaker(name="t", failure_threshold=1, cooldown_s=0.05)
+    cb = Breaker(name="t", threshold=1, cooldown_s=0.05)
 
     def boom() -> None:
         raise RuntimeError("nope")
@@ -69,7 +69,7 @@ def test_breaker_half_open_failure_reopens() -> None:
 def test_breaker_non_transient_does_not_count() -> None:
     cb = Breaker(
         name="t",
-        failure_threshold=1,
+        threshold=1,
         cooldown_s=0.1,
         transient_predicate=lambda exc: isinstance(exc, ConnectionError),
     )
@@ -83,7 +83,7 @@ def test_breaker_non_transient_does_not_count() -> None:
 
 
 def test_force_open_and_force_closed() -> None:
-    cb = Breaker(name="t", failure_threshold=1, cooldown_s=10.0)
+    cb = Breaker(name="t", threshold=1, cooldown_s=10.0)
     cb.force_open()
     assert cb.report().state == "open"
     with pytest.raises(OpenError):

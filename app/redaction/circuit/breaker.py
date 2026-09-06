@@ -44,7 +44,7 @@ class Stats:
 class Breaker:
     """Per-process circuit breaker.
 
-    `failure_threshold` is the number of *consecutive* transient failures
+    `threshold` is the number of *consecutive* transient failures
     before the breaker opens. `cooldown_s` is how long OPEN lasts before a
     probe is allowed. `transient_predicate` decides which exceptions count
     as failures (default: any `Exception`).
@@ -53,12 +53,12 @@ class Breaker:
     def __init__(
         self,
         name: str,
-        failure_threshold: int = 3,
+        threshold: int = 3,
         cooldown_s: float = 5.0,
         transient_predicate: Callable[[BaseException], bool] | None = None,
     ) -> None:
         self.name = name
-        self.failure_threshold = failure_threshold
+        self.threshold = threshold
         self.cooldown_s = cooldown_s
         self.transient_predicate = transient_predicate or (lambda exc: isinstance(exc, Exception))
         self.lock = threading.Lock()
@@ -98,7 +98,7 @@ class Breaker:
             self.probe_in_flight = False
         self.total_failures += 1
         self.consecutive_failures += 1
-        if was_probe or self.consecutive_failures >= self.failure_threshold:
+        if was_probe or self.consecutive_failures >= self.threshold:
             self.state = "open"
             self.opened_at = time.monotonic()
 

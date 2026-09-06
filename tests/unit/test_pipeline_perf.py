@@ -48,7 +48,7 @@ def _build(detector: Any, threshold: int = 5, cooldown: float = 0.05) -> Pipelin
     return Pipeline(
         regex_gate=RegexGate(detector=RegexDetector()),
         model_stage=ModelStage(detector=detector),
-        model_breaker=Breaker(name="t", failure_threshold=threshold, cooldown_s=cooldown),
+        model_breaker=Breaker(name="t", threshold=threshold, cooldown_s=cooldown),
     )
 
 

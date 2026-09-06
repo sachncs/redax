@@ -114,7 +114,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             model_stage=ModelStage(detector=active),
             model_breaker=Breaker(
                 name="model",
-                failure_threshold=settings.pipeline_breaker_threshold,
+                threshold=settings.pipeline_breaker_threshold,
                 cooldown_s=settings.pipeline_breaker_cooldown_s,
             ),
         )

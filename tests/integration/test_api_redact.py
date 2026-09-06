@@ -174,7 +174,7 @@ def test_redact_pipeline_path_returns_used_pipeline_flag(monkeypatch):
     test_state.pipeline = Pipeline(
         regex_gate=RegexGate(detector=test_state.regex_detector),
         model_stage=ModelStage(detector=test_state.detector),
-        model_breaker=Breaker(name="m", failure_threshold=3, cooldown_s=5.0),
+        model_breaker=Breaker(name="m", threshold=3, cooldown_s=5.0),
     )
     test_state.redactor = Redactor(
         detector=_StubDetector(),
@@ -223,7 +223,7 @@ def test_redact_without_use_pipeline_uses_legacy_redactor(monkeypatch):
     test_state.pipeline = Pipeline(
         regex_gate=RegexGate(detector=test_state.regex_detector),
         model_stage=ModelStage(detector=test_state.detector),
-        model_breaker=Breaker(name="m", failure_threshold=3, cooldown_s=5.0),
+        model_breaker=Breaker(name="m", threshold=3, cooldown_s=5.0),
     )
     test_state.redactor = Redactor(
         detector=_StubDetector(),

@@ -34,7 +34,7 @@ def _build_pipeline(
     return Pipeline(
         regex_gate=RegexGate(detector=regex),
         model_stage=ModelStage(detector=detector),
-        model_breaker=Breaker(name="m", failure_threshold=threshold, cooldown_s=cooldown),
+        model_breaker=Breaker(name="m", threshold=threshold, cooldown_s=cooldown),
     )
 
 
