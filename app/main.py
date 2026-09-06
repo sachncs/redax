@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI
 
@@ -15,7 +16,9 @@ from app.api import (
 )
 from app.audit.local_file import LocalFileAuditBackend
 from app.config import Settings
+from app.inference.gliner2 import GLiNER2Detector
 from app.inference.regex_detector import RegexDetector
+from app.inference.registry import DetectorRegistry
 from app.jobs.store import JobStore
 from app.logging import configure_logging, get_logger
 from app.observability import configure_tracing
@@ -38,17 +41,47 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     regex = RegexDetector()
     await regex.warmup()
     model_state.regex_detector = regex
-    model_state.detector = regex
+
+    detectors: list[Any] = [regex]
+    if settings.detector == "gliner2":
+        gliner2 = GLiNER2Detector(
+            model_name=settings.model_name,
+            model_revision=settings.model_revision,
+            model_cache=settings.model_cache,
+            threshold=settings.model_threshold,
+            device="cpu",
+            concurrency=settings.inference_concurrency,
+            local_files_only=True,
+        )
+        try:
+            await gliner2.load()
+            await gliner2.warmup()
+        except Exception:
+            log.error(
+                "redax.detector_load_failed",
+                model=settings.model_name,
+                revision=settings.model_revision,
+                exc_info=True,
+            )
+            raise
+        detectors.append(gliner2)
+        active: Any = gliner2
+    else:
+        # REDAX_DETECTOR=regex is the only opt-in for the fallback path.
+        active = regex
+
+    registry = DetectorRegistry(detectors)
+    model_state.detector = active
 
     strategies: dict[str, Strategy] = {
         "passThrough": PassThrough(),
         "mask": Mask(),
         "hash": Hash(salt=settings.hash_salt),
-        "regex": Regex(),
-        "autoDeID": AutoDeID(regex),
+        "regex": Regex(detector=regex),
+        "autoDeID": AutoDeID(active, detectors=registry),
     }
     model_state.redactor = Redactor(
-        detector=regex,
+        detector=active,
         strategies=strategies,
         replacement="[REDACTED]",
     )
@@ -68,8 +101,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     log.info(
         "redax.startup",
         log_level=settings.log_level,
-        detector="regex",
+        detector=active.name,
         model=settings.model_name,
+        revision=settings.model_revision,
         redis=model_state.job_store is not None,
     )
     model_state.ready = True
