@@ -95,7 +95,12 @@ class Regex:
     def __init__(self, detector: RegexDetector | None = None) -> None:
         self.detector = detector
 
-    def _get_detector(self) -> RegexDetector:
+    def resolve_detector(self) -> RegexDetector:
+        """Return the bound detector, lazily constructing a default.
+
+        Returns:
+            The ``RegexDetector`` instance attached to this strategy.
+        """
         if self.detector is None:
             self.detector = RegexDetector()
         return self.detector
@@ -103,7 +108,7 @@ class Regex:
     async def apply(self, text: str, spans: list[Span], config: dict[str, Any]) -> StrategyResult:
         from app.redaction.apply import apply_spans
 
-        detector = self._get_detector()
+        detector = self.resolve_detector()
         entity_types = config.get("entity_types", [])
         detected = await detector.detect(text, entity_types)
         fmt = config.get("format", "[REDACTED]")
