@@ -1,3 +1,5 @@
+"""Span offset validation utilities."""
+
 from __future__ import annotations
 
 from app.inference.detector import Span
@@ -9,6 +11,13 @@ def validate_offsets(text: str, spans: list[Span]) -> list[Span]:
     Spans are validated end-exclusive (start inclusive, end exclusive).
     Spans with end <= start, end > len(text), or where the slice doesn't
     match the expected position are dropped.
+
+    Args:
+        text: The source text the spans were extracted from.
+        spans: Candidate spans to validate.
+
+    Returns:
+        The subset of ``spans`` whose offsets are valid against ``text``.
     """
     text_len = len(text)
     out: list[Span] = []
