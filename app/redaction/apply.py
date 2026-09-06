@@ -1,3 +1,5 @@
+"""Span application utilities: substitute, inverse-map, dedupe."""
+
 from __future__ import annotations
 
 import bisect
@@ -7,12 +9,25 @@ from app.inference.detector import Span
 
 
 def apply_spans(text: str, spans: list[Span], replacement: str | list[str] = "[REDACTED]") -> str:
-    """Substitute the spans in `text` with `replacement` (or one per span).
+    """Substitute ``spans`` in ``text`` with ``replacement`` (or one per span).
 
     Spans must not overlap. Callers should deduplicate (e.g. via
-    `dedupe_overlaps`) before invoking this function. The implementation
+    ``dedupe_overlaps``) before invoking this function. The implementation
     sorts right-to-left and mutates a working buffer; this is correct for
     non-overlapping spans.
+
+    Args:
+        text: The source text to apply substitutions to.
+        spans: The non-overlapping spans to substitute.
+        replacement: Either a single string applied to every span, or a
+            list with one entry per span.
+
+    Returns:
+        The text with each span replaced.
+
+    Raises:
+        ValueError: If ``replacement`` is a list whose length does not
+            match ``spans``.
     """
     if not spans:
         return text
@@ -37,11 +52,25 @@ def inverse_position_remap(
     spans: list[Span],
     replacements: list[str],
 ) -> Callable[[int], int]:
-    """Return a function mapping a position in the substituted text back into `text`.
+    """Return a function mapping a position in the substituted text back into ``text``.
 
-    Assumes the same substitution layout as `apply_spans`: kept segments
-    survive verbatim and map linearly, while any position inside a replaced
-    range maps to the start of that span. Spans must be non-overlapping.
+    Assumes the same substitution layout as ``apply_spans``: kept segments
+    survive verbatim and map linearly, while any position inside a
+    replaced range maps to the start of that span. Spans must be
+    non-overlapping.
+
+    Args:
+        text: The original source text.
+        spans: The non-overlapping spans that were replaced.
+        replacements: The replacement strings (one per span).
+
+    Returns:
+        A function ``remap(position) -> int`` that maps a position in
+        the substituted text back to its origin in ``text``. Positions
+        inside a replaced range map to the start of that range.
+
+    Raises:
+        ValueError: If ``len(replacements) != len(spans)``.
     """
     if len(replacements) != len(spans):
         raise ValueError("replacement list length must match spans length")
@@ -79,6 +108,12 @@ def dedupe_overlaps(spans: list[Span]) -> list[Span]:
 
     Returns spans sorted by start. Ties broken by longer span first, then
     higher confidence.
+
+    Args:
+        spans: Input spans in any order.
+
+    Returns:
+        Spans with overlaps resolved by dropping the lower-confidence one.
     """
     if not spans:
         return []
