@@ -4,7 +4,13 @@ import pytest
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
-from app.api import register_batch, register_jobs, register_redact, register_stream
+from app.api import (
+    register_batch,
+    register_jobs,
+    register_policies,
+    register_redact,
+    register_stream,
+)
 from app.auth import require_api_key
 from app.errors import install_error_handlers
 from app.state import model_state
@@ -31,6 +37,7 @@ class _StubSettings:
     idempotency_ttl_seconds = 86400
     hash_salt = ""
     rate_limit_per_minute = 0
+    policies_dir = "./policies"
 
     def __init__(self, api_keys: set[str]) -> None:
         self._api_keys = api_keys
@@ -51,6 +58,7 @@ def _make_app() -> FastAPI:
     register_batch(app)
     register_stream(app)
     register_jobs(app)
+    register_policies(app)
     return app
 
 
@@ -111,6 +119,28 @@ def test_jobs_get_rejects_missing_key(monkeypatch: pytest.MonkeyPatch) -> None:
     with TestClient(app) as client:
         resp = client.get("/v1/jobs/xyz")
     assert resp.status_code == 401
+
+
+def test_policies_rejects_missing_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    _stub_state(monkeypatch, api_keys={"test-key"})
+    app = _make_app()
+    with TestClient(app) as client:
+        resp = client.get("/v1/policies")
+    assert resp.status_code == 401
+    assert resp.headers["content-type"].startswith("application/problem+json")
+
+
+def test_policies_accepts_valid_key(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    _stub_state(monkeypatch, api_keys={"test-key"})
+    (tmp_path / "default.yaml").write_text(
+        '{"name": "default", "version": "1.0.0", "description": "d", "fields": {}}'
+    )
+    monkeypatch.setattr(model_state.settings, "policies_dir", str(tmp_path))
+    app = _make_app()
+    with TestClient(app) as client:
+        resp = client.get("/v1/policies", headers={"X-API-Key": "test-key"})
+    assert resp.status_code == 200
+    assert resp.json()["policies"][0]["name"] == "default"
 
 
 def test_batch_accepts_valid_key(monkeypatch: pytest.MonkeyPatch) -> None:
