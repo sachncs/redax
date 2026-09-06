@@ -35,7 +35,7 @@ class ModelStage:
     The pipeline expects any object with a synchronous method that takes
     ``(text, entity_types)`` and returns ``list[Span]``. The
     `OpenMedPIIDetector` exposes `detect_sync` natively; the `RegexDetector`
-    is async-only and is wrapped by `_run_async` as a fallback.
+    is async-only and is wrapped by `run_async` as a fallback.
     """
 
     detector: _SyncDetector | _AsyncDetector | Any
@@ -45,15 +45,16 @@ class ModelStage:
         if callable(sync_attr):
             return list(sync_attr(text, entity_types))
         detect_attr: Callable[..., Any] = self.detector.detect  # type: ignore[union-attr]
-        return self._run_async(detect_attr(text, entity_types))
+        return run_async(detect_attr(text, entity_types))
 
-    @staticmethod
-    def _run_async(coro: Any) -> list[Span]:
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
-                    return list(ex.submit(asyncio.run, coro).result())
-            return list(loop.run_until_complete(coro))
-        except RuntimeError:
-            return list(asyncio.run(coro))
+
+def run_async(coro: Any) -> list[Span]:
+    """Run ``coro`` synchronously, off the event loop."""
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+                return list(ex.submit(asyncio.run, coro).result())
+        return list(loop.run_until_complete(coro))
+    except RuntimeError:
+        return list(asyncio.run(coro))

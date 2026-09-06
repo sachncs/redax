@@ -5,8 +5,8 @@ import pytest
 from app.bench.annotation import LabelledSpan, SpanCategory
 from app.bench.combinators import (
     PairRange,
-    is_punct_char,
     build_connector_structure,
+    is_punct_char,
 )
 
 
