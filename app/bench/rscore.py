@@ -107,7 +107,7 @@ def _gap_runs(support_runs: list[tuple[int, int]], text_len: int) -> list[tuple[
     return gaps
 
 
-def _coverage(span: LabelledSpan, pred_runs: list[tuple[int, int]]) -> float:
+def coverage(span: LabelledSpan, pred_runs: list[tuple[int, int]]) -> float:
     """Character coverage of `span` by the prediction, in `[0, 1]`."""
     total = span.end - span.start
     if total <= 0:
@@ -240,7 +240,7 @@ def score_document(
         members = list(group.members)
         if not members:
             continue
-        cov = mean(_coverage(s, pred_runs) for s in members)
+        cov = mean(coverage(s, pred_runs) for s in members)
         red_scores.append(EntityScore(entity_index=idx, kind="mandatory", n=cov, d=1.0))
 
     contextual_scores: list[EntityScore] = []
@@ -255,7 +255,7 @@ def score_document(
         if not active:
             skipped += 1
             continue
-        cov = mean(_coverage(s, pred_runs) for s in active)
+        cov = mean(coverage(s, pred_runs) for s in active)
         if all_ctx_active:
             contextual_scores.append(
                 EntityScore(

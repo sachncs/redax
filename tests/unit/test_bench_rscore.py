@@ -33,7 +33,7 @@ def _vehicle_annotation() -> list[LabelledSpan]:
 VEHICLE_TEXT = 'Vehicle: "5N1AT2MK4FC824170" "2015 Nissan Rogue" plate= 321ABC'
 
 
-def test_mandatory_full_coverage_yields_R_one() -> None:
+def test_mandatory_fullcoverage_yields_R_one() -> None:
     text = "Email me at alice@example.com please"
     span = LabelledSpan(12, 29, SpanCategory.MANDATORY)
     pred = [LabelledSpan(12, 29, SpanCategory.MANDATORY)]
@@ -53,7 +53,7 @@ def test_mandatory_no_predictions_yields_R_zero() -> None:
     assert result.mandatory_entities[0].d == 1.0
 
 
-def test_mandatory_partial_coverage_scores_partial_credit() -> None:
+def test_mandatory_partialcoverage_scores_partial_credit() -> None:
     text = "abcdefghij"
     span = LabelledSpan(0, 5, SpanCategory.MANDATORY)
     pred = [LabelledSpan(0, 3, SpanCategory.MANDATORY)]
@@ -95,7 +95,7 @@ def test_false_positive_covering_entire_gap_ge_3_gets_weight_two() -> None:
     assert fp_weights == [2.0]
 
 
-def test_false_positive_partial_gap_coverage_still_weight_one() -> None:
+def test_false_positive_partial_gapcoverage_still_weight_one() -> None:
     text = "AAAA bbb CCCC"
     span = LabelledSpan(5, 8, SpanCategory.MANDATORY)
     pred_partial = [
