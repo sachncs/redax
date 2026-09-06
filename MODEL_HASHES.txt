@@ -1,0 +1,4 @@
+# sha256 digests of pinned model snapshots.
+# Format: <sha256> <repo_id> <revision>
+# Regenerate with: python scripts/download_models.py --record
+6c8acb9f91f7de13bec075211229981df09aa2a265f0d2bd6dc6a313cebdfeca fastino/gliner2-privacy-filter-PII-multi c153999da5f4c509df4322b0c6a1baf3d2c284d7

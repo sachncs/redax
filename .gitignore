@@ -29,6 +29,7 @@ env/
 # Models and large artifacts
 /models/
 /app/models_cache/
+/models_cache/
 *.onnx
 *.safetensors
 *.bin
