@@ -64,7 +64,7 @@ class Hash:
     name = "hash"
 
     def __init__(self, salt: str = "") -> None:
-        self._salt = salt
+        self.salt = salt
 
     async def apply(self, text: str, spans: list[Span], config: dict[str, Any]) -> StrategyResult:
         import hashlib
@@ -74,7 +74,7 @@ class Hash:
         replacements: list[str] = []
         for span in spans:
             digest = hashlib.sha256(
-                f"{self._salt}{text[span.start : span.end]}".encode()
+                f"{self.salt}{text[span.start : span.end]}".encode()
             ).hexdigest()
             length = int(config.get("length", 8))
             replacements.append(f"[HASH:{digest[:length]}]")
@@ -93,12 +93,12 @@ class Regex:
     name = "regex"
 
     def __init__(self, detector: RegexDetector | None = None) -> None:
-        self._detector = detector
+        self.detector = detector
 
     def _get_detector(self) -> RegexDetector:
-        if self._detector is None:
-            self._detector = RegexDetector()
-        return self._detector
+        if self.detector is None:
+            self.detector = RegexDetector()
+        return self.detector
 
     async def apply(self, text: str, spans: list[Span], config: dict[str, Any]) -> StrategyResult:
         from app.redaction.apply import apply_spans
@@ -136,30 +136,30 @@ class AutoDeID:
         detectors: Mapping[str, Detector] | None = None,
         max_passes: int = 3,
     ) -> None:
-        self._detector = detector
-        self._detectors = detectors or {}
-        self._max_passes = max_passes
+        self.detector = detector
+        self.detectors = detectors or {}
+        self.max_passes = max_passes
 
     async def apply(self, text: str, spans: list[Span], config: dict[str, Any]) -> StrategyResult:
         from app.inference.multi_pass import multi_pass_detect
         from app.redaction.apply import apply_spans
 
-        chosen = self._detector
+        chosen = self.detector
         per_policy = config.get("detector")
         if per_policy is not None:
-            if per_policy not in self._detectors:
+            if per_policy not in self.detectors:
                 raise ValueError(
                     f"policy requests unknown detector {per_policy!r}; "
-                    f"available: {sorted(self._detectors)}"
+                    f"available: {sorted(self.detectors)}"
                 )
-            chosen = self._detectors[per_policy]
+            chosen = self.detectors[per_policy]
 
         entity_types = config.get("entity_types", [])
         passes = int(config.get("multi_pass", 1))
         relex = bool(config.get("relex", False))
 
         detected = await multi_pass_detect(
-            chosen, text, entity_types, passes, max_passes=self._max_passes
+            chosen, text, entity_types, passes, max_passes=self.max_passes
         )
 
         if relex:
