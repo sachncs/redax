@@ -77,12 +77,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         try:
             await gliner2.load()
             await gliner2.warmup()
-        except Exception:
+        except (OSError, RuntimeError, ValueError, TimeoutError) as exc:
             log.error(
                 "redax.detector_load_failed",
                 model=settings.model_name,
                 revision=settings.model_revision,
-                exc_info=True,
+                error=exc.__class__.__name__,
             )
             raise
         detectors.append(gliner2)
