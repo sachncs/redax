@@ -31,11 +31,17 @@ All settings read from environment variables prefixed with `REDAX_`. See
 | `REDAX_API_KEYS` | `""` | comma-separated; empty disables auth |
 | `REDAX_RATE_LIMIT_PER_MINUTE` | `60` | per API key; 0 disables |
 | `REDAX_CACHE_TTL_SECONDS` | `3600` | response cache TTL |
+| `REDAX_CACHE_SHARED` | `false` | share the response cache across deployments (requires identical `REDAX_HASH_SALT`) |
 | `REDAX_IDEMPOTENCY_TTL_SECONDS` | `86400` | idempotency cache TTL |
 | `REDAX_MAX_INFLIGHT` | `32` | jobs admitted while this many are in flight; else 429 |
 | `REDAX_MAX_JOBS_PER_KEY` | `50` | max admitted jobs per API key; else 429 |
 | `REDAX_JOB_TTL_SECONDS` | `86400` | how long job records live in Redis |
+| `REDAX_STREAM_CHUNK_CHARS` | `2000` | default SSE chunk size when the client omits `chunk_chars` |
 | `REDAX_STREAM_CHUNK_BYTES` | `4096` | per-event UTF-8 byte ceiling in `/v1/redact/stream` |
+| `REDAX_AUDIT_FSYNC` | `true` | fsync each audit line written |
+| `REDAX_AUDIT_MAX_BYTES` | `1000000000` | rotate the audit log when it reaches this size |
+| `REDAX_AUDIT_ROTATION_BACKUPS` | `5` | keep this many rotated audit files; 0 truncates instead |
+| `REDAX_AUDIT_RETENTION_SECONDS` | `7776000` | drop audit lines older than this at startup |
 | `REDAX_WORKER_CONCURRENCY` | `1` | reserved for the planned arq worker (`redax-worker`); jobs currently run in-process via FastAPI background tasks |
 | `REDAX_OTLP_ENDPOINT` | `""` | OTLP gRPC endpoint for traces |
 

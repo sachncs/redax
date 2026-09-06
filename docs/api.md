@@ -52,8 +52,10 @@ audit event per request with aggregated span counts.
 
 ## POST /v1/redact/stream
 
-Server-Sent Events. Splits the input into chunks (`chunk_chars`, default 2000)
-and emits one event per chunk, then a final `[DONE]`.
+Server-Sent Events. Splits the input into chunks (`chunk_chars`, default
+`REDAX_STREAM_CHUNK_CHARS`) and emits one event per chunk, then a final `[DONE]`.
+Each event is capped at `REDAX_STREAM_CHUNK_BYTES` bytes of UTF-8 (a grapheme is
+never split across events).
 
 ```bash
 curl -N -X POST http://localhost:8000/v1/redact/stream \
@@ -64,7 +66,8 @@ curl -N -X POST http://localhost:8000/v1/redact/stream \
 Requires an API key when configured. Rejects oversized payloads (413), enforces
 the shared rate limit (429/503), and a per-chunk timeout yields a
 `{"error": "request timeout", "status": 504}` SSE event. Each event is capped
-at `REDAX_STREAM_CHUNK_BYTES` (default 4096) bytes and `chunk_chars` characters.
+at `REDAX_STREAM_CHUNK_BYTES` (default 4096) bytes and defaults to
+`REDAX_STREAM_CHUNK_CHARS` characters when `chunk_chars` is omitted.
 Emits one audit event per request.
 
 ## POST /v1/jobs, GET /v1/jobs/{id}
