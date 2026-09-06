@@ -120,7 +120,7 @@ class FusedEntities:
     contextual_entities: tuple[SpanGroup, ...]
 
 
-def _marker_positions(
+def marker_positions(
     yellow: list[LabelledSpan],
     structure: ConnectorStructure,
     text: str,
@@ -202,11 +202,11 @@ def fused_entity_groups(
 
     components.sort(key=lambda c: c[0].start)
 
-    marker_positions = _marker_positions(target_yellow, structure, text)
+    positions = marker_positions(target_yellow, structure, text)
 
     contextual_entities: list[SpanGroup] = []
     for comp in components:
-        if len(comp) == 1 and comp[0].start in marker_positions:
+        if len(comp) == 1 and comp[0].start in positions:
             continue
         contextual_entities.append(SpanGroup(members=tuple(comp)))
 
