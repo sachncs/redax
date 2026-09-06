@@ -123,7 +123,7 @@ class Pipeline:
                 circuit_open=True,
                 note="circuit open",
             )
-        except Exception as exc:
+        except (OSError, RuntimeError, ValueError, TimeoutError, MemoryError) as exc:
             log.warning("model_stage_failure", extra={"error": exc.__class__.__name__})
             return StageOutcome(
                 name="model_stage",

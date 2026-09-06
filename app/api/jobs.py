@@ -171,7 +171,7 @@ async def run_job(job_id: str, payload: dict[str, Any], store: JobStore, request
         logger.error("redax.job_timeout", job_id=job_id)
         ERRORS.labels(type="job_timeout").inc()
         await record_failure(job_id, store, logger)
-    except Exception as exc:
+    except (OSError, RuntimeError, ValueError, KeyError) as exc:
         logger.error("redax.job_failed", job_id=job_id, error=exc)
         ERRORS.labels(type="job_failed").inc()
         await record_failure(job_id, store, logger)
