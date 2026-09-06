@@ -104,7 +104,7 @@ class GLiNER2Detector:
         if self.semaphore is None:
             self.semaphore = asyncio.Semaphore(self.concurrency)
 
-        def _load_blocking() -> object:
+        def load_blocking() -> object:
             from gliner2 import GLiNER2
 
             return GLiNER2.from_pretrained(
@@ -115,7 +115,7 @@ class GLiNER2Detector:
                 map_location=self.device,
             )
 
-        self.model = await asyncio.to_thread(_load_blocking)
+        self.model = await asyncio.to_thread(load_blocking)
 
     async def detect(self, text: str, entity_types: list[str]) -> list[Span]:
         if not self.is_loaded:

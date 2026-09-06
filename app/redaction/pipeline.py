@@ -110,11 +110,11 @@ class Pipeline:
     async def model_stage_stage(self, text: str, _regex_hits: tuple[Span, ...]) -> StageOutcome:
         t0 = time.perf_counter()
 
-        def _sync_call() -> tuple[Span, ...]:
+        def sync_call() -> tuple[Span, ...]:
             return tuple(self.model_stage.detector_sync(text, []))
 
         try:
-            spans = await asyncio.to_thread(self.model_breaker.call, _sync_call)
+            spans = await asyncio.to_thread(self.model_breaker.call, sync_call)
         except CircuitOpenError:
             return StageOutcome(
                 name="model_stage",
