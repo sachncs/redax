@@ -58,12 +58,12 @@ def is_whitespace(ch: str) -> bool:
     return ch in (" ", "\t")
 
 
-def _span_text(text: str, span: LabelledSpan) -> str:
+def span_text(text: str, span: LabelledSpan) -> str:
     return text[span.start : span.end]
 
 
-def _is_digit_only(text: str, span: LabelledSpan) -> bool:
-    return all(c in DIGITS for c in _span_text(text, span))
+def is_digit_only(text: str, span: LabelledSpan) -> bool:
+    return all(c in DIGITS for c in span_text(text, span))
 
 
 def iter_neighbor_pairs(
@@ -149,7 +149,7 @@ def red_edges(
         between = text[a_end:b_start]
         if not between:
             continue
-        a_text = _span_text(text, a)
+        a_text = span_text(text, a)
         ka = (a.start, a.end, a.category)
         kb = (b.start, b.end, b.category)
         if between.startswith(" ") and a_text and a_text[-1] in CLOSERS:
@@ -167,7 +167,7 @@ def red_edges(
                 yellow_graph.setdefault(kb, []).append(ka)
                 effective_markers.append(ch)
                 continue
-            if ch == "/" and _is_digit_only(text, a) and _is_digit_only(text, b):
+            if ch == "/" and is_digit_only(text, a) and is_digit_only(text, b):
                 yellow_graph.setdefault(ka, []).append(kb)
                 yellow_graph.setdefault(kb, []).append(ka)
                 effective_markers.append(ch)
@@ -245,7 +245,7 @@ def _pair_ranges(
     return pair_ranges, markers
 
 
-def _connected_components(
+def connected_components(
     nodes: list[LabelledSpan],
     graph: dict[tuple[int, int, SpanCategory], list[tuple[int, int, SpanCategory]]],
 ) -> list[SpanGroup]:
@@ -299,8 +299,8 @@ def build_connector_structure(
     pair_ranges, pair_markers = _pair_ranges(spans, yellow, text)
     effective_markers.extend(pair_markers)
 
-    red_groups = _connected_components(list(red), red_graph)
-    context_components = _connected_components(list(yellow), yellow_graph)
+    red_groups = connected_components(list(red), red_graph)
+    context_components = connected_components(list(yellow), yellow_graph)
 
     return ConnectorStructure(
         red_fusion_groups=tuple(red_groups),
