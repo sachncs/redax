@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import time
 import uuid
 from typing import Annotated, Any
@@ -9,9 +10,9 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from app.auth import require_api_key
-from app.errors import internal_error, payload_too_large, problem_response
+from app.errors import internal_error, payload_too_large, problem_response, queue_full
 from app.jobs.store import JobStore
-from app.observability import QUEUE_DEPTH, REQUESTS
+from app.observability import QUEUE_DEPTH, REQUESTS, queue_depth
 
 JOB_FAILED = "job failed"
 
@@ -50,6 +51,10 @@ def register(app: FastAPI) -> None:
             if store is None:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
                 return internal_error(request, "job store not initialized")
+            max_inflight = getattr(settings, "max_inflight", 32)
+            if queue_depth() >= max_inflight:
+                REQUESTS.labels(endpoint=endpoint, method=method, status="429").inc()
+                return queue_full(request)
             record = await store.create()
             QUEUE_DEPTH.inc()
             background_tasks.add_task(run_job, record.id, body.model_dump(), store, request_id)
@@ -116,11 +121,13 @@ async def run_job(job_id: str, payload: dict[str, Any], store: JobStore, request
         QUEUE_DEPTH.dec()
         return
     try:
-        result = await redactor.redact(
-            payload["text"],
-            policy=payload.get("policy"),
-            entity_types=payload.get("entity_types"),
-        )
+        timeout_seconds = getattr(model_state.settings, "request_timeout_seconds", 30.0)
+        async with asyncio.timeout(timeout_seconds):
+            result = await redactor.redact(
+                payload["text"],
+                policy=payload.get("policy"),
+                entity_types=payload.get("entity_types"),
+            )
         inference_ms = int((time.perf_counter() - start) * 1000)
         await store.set_result(
             job_id,
@@ -143,6 +150,10 @@ async def run_job(job_id: str, payload: dict[str, Any], store: JobStore, request
                     inference_ms=inference_ms,
                 )
             )
+    except TimeoutError:
+        logger.error("redax.job_timeout", job_id=job_id)
+        ERRORS.labels(type="job_timeout").inc()
+        await record_failure(job_id, store, logger)
     except Exception as exc:
         logger.error("redax.job_failed", job_id=job_id, error=exc)
         ERRORS.labels(type="job_failed").inc()

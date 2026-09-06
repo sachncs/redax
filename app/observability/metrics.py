@@ -53,3 +53,14 @@ QUEUE_DEPTH = Gauge(
     "Current depth of the async job queue.",
     registry=REGISTRY,
 )
+
+
+def queue_depth() -> float:
+    """Current in-flight job count (the QUEUE_DEPTH gauge reading).
+
+    Used by job submission to enforce the max_inflight admission cap.
+    """
+    for metric in QUEUE_DEPTH.collect():
+        for sample in metric.samples:
+            return float(sample.value)
+    return 0.0

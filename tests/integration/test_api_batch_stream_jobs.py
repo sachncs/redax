@@ -323,3 +323,94 @@ def test_failed_job_does_not_leak_internal_error(app_with_no_redactor):
             time.sleep(0.05)
     assert body["status"] == "failed"
     assert body["error"] == "job failed"
+
+
+@pytest.fixture
+def app_with_max_inflight(monkeypatch):
+    test_state = ModelState()
+    test_state.settings = type(
+        "S",
+        (),
+        {
+            "max_text_chars": 100_000,
+            "api_key_set": lambda: set(),
+            "max_inflight": 1,
+        },
+    )()
+    test_state.redactor = Redactor(detector=SlowDetector(), strategies={})
+    test_state.job_store = InMemoryJobStore()
+    test_state.audit = MemoryAudit()
+    test_state.ready = True
+    monkeypatch.setattr("app.state.model_state", test_state)
+    app = FastAPI()
+    register_jobs(app)
+    return app
+
+
+def test_job_submission_rejected_when_inflight_full(app_with_max_inflight):
+    from app.observability.metrics import QUEUE_DEPTH
+
+    QUEUE_DEPTH.set(1.0)
+    try:
+        with TestClient(app_with_max_inflight) as client:
+            resp = client.post("/v1/jobs", json={"text": "more text"})
+    finally:
+        QUEUE_DEPTH.set(0.0)
+    assert resp.status_code == 429
+    assert resp.headers["content-type"].startswith("application/problem+json")
+    assert resp.json()["title"] == "Queue Full"
+
+
+@pytest.fixture
+def app_with_short_job_timeout(monkeypatch):
+    test_state = ModelState()
+    test_state.settings = type(
+        "S",
+        (),
+        {
+            "max_text_chars": 100_000,
+            "api_key_set": lambda: set(),
+            "request_timeout_seconds": 0.05,
+        },
+    )()
+    test_state.redactor = Redactor(detector=SlowDetector(), strategies={})
+    test_state.job_store = InMemoryJobStore()
+    test_state.audit = MemoryAudit()
+    test_state.ready = True
+    monkeypatch.setattr("app.state.model_state", test_state)
+    app = FastAPI()
+    register_jobs(app)
+    return app
+
+
+def test_job_times_out_and_fails_with_job_timeout_error(app_with_short_job_timeout):
+    from app.observability.metrics import ERRORS
+
+    def job_timeout_count() -> float:
+        for metric in ERRORS.collect():
+            for sample in metric.samples:
+                if (
+                    sample.name == "redax_errors_total"
+                    and sample.labels.get("type") == "job_timeout"
+                ):
+                    return sample.value
+        return 0.0
+
+    before = job_timeout_count()
+    with TestClient(app_with_short_job_timeout) as client:
+        sub = client.post("/v1/jobs", json={"text": "hi a@b.com"})
+        assert sub.status_code == 202
+        job_id = sub.json()["id"]
+        deadline = 5.0
+        import time
+
+        start = time.time()
+        while time.time() - start < deadline:
+            r = client.get(f"/v1/jobs/{job_id}")
+            body = r.json()
+            if body["status"] == "failed":
+                break
+            time.sleep(0.05)
+    assert body["status"] == "failed"
+    assert body["error"] == "job failed"
+    assert job_timeout_count() >= before + 1.0

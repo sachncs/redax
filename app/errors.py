@@ -86,6 +86,16 @@ def rate_limited(request: Request, detail: str = "Rate limit exceeded") -> JSONR
     )
 
 
+def queue_full(request: Request, detail: str = "Job queue is full") -> JSONResponse:
+    return problem_response(
+        request,
+        type="https://redax.ai/errors/queue-full",
+        title="Queue Full",
+        status=429,
+        detail=detail,
+    )
+
+
 def payload_too_large(request: Request, detail: str) -> JSONResponse:
     return problem_response(
         request,
