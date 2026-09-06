@@ -34,7 +34,7 @@ Redact a single text. Returns `{text, spans, relex_map}`.
 
 **Errors**: 413 (oversize), 422 (validation), 429 (rate-limited), 503 (not ready), 504 (timeout).
 
-**Headers honored**: `X-API-Key`, `Authorization: Bearer ...`, `Idempotency-Key`.
+**Headers honored**: `X-API-Key`, `Idempotency-Key`.
 Every response echoes the request's `X-Request-ID` (or a server-generated one).
 
 ## POST /v1/redact/batch
@@ -70,7 +70,9 @@ per request.
 
 Submit an async redaction; poll the result. Useful for long documents or
 high-throughput pipelines. Both endpoints require an API key when configured;
-submission enforces `max_text_chars` (413) and the shared rate limit (429/503).
+submission enforces `max_text_chars` (413), the shared rate limit (429/503),
+and the `max_inflight` admission cap (429, RFC 7807 `queue-full` when the
+in-flight job count is at capacity).
 
 **Submit**:
 
@@ -91,7 +93,10 @@ curl http://localhost:8000/v1/jobs/{id}
 
 An unknown `{id}` returns a 404 `application/problem+json` body. A failed job
 surfaces the stable `"error": "job failed"` marker — never an internal
-exception string. Completed jobs are recorded in the audit log.
+exception string. A job whose redaction exceeds `request_timeout_seconds` fails
+the same way (recorded as `redax_errors_total{type="job_timeout"}`). Completed
+jobs are recorded in the audit log; job records expire after
+`job_ttl_seconds`.
 
 ## GET /v1/policies
 

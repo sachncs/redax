@@ -29,10 +29,11 @@ All settings read from environment variables prefixed with `REDAX_`. See
 | `REDAX_HASH_SALT` | `change-me` | salt for `hash` strategy and cache keys |
 | `REDAX_MAX_TEXT_CHARS` | `100000` | reject inputs longer than this |
 | `REDAX_API_KEYS` | `""` | comma-separated; empty disables auth |
-| `REDAX_JWT_SECRET` | `""` | HS256 secret; empty disables JWT auth |
 | `REDAX_RATE_LIMIT_PER_MINUTE` | `60` | per API key; 0 disables |
 | `REDAX_CACHE_TTL_SECONDS` | `3600` | response cache TTL |
 | `REDAX_IDEMPOTENCY_TTL_SECONDS` | `86400` | idempotency cache TTL |
+| `REDAX_MAX_INFLIGHT` | `32` | jobs admitted while this many are in flight; else 429 |
+| `REDAX_JOB_TTL_SECONDS` | `86400` | how long job records live in Redis |
 | `REDAX_OTLP_ENDPOINT` | `""` | OTLP gRPC endpoint for traces |
 
 ## Production checklist

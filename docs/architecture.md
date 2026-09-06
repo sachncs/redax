@@ -15,7 +15,7 @@ all of them.
    │   GET  /v1/jobs/{id}         GET  /v1/policies              │
    │   GET  /healthz /readyz /metrics                            │
    │                                                              │
-   │   Auth  (X-API-Key, Bearer JWT)                              │
+   │   Auth  (X-API-Key)                                            │
    │   Rate limit  (Redis fixed-window per API key)               │
    │   Idempotency-Key  (Redis 24h)                                │
    │   Response cache  (SHA256(text + policy + salt), 1h)        │
@@ -51,7 +51,7 @@ all of them.
 | `app/logging.py` | structlog JSON logging |
 | `app/middleware.py` | request_id binding, X-Request-ID echo, per-request access log |
 | `app/errors.py` | RFC 7807 problem responses |
-| `app/auth.py` | API-key + JWT dependencies |
+| `app/auth.py` | X-API-Key dependency |
 | `app/ratelimit.py` | Redis fixed-window rate limit |
 | `app/observability/` | Prometheus + OpenTelemetry |
 | `app/api/` | HTTP route modules (one registration function each) |
