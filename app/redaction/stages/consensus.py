@@ -28,7 +28,7 @@ class ConsensusConfig:
 DEFAULT_CONSENSUS_CONFIG = ConsensusConfig()
 
 
-def _overlaps(a: Span, b: Span) -> bool:
+def overlaps(a: Span, b: Span) -> bool:
     return a.start < b.end and b.start < a.end
 
 
@@ -47,7 +47,7 @@ def fuse(
     for span in model_spans:
         if span.confidence < config.min_model_confidence:
             continue
-        if any(_overlaps(span, r) for r in regex_spans):
+        if any(overlaps(span, r) for r in regex_spans):
             continue
         kept.append(span)
 
