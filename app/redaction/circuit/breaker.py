@@ -69,7 +69,7 @@ class CircuitBreaker:
         self.total_calls = 0
         self.total_failures = 0
 
-    def _allow_call(self) -> tuple[bool, bool]:
+    def allow(self) -> tuple[bool, bool]:
         """Decide whether a call should proceed.
 
         Returns ``(allow, is_probe)``. Caller holds the lock.
@@ -86,14 +86,14 @@ class CircuitBreaker:
             return False, False
         return True, False
 
-    def _on_success(self, was_probe: bool) -> None:
+    def on_success(self, was_probe: bool) -> None:
         if was_probe:
             self.probe_in_flight = False
         self.consecutive_failures = 0
         self.state = "closed"
         self.opened_at = None
 
-    def _on_failure(self, was_probe: bool) -> None:
+    def on_failure(self, was_probe: bool) -> None:
         if was_probe:
             self.probe_in_flight = False
         self.total_failures += 1
@@ -104,7 +104,7 @@ class CircuitBreaker:
 
     def call(self, fn: Callable[..., T], *args: object, **kwargs: object) -> T:
         with self.lock:
-            allow, is_probe = self._allow_call()
+            allow, is_probe = self.allow()
             if not allow:
                 raise CircuitOpenError(f"circuit '{self.name}' is open")
             self.total_calls += 1
@@ -113,11 +113,11 @@ class CircuitBreaker:
         except BaseException as exc:
             with self.lock:
                 if self.transient_predicate(exc):
-                    self._on_failure(is_probe)
+                    self.on_failure(is_probe)
                 raise
         else:
             with self.lock:
-                self._on_success(is_probe)
+                self.on_success(is_probe)
             return result
 
     def stats(self) -> CircuitStats:
