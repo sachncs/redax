@@ -1,3 +1,5 @@
+"""Hiding-in-Plain-Sight (HIPS) relexicalizer."""
+
 from __future__ import annotations
 
 import hashlib
@@ -8,6 +10,13 @@ from app.inference.detector import Span
 
 @dataclass
 class RelexResult:
+    """Output of a relexicalization call.
+
+    Attributes:
+        text: The text with each span replaced by its placeholder.
+        relex_map: Map from original entity text to its placeholder.
+    """
+
     text: str
     relex_map: dict[str, str]
 
@@ -21,14 +30,26 @@ def relexicalize(
     """Hiding-in-Plain-Sight relexicalizer.
 
     Each unique entity text becomes a typed placeholder like
-    `[PERSON_0001]`. With a `seed` (e.g. a per-document salt) the same
-    entity text always maps to the same placeholder within the call;
+    ``[PERSON_0001]``. With a ``seed`` (e.g. a per-document salt) the
+    same entity text always maps to the same placeholder within the call;
     without a seed the placeholder is derived only from the entity text.
 
-    A `cross_request_cache` dict (or any dict-like) is consulted first
+    A ``cross_request_cache`` dict (or any dict-like) is consulted first
     so the same entity string seen in a previous call gets the same
     placeholder across calls. The cache is mutated in place; callers
     that want cross-request persistence should pass a long-lived dict.
+
+    Args:
+        text: The source text the spans were extracted from.
+        spans: Non-overlapping spans to relex.
+        seed: Optional per-document salt; if provided, the placeholder
+            for an entity is deterministic from ``seed + entity``.
+        cross_request_cache: Optional dict consulted first; mutated in
+            place as new placeholders are minted.
+
+    Returns:
+        A ``RelexResult`` with the substituted text and the per-entity
+        relex map.
     """
     if not spans:
         return RelexResult(text=text, relex_map={})
