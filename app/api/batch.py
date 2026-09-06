@@ -44,7 +44,7 @@ def register(app: FastAPI) -> None:
         body: BatchRequest,
         api_key: Annotated[str, Depends(require_api_key)],
     ) -> BatchResponse | JSONResponse:
-        from app.audit.backend import AuditEvent, span_summary
+        from app.audit.backend import Event, span_summary
         from app.state import model_state
 
         start = time.perf_counter()
@@ -79,7 +79,7 @@ def register(app: FastAPI) -> None:
             if audit is not None:
                 spans = [s for r in results for s in r.spans]
                 await audit.record(
-                    AuditEvent(
+                    Event(
                         request_id=request_id,
                         ts="",
                         policy_version="default",

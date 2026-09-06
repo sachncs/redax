@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api.redact import register
-from app.audit.backend import AuditBackend, AuditEvent
+from app.audit.backend import Backend, Event
 from app.inference.detector import Span
 from app.inference.regex_detector import RegexDetector
 from app.redaction.circuit.breaker import Breaker
@@ -34,9 +34,9 @@ class _StubDetector:
         return None
 
 
-class _MemoryAudit(AuditBackend):
+class _MemoryAudit(Backend):
     def __init__(self) -> None:
-        self.records: list[AuditEvent] = []
+        self.records: list[Event] = []
 
     async def start(self) -> None:
         return None
@@ -44,7 +44,7 @@ class _MemoryAudit(AuditBackend):
     async def stop(self) -> None:
         return None
 
-    async def record(self, event: AuditEvent) -> None:
+    async def record(self, event: Event) -> None:
         self.records.append(event)
 
 

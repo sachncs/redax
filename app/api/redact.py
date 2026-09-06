@@ -50,7 +50,7 @@ def register(app: FastAPI) -> None:
         api_key: Annotated[str, Depends(require_api_key)],
         x_idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
     ) -> Any:
-        from app.audit.backend import AuditEvent, span_summary
+        from app.audit.backend import Event, span_summary
         from app.ratelimit import rate_limit
         from app.state import model_state
 
@@ -176,7 +176,7 @@ def register(app: FastAPI) -> None:
                         audit_kwargs["model_hash"] = (
                             model_state.detector.name if model_state.detector else ""
                         )
-                    await audit.record(AuditEvent(**audit_kwargs))
+                    await audit.record(Event(**audit_kwargs))
 
                 REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
                 response_text: str = str(response_body["text"])

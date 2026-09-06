@@ -1,11 +1,11 @@
 """Audit log backends.
 
-The package exposes one Protocol (AuditBackend) and one concrete
-implementation (LocalFileAuditBackend). A second backend (e.g. Postgres,
-OTLP) is added here when one actually ships.
+The package exposes one Protocol (``Backend``) and one concrete
+implementation (``FileAudit``). A second backend (e.g. Postgres, OTLP)
+is added here when one actually ships.
 """
 
-from .backend import AuditBackend, AuditEvent, event_to_dict
-from .local_file import LocalFileAuditBackend
+from .backend import Backend, Event, event_to_dict, pipeline_to_event, span_summary
+from .local_file import FileAudit
 
-__all__ = ["AuditBackend", "AuditEvent", "LocalFileAuditBackend", "event_to_dict"]
+__all__ = ["Backend", "Event", "FileAudit", "event_to_dict", "pipeline_to_event", "span_summary"]

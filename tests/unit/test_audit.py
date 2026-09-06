@@ -7,16 +7,16 @@ from pathlib import Path
 
 import pytest
 
-from app.audit.backend import AuditBackend, AuditEvent
-from app.audit.local_file import LocalFileAuditBackend
+from app.audit.backend import Backend, Event
+from app.audit.local_file import FileAudit
 
 
 @pytest.mark.asyncio
 async def test_writes_jsonl_line(tmp_path: Path) -> None:
     path = tmp_path / "audit.jsonl"
-    backend = LocalFileAuditBackend(str(path))
+    backend = FileAudit(str(path))
     await backend.start()
-    event = AuditEvent(
+    event = Event(
         request_id="req-1",
         ts="",
         policy_version="default-1.0.0",
@@ -38,18 +38,18 @@ async def test_writes_jsonl_line(tmp_path: Path) -> None:
 @pytest.mark.asyncio
 async def test_drops_when_queue_full(tmp_path: Path, monkeypatch) -> None:
     path = tmp_path / "audit.jsonl"
-    backend = LocalFileAuditBackend(str(path))
+    backend = FileAudit(str(path))
     await backend.start()
     backend.queue = asyncio.Queue(maxsize=2)
     for _ in range(5):
-        await backend.record(AuditEvent(request_id="x", ts="t", policy_version="p", text_chars=0))
+        await backend.record(Event(request_id="x", ts="t", policy_version="p", text_chars=0))
     assert backend.dropped >= 1
     await backend.stop()
 
 
 def test_local_file_satisfies_protocol() -> None:
-    backend = LocalFileAuditBackend("/tmp/r.jsonl")
-    assert isinstance(backend, AuditBackend)
+    backend = FileAudit("/tmp/r.jsonl")
+    assert isinstance(backend, Backend)
 
 
 def test_rotate_if_needed_moves_full_log_and_shifts_backups(tmp_path: Path) -> None:

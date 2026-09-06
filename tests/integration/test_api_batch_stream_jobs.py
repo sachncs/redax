@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api import register_batch, register_jobs, register_stream
-from app.audit.backend import AuditBackend, AuditEvent
+from app.audit.backend import Backend, Event
 from app.inference.detector import Span
 from app.jobs.store import JobStore
 from app.redaction.redactor import Redactor
@@ -16,9 +16,9 @@ from app.redaction.strategy import AutoDeID, Mask, PassThrough, Regex
 from app.state import ModelState
 
 
-class MemoryAudit(AuditBackend):
+class MemoryAudit(Backend):
     def __init__(self) -> None:
-        self.records: list[AuditEvent] = []
+        self.records: list[Event] = []
 
     async def start(self) -> None:
         return None
@@ -26,7 +26,7 @@ class MemoryAudit(AuditBackend):
     async def stop(self) -> None:
         return None
 
-    async def record(self, event: AuditEvent) -> None:
+    async def record(self, event: Event) -> None:
         self.records.append(event)
 
 

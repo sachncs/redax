@@ -56,7 +56,7 @@ def register(app: FastAPI) -> None:
         body: StreamRequest,
         api_key: Annotated[str, Depends(require_api_key)],
     ) -> StreamingResponse | JSONResponse:
-        from app.audit.backend import AuditEvent, span_summary
+        from app.audit.backend import Event, span_summary
         from app.state import model_state
 
         endpoint = "POST /v1/redact/stream"
@@ -109,7 +109,7 @@ def register(app: FastAPI) -> None:
                 yield "data: [DONE]\n\n"
                 if audit is not None:
                     await audit.record(
-                        AuditEvent(
+                        Event(
                             request_id=request_id,
                             ts="",
                             policy_version="default",

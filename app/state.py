@@ -30,7 +30,7 @@ class ModelState:
             default fallback when no encoder is configured.
         redactor: The legacy ``Redactor`` orchestrator; kept for the
             default ``/v1/redact`` path when the pipeline is disabled.
-        audit: The ``AuditBackend`` for the JSONL redaction log; every
+        audit: The ``Backend`` for the JSONL redaction log; every
             successful ``/v1/redact`` records counts/durations only,
             never input or output text.
         settings: The validated pydantic-settings ``Settings`` instance.

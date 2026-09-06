@@ -116,7 +116,7 @@ def register(app: FastAPI) -> None:
 
 
 async def run_job(job_id: str, payload: dict[str, Any], store: JobStore, request_id: str) -> None:
-    from app.audit.backend import AuditEvent, span_summary
+    from app.audit.backend import Event, span_summary
     from app.logging import get_logger
     from app.observability import ERRORS
     from app.state import model_state
@@ -158,7 +158,7 @@ async def run_job(job_id: str, payload: dict[str, Any], store: JobStore, request
         audit = model_state.audit
         if audit is not None:
             await audit.record(
-                AuditEvent(
+                Event(
                     request_id=request_id,
                     ts="",
                     policy_version="default",

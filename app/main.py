@@ -21,7 +21,7 @@ from app.api import (
     register_redact,
     register_stream,
 )
-from app.audit.local_file import LocalFileAuditBackend
+from app.audit.local_file import FileAudit
 from app.config import Settings
 from app.errors import install_error_handlers
 from app.inference.gliner2 import GLiNER2Detector
@@ -128,7 +128,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         log.warning("redax.redis_unavailable", error=str(exc))
         model_state.job_store = None
 
-    audit = LocalFileAuditBackend(
+    audit = FileAudit(
         settings.audit_path,
         fsync=settings.audit_fsync,
         max_bytes=settings.audit_max_bytes,

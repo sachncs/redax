@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.audit.backend import pipeline_to_audit_event, span_summary
+from app.audit.backend import pipeline_to_event, span_summary
 
 
 def test_span_summary_counts_per_type() -> None:
@@ -21,7 +21,7 @@ def test_span_summary_counts_per_type() -> None:
     assert by_type["PHONE"]["count"] == 1
 
 
-def test_pipeline_to_audit_event_does_not_carry_text() -> None:
+def test_pipeline_to_event_does_not_carry_text() -> None:
     class _S:
         def __init__(self, t: str, c: float, v: str = "") -> None:
             self.type = t
@@ -29,7 +29,7 @@ def test_pipeline_to_audit_event_does_not_carry_text() -> None:
             self.value = v
 
     spans = [_S("EMAIL", 0.9, "jane@example.com")]
-    event = pipeline_to_audit_event(
+    event = pipeline_to_event(
         request_id="r1",
         text_chars=42,
         policy_version="default",
@@ -44,8 +44,8 @@ def test_pipeline_to_audit_event_does_not_carry_text() -> None:
     assert event.inference_ms == 12
 
 
-def test_pipeline_to_audit_event_records_fallback_marker() -> None:
-    event = pipeline_to_audit_event(
+def test_pipeline_to_event_records_fallback_marker() -> None:
+    event = pipeline_to_event(
         request_id="r1",
         text_chars=10,
         policy_version="default",
