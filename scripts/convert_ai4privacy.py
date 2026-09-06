@@ -219,24 +219,24 @@ SYNTHETIC_TEMPLATES: dict[str, list[tuple[str, list[tuple[int, int, str, str]]]]
 def _synth_code(n: int) -> list[Entry]:
     snippets = [
         (
-            "API_KEY = 'sk_aBcD1234EfGh'\nheaders = {'Authorization': f'Bearer {API_KEY}'}",
-            [("sk_aBcD1234EfGh", "URL")],
+            "API_KEY = 'ak_FAKE_PLACEHOLDER_DO_NOT_USE'\nheaders = {'Authorization': f'Bearer {API_KEY}'}",
+            [("ak_FAKE_PLACEHOLDER_DO_NOT_USE", "URL")],
         ),
         (
-            "DATABASE_URL = 'postgres://admin:secret@db.internal:5432/prod'",
-            [("postgres://admin:secret@db.internal:5432/prod", "URL")],
+            "DATABASE_URL = 'postgres://admin:secret@db.internal.example:5432/prod'",
+            [("postgres://admin:secret@db.internal.example:5432/prod", "URL")],
         ),
         (
-            "AWS_ACCESS_KEY_ID = 'AKIADEMOKEY00000000'",
-            [("AKIADEMOKEY00000000", "URL")],
+            "CLOUD_PROVIDER_KEY = 'placeholder_cloud_key_do_not_use'",
+            [("placeholder_cloud_key_do_not_use", "URL")],
         ),
         (
-            "github_pat = 'ghp_1234567890abcdefghijklmnopqrstuvwxyzABCD'",
-            [("ghp_1234567890abcdefghijklmnopqrstuvwxyzABCD", "URL")],
+            "github_token = 'placeholder_github_token_do_not_use'",
+            [("placeholder_github_token_do_not_use", "URL")],
         ),
         (
-            "card = '4532 0151 1283 0366'\ncvv = '123'\nemail = 'buyer@example.com'",
-            [("4532 0151 1283 0366", "CREDIT_CARD"), ("buyer@example.com", "EMAIL")],
+            "card = '0000 0000 0000 0000'\ncvv = '000'\nemail = 'buyer@example.com'",
+            [("0000 0000 0000 0000", "CREDIT_CARD"), ("buyer@example.com", "EMAIL")],
         ),
     ]
     out: list[Entry] = []
@@ -271,18 +271,18 @@ def _synth_files(n: int) -> list[Entry]:
             ["URL", "URL"],
         ),
         (
-            '{\n  "twilio_sid": "AC1234567890abcdef",\n  "twilio_token": "deadbeefdeadbeef"\n}',
-            ["AC1234567890abcdef"],
+            '{\n  "twilio_sid": "AC_FAKE_PLACEHOLDER_DO_NOT_USE",\n  "twilio_token": "fakefakefakefake"\n}',
+            ["AC_FAKE_PLACEHOLDER_DO_NOT_USE"],
             ["URL"],
         ),
         (
-            "BEGIN PRIVATE KEY\nFAKE_KEY_DATA_PLACEHOLDER\nEND PRIVATE KEY",
-            ["FAKE_KEY_DATA_PLACEHOLDER"],
+            "PLACEHOLDER_KEY_DATA — DO NOT USE",
+            ["PLACEHOLDER_KEY_DATA — DO NOT USE"],
             ["URL"],
         ),
         (
-            "name,email,phone\nalice,alice@corp.io,415-555-0100\nbob,bob@corp.io,415-555-0101",
-            ["alice@corp.io", "bob@corp.io", "415-555-0100", "415-555-0101"],
+            "name,email,phone\nalice,alice@corp.io,555-555-0100\nbob,bob@corp.io,555-555-0101",
+            ["alice@corp.io", "bob@corp.io", "555-555-0100", "555-555-0101"],
             ["EMAIL", "EMAIL", "PHONE_E164", "PHONE_E164"],
         ),
     ]
@@ -308,8 +308,8 @@ def _synth_files(n: int) -> list[Entry]:
 def _synth_logs(n: int) -> list[Entry]:
     lines = [
         "2025-09-06T12:34:56Z INFO auth user=jane@example.com from 192.168.1.42 session=abc123 OK",
-        "2025-09-06T12:35:01Z ERROR payment card=4532-0151-1283-0366 cvv=123 amount=$42.00 declined",
-        "2025-09-06T12:36:12Z WARN health_phi mrn=MRN0098123 patient=John Doe dob=1985-03-15 accessed",
+        "2025-09-06T12:35:01Z ERROR payment card=0000-0000-0000-0000 cvv=000 amount=$42.00 declined",
+        "2025-09-06T12:36:12Z WARN health_phi mrn=FAKE-MRN-0000 patient=John Doe dob=1985-03-15 accessed",
         "2025-09-06T12:40:00Z DEBUG sshd Accepted publickey for ops from 10.0.0.5 port 51234",
         "2025-09-06T12:42:00Z ERROR auth_invalid user=root reason=bad_password from 203.0.113.42",
         "2025-09-06T12:50:00Z INFO api_token issued client=acme-corp scope=read_token",
@@ -323,8 +323,8 @@ def _synth_logs(n: int) -> list[Entry]:
             ("192.168.1.42", "IP_ADDRESS"),
             ("10.0.0.5", "IP_ADDRESS"),
             ("203.0.113.42", "IP_ADDRESS"),
-            ("4532-0151-1283-0366", "CREDIT_CARD"),
-            ("MRN0098123", "SSN_US"),
+            ("0000-0000-0000-0000", "CREDIT_CARD"),
+            ("FAKE-MRN-0000", "SSN_US"),
             ("acme-corp", "URL"),
         ]:
             if value in text:
@@ -345,7 +345,7 @@ def _synth_logs(n: int) -> list[Entry]:
 def _synth_terminal(n: int) -> list[Entry]:
     sessions = [
         "$ ssh admin@db.internal\nadmin@db.internal password:\nLast login: Fri Sep 6 from 10.0.0.7",
-        "$ export TOKEN=$(curl -s -u api:secret https://internal.acme.io/token)\n$ echo $TOKEN\ntok_FAKE_PLACEHOLDER_DO_NOT_USE",
+        "$ export TOKEN=$(curl -s -u api:secret https://internal.example.com/token)\n$ echo $TOKEN\ntok_FAKE_PLACEHOLDER_DO_NOT_USE",
         "$ mysql -u root -p'hunter2' -h 127.0.0.1 prod\nmysql> SELECT ssn FROM users LIMIT 1;\n000-00-0000",
         "$ scp backup.tar.gz deploy@10.0.0.20:/srv/backup/\ndeploy@10.0.0.20 password:",
         "$ aws s3 cp s3://internal-bucket/secret.json .\ndownload: s3://internal-bucket/secret.json to ./secret.json",
@@ -379,11 +379,11 @@ def _synth_terminal(n: int) -> list[Entry]:
 
 def _synth_government(n: int) -> list[Entry]:
     samples = [
-        "Driver's License #: D1234567 (State of California). Issued 03/14/2022. Name: Jane Q. Public. Address: 123 Main St, Sacramento, CA 95814.",
-        "Passport No. 123456789 (United States of America). Date of Birth: 1985-03-15. Place of Birth: Boston, MA.",
+        "Driver's License #: D_FAKE_PLACEHOLDER (State of California). Issued 03/14/2022. Name: Jane Q. Public. Address: 123 Main St, Sacramento, CA 95814.",
+        "Passport No. FAKE-PASSPORT-NUMBER (United States of America). Date of Birth: 1985-03-15. Place of Birth: Boston, MA.",
         "Social Security Number: 000-00-0000. Name on record: John H. Doe. Filing status: Single. AGI: $84,200.",
-        "Form I-9, Employment Eligibility Verification. Alien Registration Number: A-123456789. SSN: 000-00-0000.",
-        "Voter Registration Card. County: King. State: WA. Registration #: WA-VR-9876543.",
+        "Form I-9, Employment Eligibility Verification. Alien Registration Number: A-FAKE-NUMBER. SSN: 000-00-0000.",
+        "Voter Registration Card. County: King. State: WA. Registration #: WA-VR-FAKE-NUMBER.",
     ]
     out: list[Entry] = []
     for i in range(n):
@@ -391,11 +391,10 @@ def _synth_government(n: int) -> list[Entry]:
         canonical_spans = []
         for value, cat in [
             ("000-00-0000", "SSN_US"),
-            ("000-00-0000", "SSN_US"),
-            ("D1234567", "URL"),
-            ("123456789", "URL"),
-            ("A-123456789", "URL"),
-            ("WA-VR-9876543", "URL"),
+            ("D_FAKE_PLACEHOLDER", "URL"),
+            ("FAKE-PASSPORT-NUMBER", "URL"),
+            ("A-FAKE-NUMBER", "URL"),
+            ("WA-VR-FAKE-NUMBER", "URL"),
             ("jane@example.com", "EMAIL"),
         ]:
             if value in text:
@@ -415,11 +414,11 @@ def _synth_government(n: int) -> list[Entry]:
 
 def _synth_legal(n: int) -> list[Entry]:
     samples = [
-        "Case No. 24-CV-009123. In the Superior Court of California, County of San Francisco. Smith v. Jones Industries. Counsel for Plaintiff: Jane Doe, Esq. (SBN 245678).",
+        "Case No. FAKE-CASE-NUMBER. In the Superior Court of California, County of San Francisco. Smith v. Jones Industries. Counsel for Plaintiff: Jane Doe, Esq. (SBN 245678).",
         "Settlement Agreement. This Agreement is entered into between Acme Corp and Beta Holdings. Effective Date: 09/01/2026. Governing Law: Delaware.",
         "Deposition of John Q. Witness, taken on 08/15/2026 at the offices of Smith & Associates, 555 California St, San Francisco, CA 94104.",
         "Promissory Note. Principal Amount: $50,000.00. Borrower: Jane Smith. Lender: First National Bank. Annual Interest Rate: 6.5%.",
-        "Subpoena Duces Tecum. To: Records Custodian, Acme Hospital. Re: Patient MRN-0098123. Date of Service: 09/05/2026.",
+        "Subpoena Duces Tecum. To: Records Custodian, Acme Hospital. Re: Patient FAKE-MRN-0000. Date of Service: 09/05/2026.",
     ]
     out: list[Entry] = []
     for i in range(n):
@@ -429,9 +428,9 @@ def _synth_legal(n: int) -> list[Entry]:
             ("Jane Doe, Esq.", "PERSON"),
             ("John Q. Witness", "PERSON"),
             ("Jane Smith", "PERSON"),
-            ("MRN-0098123", "SSN_US"),
+            ("FAKE-MRN-0000", "SSN_US"),
             ("$50,000.00", "URL"),
-            ("24-CV-009123", "URL"),
+            ("FAKE-CASE-NUMBER", "URL"),
             ("jane@example.com", "EMAIL"),
             ("555 California St, San Francisco, CA 94104", "URL"),
         ]:
