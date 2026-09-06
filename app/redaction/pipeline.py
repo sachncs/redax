@@ -55,10 +55,10 @@ class Pipeline:
     def __post_init__(self) -> None:
         if not self.stages:
             self.stages = [
-                PipelineStage(name="regex_gate", fn=lambda t: self._run_regex_gate(t)),
-                PipelineStage(name="model_stage", fn=lambda t: self._run_model_stage(t, ())),
-                PipelineStage(name="consensus", fn=lambda t: self._run_consensus(t)),
-                PipelineStage(name="fallback", fn=lambda t: self._run_fallback(tuple(), False)),
+                PipelineStage(name="regex_gate", fn=lambda t: self.regex_gate_stage(t)),
+                PipelineStage(name="model_stage", fn=lambda t: self.model_stage_stage(t, ())),
+                PipelineStage(name="consensus", fn=lambda t: self.consensus_stage(t)),
+                PipelineStage(name="fallback", fn=lambda t: self.fallback_stage(tuple(), False)),
             ]
 
     async def __call__(self, text: str) -> PipelineResult:
@@ -69,10 +69,10 @@ class Pipeline:
 
         text_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
         outcomes: list[StageOutcome] = []
-        regex_outcome = await self._run_regex_gate(text)
+        regex_outcome = await self.regex_gate_stage(text)
         outcomes.append(regex_outcome)
 
-        model_outcome = await self._run_model_stage(text, regex_outcome.spans)
+        model_outcome = await self.model_stage_stage(text, regex_outcome.spans)
         outcomes.append(model_outcome)
 
         fused = fuse(regex_outcome.spans, model_outcome.spans)
@@ -85,7 +85,7 @@ class Pipeline:
         )
         outcomes.append(consensus_outcome)
 
-        fallback_outcome = self._run_fallback(fused, model_outcome.circuit_open)
+        fallback_outcome = self.fallback_stage(fused, model_outcome.circuit_open)
         outcomes.append(fallback_outcome)
 
         total_latency = sum(o.latency_ms for o in outcomes)
@@ -98,7 +98,7 @@ class Pipeline:
             text_hash=text_hash,
         )
 
-    async def _run_regex_gate(self, text: str) -> StageOutcome:
+    async def regex_gate_stage(self, text: str) -> StageOutcome:
         t0 = time.perf_counter()
         spans = await self.regex_gate.run(text)
         return StageOutcome(
@@ -107,7 +107,7 @@ class Pipeline:
             latency_ms=(time.perf_counter() - t0) * 1000.0,
         )
 
-    async def _run_model_stage(self, text: str, _regex_hits: tuple[Span, ...]) -> StageOutcome:
+    async def model_stage_stage(self, text: str, _regex_hits: tuple[Span, ...]) -> StageOutcome:
         t0 = time.perf_counter()
 
         def _sync_call() -> tuple[Span, ...]:
@@ -138,10 +138,10 @@ class Pipeline:
             latency_ms=(time.perf_counter() - t0) * 1000.0,
         )
 
-    def _run_consensus(self, _text: str) -> StageOutcome:
+    def consensus_stage(self, _text: str) -> StageOutcome:
         return StageOutcome(name="consensus", spans=(), latency_ms=0.0)
 
-    def _run_fallback(self, fused: tuple[Span, ...], circuit_open: bool) -> StageOutcome:
+    def fallback_stage(self, fused: tuple[Span, ...], circuit_open: bool) -> StageOutcome:
         return StageOutcome(
             name="fallback",
             spans=from_regex_only(fused) if not circuit_open else (),
