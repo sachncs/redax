@@ -18,7 +18,7 @@ from app.bench.corpus import (
     load_corpus,
 )
 from app.bench.disagreement import (
-    DisagreementReport,
+    Report,
     pairwise_disagreement,
     per_unit_type_alpha,
     per_unit_type_disagreement,
@@ -41,13 +41,13 @@ __all__ = [
     "Annotation",
     "Category",
     "ConnectorStructure",
-    "DisagreementReport",
     "Document",
     "FusedEntities",
     "LabelledSpan",
     "PairRange",
     "RDocument",
     "RScoreReport",
+    "Report",
     "SpanCategory",
     "SpanGroup",
     "build_connector_structure",

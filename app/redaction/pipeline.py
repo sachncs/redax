@@ -17,7 +17,7 @@ log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class StageOutcome:
+class Outcome:
     """One stage's contribution to a pipeline run."""
 
     name: str
@@ -33,7 +33,7 @@ class PipelineResult:
 
     text: str
     spans: tuple[Span, ...]
-    stages: tuple[StageOutcome, ...]
+    stages: tuple[Outcome, ...]
     used_fallback: bool
     total_latency_ms: float
     text_hash: str  # SHA-256 of input text; never log the text itself
@@ -68,7 +68,7 @@ class Pipeline:
             raise TypeError("text must be str")
 
         text_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
-        outcomes: list[StageOutcome] = []
+        outcomes: list[Outcome] = []
         regex_outcome = await self.regex_gate_stage(text)
         outcomes.append(regex_outcome)
 
@@ -76,7 +76,7 @@ class Pipeline:
         outcomes.append(model_outcome)
 
         fused = fuse(regex_outcome.spans, model_outcome.spans)
-        consensus_outcome = StageOutcome(
+        consensus_outcome = Outcome(
             name="consensus",
             spans=fused,
             latency_ms=0.0,
@@ -98,16 +98,16 @@ class Pipeline:
             text_hash=text_hash,
         )
 
-    async def regex_gate_stage(self, text: str) -> StageOutcome:
+    async def regex_gate_stage(self, text: str) -> Outcome:
         t0 = time.perf_counter()
         spans = await self.regex_gate.run(text)
-        return StageOutcome(
+        return Outcome(
             name="regex_gate",
             spans=spans,
             latency_ms=(time.perf_counter() - t0) * 1000.0,
         )
 
-    async def model_stage_stage(self, text: str, _regex_hits: tuple[Span, ...]) -> StageOutcome:
+    async def model_stage_stage(self, text: str, _regex_hits: tuple[Span, ...]) -> Outcome:
         t0 = time.perf_counter()
 
         def sync_call() -> tuple[Span, ...]:
@@ -116,7 +116,7 @@ class Pipeline:
         try:
             spans = await asyncio.to_thread(self.model_breaker.call, sync_call)
         except OpenError:
-            return StageOutcome(
+            return Outcome(
                 name="model_stage",
                 spans=(),
                 latency_ms=(time.perf_counter() - t0) * 1000.0,
@@ -125,24 +125,24 @@ class Pipeline:
             )
         except (OSError, RuntimeError, ValueError, TimeoutError, MemoryError) as exc:
             log.warning("model_stage_failure", extra={"error": exc.__class__.__name__})
-            return StageOutcome(
+            return Outcome(
                 name="model_stage",
                 spans=(),
                 latency_ms=(time.perf_counter() - t0) * 1000.0,
                 circuit_open=True,
                 note=f"transient: {exc.__class__.__name__}",
             )
-        return StageOutcome(
+        return Outcome(
             name="model_stage",
             spans=spans,
             latency_ms=(time.perf_counter() - t0) * 1000.0,
         )
 
-    def consensus_stage(self, _text: str) -> StageOutcome:
-        return StageOutcome(name="consensus", spans=(), latency_ms=0.0)
+    def consensus_stage(self, _text: str) -> Outcome:
+        return Outcome(name="consensus", spans=(), latency_ms=0.0)
 
-    def fallback_stage(self, fused: tuple[Span, ...], circuit_open: bool) -> StageOutcome:
-        return StageOutcome(
+    def fallback_stage(self, fused: tuple[Span, ...], circuit_open: bool) -> Outcome:
+        return Outcome(
             name="fallback",
             spans=from_regex_only(fused) if not circuit_open else (),
             latency_ms=0.0,
@@ -160,4 +160,4 @@ class Pipeline:
 @dataclass(frozen=True)
 class PipelineStage:
     name: str
-    fn: Callable[[str], Awaitable[StageOutcome] | StageOutcome]
+    fn: Callable[[str], Awaitable[Outcome] | Outcome]

@@ -5,7 +5,7 @@ These exercise Phase 5 acceptance criteria:
 * Adversarial inputs: empty / oversize / whitespace / single byte / mixed
   scripts / mojibake → no unhandled exceptions
 * Failure modes: model timeout / OOM-equivalent / garbage input must
-  surface as a structured `StageOutcome` with `circuit_open=True`, never
+  surface as a structured `Outcome` with `circuit_open=True`, never
   as a 500 / stack trace
 """
 

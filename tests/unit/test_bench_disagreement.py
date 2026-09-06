@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from app.bench.disagreement import (
-    UnitRating,
+    Rating,
     disagreement_report,
     krippendorff_alpha,
     pairwise_disagreement,
@@ -14,7 +14,7 @@ from app.bench.disagreement import (
 )
 
 
-def _worked_example_ratings() -> list[UnitRating]:
+def _worked_example_ratings() -> list[Rating]:
     """Encode Table 11 of Appendix H: 10 units rated by 4 users.
 
     Labels per unit (1=redact, 0=keep): user1..user4.
@@ -31,11 +31,11 @@ def _worked_example_ratings() -> list[UnitRating]:
         (9, "gap_b", [1, 1, 0, 0]),
         (10, "red", [1, 1, 0, 0]),
     ]
-    ratings: list[UnitRating] = []
+    ratings: list[Rating] = []
     for unit_id, kind, votes in rows:
         for i, vote in enumerate(votes, start=1):
             ratings.append(
-                UnitRating(unit_id=f"u{unit_id}", kind=kind, rater=f"user{i}", redacted=bool(vote))
+                Rating(unit_id=f"u{unit_id}", kind=kind, rater=f"user{i}", redacted=bool(vote))
             )
     return ratings
 
@@ -67,7 +67,7 @@ def test_per_unit_type_alpha_combined_gap_matches_table_14() -> None:
     ratings = [r for r in _worked_example_ratings() if r.kind in {"gap_a", "gap_b"}]
     for r in ratings:
         ratings_with_combined_kind = [
-            UnitRating(
+            Rating(
                 unit_id=r.unit_id,
                 kind="gap",
                 rater=r.rater,
@@ -82,10 +82,10 @@ def test_per_unit_type_alpha_combined_gap_matches_table_14() -> None:
 
 def test_krippendorff_alpha_is_one_when_perfect_agreement() -> None:
     ratings = [
-        UnitRating(unit_id="u1", kind="red", rater="a", redacted=True),
-        UnitRating(unit_id="u1", kind="red", rater="b", redacted=True),
-        UnitRating(unit_id="u2", kind="red", rater="a", redacted=False),
-        UnitRating(unit_id="u2", kind="red", rater="b", redacted=False),
+        Rating(unit_id="u1", kind="red", rater="a", redacted=True),
+        Rating(unit_id="u1", kind="red", rater="b", redacted=True),
+        Rating(unit_id="u2", kind="red", rater="a", redacted=False),
+        Rating(unit_id="u2", kind="red", rater="b", redacted=False),
     ]
     assert krippendorff_alpha(ratings) == pytest.approx(1.0)
 

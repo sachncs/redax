@@ -19,7 +19,7 @@ from statistics import NormalDist
 
 
 @dataclass(frozen=True)
-class UnitRating:
+class Rating:
     """One rater's vote on one unit.
 
     `kind` is the unit-type ("mandatory", "contextual", "gap_a", "gap_b", ...).
@@ -34,7 +34,7 @@ class UnitRating:
 
 
 @dataclass(frozen=True)
-class DisagreementReport:
+class Report:
     """Output of disagreement computation across a population of ratings."""
 
     n_qualifying_units: int
@@ -54,7 +54,7 @@ def disagreement_of(k: int, m: int) -> float:
     return k * (m - k) / total
 
 
-def pairwise_disagreement(ratings: Iterable[UnitRating]) -> float:
+def pairwise_disagreement(ratings: Iterable[Rating]) -> float:
     """Mean pairwise disagreement over all qualifying units.
 
     A unit is qualifying iff `m_u >= 2`. Returns 0.0 when no qualifying unit
@@ -75,7 +75,7 @@ def pairwise_disagreement(ratings: Iterable[UnitRating]) -> float:
 
 
 def per_unit_type_disagreement(
-    ratings: Iterable[UnitRating],
+    ratings: Iterable[Rating],
 ) -> dict[str, dict[str, float]]:
     """Per-kind breakdown: N_t, mean D_u, mean redaction rate, 95% CI."""
     by_kind: dict[str, dict[str, list[bool]]] = {}
@@ -107,7 +107,7 @@ def per_unit_type_disagreement(
 
 
 def per_unit_type_alpha(
-    ratings: Iterable[UnitRating],
+    ratings: Iterable[Rating],
 ) -> dict[str, float]:
     """Krippendorff's alpha per kind, with `m_u >= 2`.
 
@@ -154,7 +154,7 @@ def per_unit_type_alpha(
     return out
 
 
-def krippendorff_alpha(ratings: Iterable[UnitRating]) -> float:
+def krippendorff_alpha(ratings: Iterable[Rating]) -> float:
     """Global Krippendorff's alpha over all qualifying units."""
     by_unit: dict[str, list[bool]] = {}
     for r in ratings:
@@ -184,7 +184,7 @@ def krippendorff_alpha(ratings: Iterable[UnitRating]) -> float:
     return 1.0 - do / de
 
 
-def disagreement_report(ratings: Iterable[UnitRating]) -> DisagreementReport:
+def disagreement_report(ratings: Iterable[Rating]) -> Report:
     """Compute the headline disagreement report (alpha + per-kind breakdown)."""
     ratings_list = list(ratings)
     by_unit: dict[str, list[bool]] = {}
@@ -193,7 +193,7 @@ def disagreement_report(ratings: Iterable[UnitRating]) -> DisagreementReport:
     n_qual = sum(1 for v in by_unit.values() if len(v) >= 2)
     n1 = sum(1 for r in ratings_list if r.redacted)
     n0 = len(ratings_list) - n1
-    return DisagreementReport(
+    return Report(
         n_qualifying_units=n_qual,
         n_redact_votes=n1,
         n_no_redact_votes=n0,
