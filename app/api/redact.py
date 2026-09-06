@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 import time
 import uuid
@@ -10,6 +9,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, FastAPI, Header, Request
 from pydantic import BaseModel, Field
 
+from app.api.cache import redaction_cache_key, redaction_cache_payload
 from app.auth import require_api_key
 from app.errors import internal_error, payload_too_large, timeout_error
 from app.inference.detector import Span
@@ -73,15 +73,16 @@ def register(app: FastAPI) -> None:
                         return json.loads(idem_raw)
 
                 # Response cache short-circuit
-                cache_payload = {
-                    "text": body.text,
-                    "policy": body.policy or {},
-                    "entity_types": body.entity_types or [],
-                    "salt": getattr(settings, "hash_salt", "") or "",
-                }
-                cache_key = hashlib.sha256(
-                    json.dumps(cache_payload, sort_keys=True, ensure_ascii=False).encode()
-                ).hexdigest()
+                cache_shared = bool(getattr(settings, "cache_shared", False))
+                cache_key = redaction_cache_key(
+                    redaction_cache_payload(
+                        body.text,
+                        body.policy,
+                        body.entity_types,
+                        getattr(settings, "hash_salt", "") or "",
+                        shared=cache_shared,
+                    )
+                )
                 if job_store is not None:
                     cache_raw = await job_store.client.get(f"redax:cache:{cache_key}")
                     if cache_raw:

@@ -20,7 +20,7 @@ class StreamRequest(BaseModel):
     text: str = Field(min_length=1)
     policy: dict[str, Any] | None = None
     entity_types: list[str] | None = None
-    chunk_chars: int = Field(default=2000, ge=100, le=50_000)
+    chunk_chars: int | None = Field(default=None, ge=100, le=50_000)
 
 
 def split_chunks(text: str, chunk_chars: int, chunk_bytes: int) -> list[str]:
@@ -74,12 +74,13 @@ def register(app: FastAPI) -> None:
         await rate_limit(api_key)
         timeout_seconds = getattr(settings, "request_timeout_seconds", 30.0)
         chunk_bytes = getattr(settings, "stream_chunk_bytes", 4096)
+        default_chunk_chars = getattr(settings, "stream_chunk_chars", 2000)
         latency_start = time.perf_counter()
 
         async def event_source() -> AsyncIterator[str]:
             try:
                 text = body.text
-                chunk = body.chunk_chars
+                chunk = body.chunk_chars or default_chunk_chars
                 all_spans: list[Any] = []
                 inference_ms = 0
                 for piece in split_chunks(text, chunk, chunk_bytes):
