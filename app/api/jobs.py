@@ -8,9 +8,11 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from app.auth import require_api_key
-from app.errors import internal_error
+from app.errors import internal_error, problem_response
 from app.jobs.store import JobStore
 from app.observability import REQUESTS
+
+JOB_FAILED = "job failed"
 
 
 class JobSubmit(BaseModel):
@@ -59,13 +61,19 @@ def register(app: FastAPI) -> None:
         record = await store.get(job_id)
         if record is None:
             REQUESTS.labels(endpoint=endpoint, method=method, status="404").inc()
-            return {"type": "not_found", "status": 404, "title": "Job not found"}
+            return problem_response(
+                request,
+                type="https://redax.ai/errors/job-not-found",
+                title="Job not found",
+                status=404,
+                detail=f"No job with id {job_id!r}",
+            )
         REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
         return {
             "id": record.id,
             "status": record.status,
             "result": record.result,
-            "error": record.error,
+            "error": JOB_FAILED if record.status == "failed" else None,
         }
 
     app.include_router(router)

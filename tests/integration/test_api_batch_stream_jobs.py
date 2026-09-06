@@ -135,5 +135,8 @@ def test_job_lifecycle(app_with_state):
 def test_job_not_found(app_with_state):
     with TestClient(app_with_state) as client:
         r = client.get("/v1/jobs/does-not-exist")
-    assert r.status_code == 200  # body has 404 status embedded
-    assert r.json()["status"] == 404
+    assert r.status_code == 404
+    assert r.headers["content-type"].startswith("application/problem+json")
+    body = r.json()
+    assert body["status"] == 404
+    assert body["title"] == "Job not found"
