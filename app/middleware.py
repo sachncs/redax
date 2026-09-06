@@ -1,3 +1,11 @@
+"""Per-request logging middleware.
+
+Binds a request_id into the structlog context for the lifetime of the
+request, echoes it back via the ``X-Request-ID`` response header, emits
+one ``redax.access`` summary line, then clears the context so background
+tasks don't inherit a stale id.
+"""
+
 from __future__ import annotations
 
 import time
@@ -14,6 +22,16 @@ from app.logging import get_logger
 def emit_access_line(
     *, method: str, path: str, status: int, duration_ms: int, request_id: str
 ) -> None:
+    """Emit one ``redax.access`` log line for a completed request.
+
+    Args:
+        method: The HTTP verb that was used.
+        path: The request path, including any prefix.
+        status: The response status code (or 500 if the handler raised).
+        duration_ms: Wall-clock duration of the request in milliseconds.
+        request_id: The correlated request id, copied from
+            ``X-Request-ID`` or generated server-side.
+    """
     get_logger("redax.access").info(
         "redax.access",
         method=method,
