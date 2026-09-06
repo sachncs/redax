@@ -50,8 +50,13 @@ async def rate_limit(api_key: str) -> str:
             raise HTTPException(status_code=429, detail="Rate limit exceeded")
     except HTTPException:
         raise
-    except Exception:
-        raise HTTPException(status_code=503, detail="Rate limiting unavailable") from None
+    except (OSError, TimeoutError) as exc:
+        from app.logging import get_logger
+
+        get_logger("redax.ratelimit").warning(
+            "redax.ratelimit_unavailable", error=exc.__class__.__name__
+        )
+        raise HTTPException(status_code=503, detail="Rate limiting unavailable") from exc
     return api_key
 
 
