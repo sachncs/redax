@@ -1,3 +1,10 @@
+"""Policy-list endpoint (``GET /v1/policies``).
+
+Returns the name, version, description, and field map of every policy
+loaded from the configured ``policies_dir``. Read-only; never mutates
+state.
+"""
+
 from __future__ import annotations
 
 import time

@@ -1,3 +1,10 @@
+"""Synchronous batch redaction endpoint (``POST /v1/redact/batch``).
+
+Runs every item through the redactor concurrently under a single
+``asyncio.timeout`` so a slow detector stalls the whole batch. Records
+one audit event summarising total latency and span counts.
+"""
+
 from __future__ import annotations
 
 import asyncio

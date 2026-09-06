@@ -1,3 +1,11 @@
+"""Async job submission + status endpoints (``/v1/jobs``).
+
+Submission is rate-limited and per-key admission-capped; the actual
+redaction runs as a background task that writes its outcome back into
+the shared ``JobStore``. ``record_failure`` is a small helper for the
+failure path used by both the worker and the timeout handler.
+"""
+
 from __future__ import annotations
 
 import asyncio

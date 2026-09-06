@@ -1,3 +1,10 @@
+"""Single-document redaction endpoint (``POST /v1/redact``).
+
+Supports the legacy one-shot ``Redactor`` path and the newer
+multi-stage ``Pipeline`` path (``body.use_pipeline``). Optionally
+honours an ``Idempotency-Key`` header and the response cache.
+"""
+
 from __future__ import annotations
 
 import asyncio
