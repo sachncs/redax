@@ -49,7 +49,7 @@ def relexicalize(
             counts[canonical_type] = counts.get(canonical_type, 0) + 1
             placeholder = f"[{canonical_type}_{counts[canonical_type]:04d}]"
             if seed is not None:
-                placeholder = _with_seed_signature(placeholder, seed)
+                placeholder = with_seed_signature(placeholder, seed)
             cache[cache_key] = placeholder
 
         replacements[entity] = placeholder
@@ -65,7 +65,7 @@ def relexicalize(
     return RelexResult(text=masked, relex_map=replacements)
 
 
-def _with_seed_signature(placeholder: str, seed: str) -> str:
+def with_seed_signature(placeholder: str, seed: str) -> str:
     """Append a short deterministic suffix derived from the seed so that
     different seeds produce visibly different placeholders for the same
     logical entity."""
