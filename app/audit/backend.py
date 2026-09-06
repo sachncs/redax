@@ -36,3 +36,22 @@ class AuditBackend(Protocol):
 
 def event_to_dict(event: AuditEvent) -> dict[str, Any]:
     return asdict(event)
+
+
+def span_summary(spans: list[Any]) -> list[dict[str, Any]]:
+    """Aggregate detected spans into per-type count + mean confidence.
+
+    Mirrors what the API routes report in audit events; spans are the
+    detector Span objects. Never includes entity text.
+    """
+    grouped: dict[str, list[float]] = {}
+    for span in spans:
+        grouped.setdefault(span.type, []).append(span.confidence)
+    return [
+        {
+            "type": entity_type,
+            "count": len(confidences),
+            "confidence_avg": round(sum(confidences) / len(confidences), 3) if confidences else 0.0,
+        }
+        for entity_type, confidences in sorted(grouped.items())
+    ]

@@ -5,11 +5,26 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api import register_batch, register_jobs, register_stream
+from app.audit.backend import AuditBackend, AuditEvent
 from app.inference.detector import Span
 from app.jobs.store import JobStore
 from app.redaction.redactor import Redactor
 from app.redaction.strategy import AutoDeID, Mask, PassThrough, Regex
 from app.state import ModelState
+
+
+class _MemoryAudit(AuditBackend):
+    def __init__(self) -> None:
+        self.records: list[AuditEvent] = []
+
+    async def start(self) -> None:
+        return None
+
+    async def stop(self) -> None:
+        return None
+
+    async def record(self, event: AuditEvent) -> None:
+        self.records.append(event)
 
 
 class _StubDetector:
@@ -81,6 +96,7 @@ def app_with_state(monkeypatch):
         },
     )
     test_state.job_store = _InMemoryJobStore()
+    test_state.audit = _MemoryAudit()
     test_state.ready = True
     monkeypatch.setattr("app.state.model_state", test_state)
     app = FastAPI()
@@ -142,6 +158,60 @@ def app_with_no_redactor(monkeypatch):
     app = FastAPI()
     register_jobs(app)
     return app
+
+
+def test_batch_records_audited_entity_summary(app_with_state):
+    with TestClient(app_with_state) as client:
+        resp = client.post(
+            "/v1/redact/batch",
+            json={"items": [{"text": "hi a@b.com"}, {"text": "nothing"}]},
+        )
+    assert resp.status_code == 200
+    from app.state import model_state
+
+    audit = model_state.audit
+    assert len(audit.records) == 1
+    rec = audit.records[0]
+    assert rec.text_chars == len("hi a@b.com") + len("nothing")
+    assert rec.entities_detected == [{"type": "EMAIL", "count": 1, "confidence_avg": 1.0}]
+
+
+def test_stream_records_audited_entity_summary(app_with_state):
+    with TestClient(app_with_state) as client:
+        resp = client.post("/v1/redact/stream", json={"text": "x" * 5000, "chunk_chars": 1000})
+        assert resp.status_code == 200
+        for _ in resp.iter_lines():
+            pass
+    from app.state import model_state
+
+    audit = model_state.audit
+    assert len(audit.records) == 1
+    assert audit.records[0].text_chars == 5000
+    assert audit.records[0].entities_detected == []
+
+
+def test_job_records_audited_entity_summary(app_with_state):
+    with TestClient(app_with_state) as client:
+        sub = client.post("/v1/jobs", json={"text": "hi a@b.com"})
+        assert sub.status_code == 202
+        job_id = sub.json()["id"]
+        deadline = 5.0
+        import time
+
+        start = time.time()
+        while time.time() - start < deadline:
+            body = client.get(f"/v1/jobs/{job_id}").json()
+            if body["status"] == "done":
+                break
+            time.sleep(0.05)
+    assert body["status"] == "done"
+    from app.state import model_state
+
+    audit = model_state.audit
+    assert len(audit.records) == 1
+    rec = audit.records[0]
+    assert rec.text_chars == len("hi a@b.com")
+    assert rec.entities_detected == [{"type": "EMAIL", "count": 1, "confidence_avg": 1.0}]
 
 
 def test_job_not_found(app_with_state):

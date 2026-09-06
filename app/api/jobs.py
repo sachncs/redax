@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, Request
@@ -35,12 +36,13 @@ def register(app: FastAPI) -> None:
 
         endpoint = "POST /v1/jobs"
         method = "POST"
+        request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
         store: JobStore | None = getattr(model_state, "job_store", None)
         if store is None:
             REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
             return internal_error(request, "job store not initialized")
         record = await store.create()
-        background_tasks.add_task(run_job, record.id, body.model_dump(), store)
+        background_tasks.add_task(run_job, record.id, body.model_dump(), store, request_id)
         REQUESTS.labels(endpoint=endpoint, method=method, status="202").inc()
         return {"id": record.id, "status": record.status}
 
@@ -79,7 +81,8 @@ def register(app: FastAPI) -> None:
     app.include_router(router)
 
 
-async def run_job(job_id: str, payload: dict[str, Any], store: JobStore) -> None:
+async def run_job(job_id: str, payload: dict[str, Any], store: JobStore, request_id: str) -> None:
+    from app.audit.backend import AuditEvent, span_summary
     from app.logging import get_logger
     from app.observability import ERRORS
     from app.state import model_state
@@ -103,15 +106,28 @@ async def run_job(job_id: str, payload: dict[str, Any], store: JobStore) -> None
             policy=payload.get("policy"),
             entity_types=payload.get("entity_types"),
         )
+        inference_ms = int((time.perf_counter() - start) * 1000)
         await store.set_result(
             job_id,
             {
                 "text": result.text,
                 "spans": [s.__dict__ for s in result.spans],
                 "relex_map": result.relex_map,
-                "inference_ms": int((time.perf_counter() - start) * 1000),
+                "inference_ms": inference_ms,
             },
         )
+        audit = model_state.audit
+        if audit is not None:
+            await audit.record(
+                AuditEvent(
+                    request_id=request_id,
+                    ts="",
+                    policy_version="default",
+                    text_chars=len(payload["text"]),
+                    entities_detected=span_summary(result.spans),
+                    inference_ms=inference_ms,
+                )
+            )
     except Exception as exc:
         logger.error("redax.job_failed", job_id=job_id, error=exc)
         ERRORS.labels(type="job_failed").inc()

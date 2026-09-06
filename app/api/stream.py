@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
+import uuid
 from collections.abc import AsyncIterator
 from typing import Annotated, Any
 
@@ -30,12 +32,15 @@ def register(app: FastAPI) -> None:
         body: StreamRequest,
         api_key: Annotated[str, Depends(require_api_key)],
     ) -> StreamingResponse | JSONResponse:
+        from app.audit.backend import AuditEvent, span_summary
         from app.state import model_state
 
         endpoint = "POST /v1/redact/stream"
         method = "POST"
+        request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
         settings = model_state.settings
         redactor = model_state.redactor
+        audit = model_state.audit
         if redactor is None:
             REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
             return internal_error(request, "redactor not initialized")
@@ -51,26 +56,42 @@ def register(app: FastAPI) -> None:
         async def event_source() -> AsyncIterator[str]:
             text = body.text
             chunk = body.chunk_chars
+            all_spans: list[Any] = []
+            inference_ms = 0
             try:
                 for start in range(0, len(text), chunk):
                     piece = text[start : start + chunk]
                     try:
                         async with asyncio.timeout(timeout_seconds):
+                            inference_start = time.perf_counter()
                             result = await redactor.redact(
                                 piece,
                                 policy=body.policy,
                                 entity_types=body.entity_types,
                             )
+                            inference_ms += int((time.perf_counter() - inference_start) * 1000)
                     except TimeoutError:
                         REQUESTS.labels(endpoint=endpoint, method=method, status="504").inc()
                         yield f"data: {json.dumps({'error': 'request timeout', 'status': 504})}\n\n"
                         return
+                    all_spans.extend(result.spans)
                     payload = {
                         "text": result.text,
                         "spans": [s.__dict__ for s in result.spans],
                     }
                     yield f"data: {json.dumps(payload)}\n\n"
                 yield "data: [DONE]\n\n"
+                if audit is not None:
+                    await audit.record(
+                        AuditEvent(
+                            request_id=request_id,
+                            ts="",
+                            policy_version="default",
+                            text_chars=len(text),
+                            entities_detected=span_summary(all_spans),
+                            inference_ms=inference_ms,
+                        )
+                    )
                 REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
             except Exception:
                 yield f"data: {json.dumps({'error': 'internal error'})}\n\n"

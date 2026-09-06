@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, FastAPI, Request
@@ -35,17 +36,20 @@ def register(app: FastAPI) -> None:
         body: BatchRequest,
         api_key: Annotated[str, Depends(require_api_key)],
     ) -> BatchResponse | JSONResponse:
+        from app.audit.backend import AuditEvent, span_summary
         from app.state import model_state
 
         start = time.perf_counter()
         endpoint = "POST /v1/redact/batch"
         method = "POST"
+        request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
         from app.ratelimit import rate_limit
 
         await rate_limit(api_key)
         try:
             settings = model_state.settings
             redactor = model_state.redactor
+            audit = model_state.audit
             if redactor is None:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
                 return internal_error(request, "redactor not initialized")
@@ -55,11 +59,25 @@ def register(app: FastAPI) -> None:
                     REQUESTS.labels(endpoint=endpoint, method=method, status="413").inc()
                     return payload_too_large(request, f"item exceeds {max_chars} chars")
             timeout_seconds = getattr(settings, "request_timeout_seconds", 30.0)
+            inference_start = time.perf_counter()
             async with asyncio.timeout(timeout_seconds):
                 results = await asyncio.gather(
                     *(
                         redactor.redact(item.text, entity_types=item.entity_types)
                         for item in body.items
+                    )
+                )
+            inference_ms = int((time.perf_counter() - inference_start) * 1000)
+            if audit is not None:
+                spans = [s for r in results for s in r.spans]
+                await audit.record(
+                    AuditEvent(
+                        request_id=request_id,
+                        ts="",
+                        policy_version="default",
+                        text_chars=sum(len(item.text) for item in body.items),
+                        entities_detected=span_summary(spans),
+                        inference_ms=inference_ms,
                     )
                 )
             REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()

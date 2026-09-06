@@ -28,20 +28,6 @@ class RedactResponse(BaseModel):
     relex_map: dict[str, str]
 
 
-def _audit_summary(spans: list[Span]) -> list[dict[str, Any]]:
-    grouped: dict[str, list[float]] = {}
-    for s in spans:
-        grouped.setdefault(s.type, []).append(s.confidence)
-    return [
-        {
-            "type": t,
-            "count": len(confs),
-            "confidence_avg": round(sum(confs) / len(confs), 3) if confs else 0.0,
-        }
-        for t, confs in grouped.items()
-    ]
-
-
 def register(app: FastAPI) -> None:
     router = APIRouter()
 
@@ -52,7 +38,7 @@ def register(app: FastAPI) -> None:
         api_key: Annotated[str, Depends(require_api_key)],
         x_idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
     ) -> Any:
-        from app.audit.backend import AuditEvent
+        from app.audit.backend import AuditEvent, span_summary
         from app.ratelimit import rate_limit
         from app.state import model_state
 
@@ -140,7 +126,7 @@ def register(app: FastAPI) -> None:
                             ts="",
                             policy_version=str(version),
                             text_chars=len(body.text),
-                            entities_detected=_audit_summary(result.spans),
+                            entities_detected=span_summary(result.spans),
                             inference_ms=inference_ms,
                         )
                     )
