@@ -44,7 +44,7 @@ class DisagreementReport:
     per_kind: dict[str, dict[str, float]] = field(default_factory=dict)
 
 
-def _pairwise_disagreement(k: int, m: int) -> float:
+def disagreement_of(k: int, m: int) -> float:
     """D_u = k (m - k) / C(m, 2); zero if m < 2."""
     if m < 2:
         return 0.0
@@ -70,7 +70,7 @@ def pairwise_disagreement(ratings: Iterable[UnitRating]) -> float:
         if m < 2:
             continue
         k = sum(1 for v in labels if v)
-        du_vals.append(_pairwise_disagreement(k, m))
+        du_vals.append(disagreement_of(k, m))
     return sum(du_vals) / len(du_vals) if du_vals else 0.0
 
 
@@ -91,7 +91,7 @@ def per_unit_type_disagreement(
             if m < 2:
                 continue
             k = sum(1 for v in labels if v)
-            dus.append(_pairwise_disagreement(k, m))
+            dus.append(disagreement_of(k, m))
             rates.append(k / m)
         if not dus:
             out[kind] = {"n_qualifying": 0.0, "disagreement": 0.0, "redaction_rate": 0.0}

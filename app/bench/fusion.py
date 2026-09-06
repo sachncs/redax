@@ -23,7 +23,7 @@ from app.bench.annotation import LabelledSpan, SpanCategory
 from app.bench.combinators import ConnectorStructure, SpanGroup
 
 
-def _intersect(span: LabelledSpan, pred_starts: list[int], pred_ends: list[int]) -> bool:
+def intersect(span: LabelledSpan, pred_starts: list[int], pred_ends: list[int]) -> bool:
     """Return True if `span` is hit by any prediction.
 
     `pred_starts` and `pred_ends` are the sorted start/end offsets of the
@@ -67,7 +67,7 @@ def selected_contextual_spans(
 
     selected_ids: set[tuple[int, int, SpanCategory]] = set()
     for y in target_yellow:
-        if _intersect(y, pred_starts, pred_ends):
+        if intersect(y, pred_starts, pred_ends):
             selected_ids.add((y.start, y.end, y.category))
 
     if not selected_ids:

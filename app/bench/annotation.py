@@ -79,7 +79,7 @@ def split_on_newlines(span: LabelledSpan, text: str) -> list[LabelledSpan]:
     return out
 
 
-def _normalize_spans(
+def normalize_spans(
     spans: Iterable[LabelledSpan], text: str, text_len: int
 ) -> tuple[LabelledSpan, ...]:
     """Validate, dedupe, sort, and split multi-line spans."""
@@ -112,7 +112,7 @@ class AnnotationInput:
 
 def build_annotation(inp: AnnotationInput) -> Annotation:
     """Validate and normalize an annotation against its document text."""
-    spans = _normalize_spans(inp.spans, inp.text, len(inp.text))
+    spans = normalize_spans(inp.spans, inp.text, len(inp.text))
     return Annotation(doc_id=inp.doc_id, spans=spans, meta=dict(inp.meta))
 
 
