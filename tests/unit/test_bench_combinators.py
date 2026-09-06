@@ -5,7 +5,7 @@ import pytest
 from app.bench.annotation import LabelledSpan, SpanCategory
 from app.bench.combinators import (
     PairRange,
-    _is_punct_char,
+    is_punct_char,
     build_connector_structure,
 )
 
@@ -142,9 +142,9 @@ def test_worked_example_vehicle_record_drops_open_quote_as_singleton_marker() ->
 
 def test_is_punct_char_excludes_letters_digits_and_specials() -> None:
     for ch in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789":
-        assert not _is_punct_char(ch)
+        assert not is_punct_char(ch)
     for ch in "\\/@[]{}()<>\"'`":
-        assert not _is_punct_char(ch)
-    assert _is_punct_char(".")
-    assert _is_punct_char(" ")
-    assert _is_punct_char(",")
+        assert not is_punct_char(ch)
+    assert is_punct_char(".")
+    assert is_punct_char(" ")
+    assert is_punct_char(",")

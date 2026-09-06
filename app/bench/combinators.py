@@ -43,7 +43,7 @@ _PAIR_CLOSERS: frozenset[str] = frozenset(
 _PAIR_SYMMETRIC: frozenset[str] = frozenset("\"'`")
 
 
-def _is_punct_char(ch: str) -> bool:
+def is_punct_char(ch: str) -> bool:
     """A single char qualifies as a Punct connector per the paper.
 
     "excluding `\\ / @`, brackets, braces, parentheses, quotes, backticks,
@@ -54,7 +54,7 @@ def _is_punct_char(ch: str) -> bool:
     return ch not in _ASCII_LETTERS and ch not in _ASCII_DIGITS
 
 
-def _is_whitespace(ch: str) -> bool:
+def is_whitespace(ch: str) -> bool:
     return ch in (" ", "\t")
 
 
@@ -66,7 +66,7 @@ def _is_digit_only(text: str, span: LabelledSpan) -> bool:
     return all(c in _ASCII_DIGITS for c in _span_text(text, span))
 
 
-def _iter_neighbor_pairs(
+def iter_neighbor_pairs(
     spans: list[LabelledSpan],
 ) -> Iterable[tuple[LabelledSpan, LabelledSpan, int, int]]:
     """Yield (a, b, a_end, b_start) for each pair of adjacent spans."""
@@ -131,7 +131,7 @@ class ConnectorStructure:
     effective_markers: tuple[str, ...]
 
 
-def _red_edges(
+def red_edges(
     spans: list[LabelledSpan],
     yellow_graph: dict[tuple[int, int, SpanCategory], list[tuple[int, int, SpanCategory]]],
     red_graph: dict[tuple[int, int, SpanCategory], list[tuple[int, int, SpanCategory]]],
@@ -145,7 +145,7 @@ def _red_edges(
     delimiter and the text between `a.end` and `b.start` to start with
     whitespace. Punct and Slash only inspect the text between spans.
     """
-    for a, b, a_end, b_start in _iter_neighbor_pairs(spans):
+    for a, b, a_end, b_start in iter_neighbor_pairs(spans):
         between = text[a_end:b_start]
         if not between:
             continue
@@ -160,7 +160,7 @@ def _red_edges(
             continue
         if len(between) == 1:
             ch = between[0]
-            if _is_punct_char(ch):
+            if is_punct_char(ch):
                 red_graph.setdefault(ka, []).append(kb)
                 red_graph.setdefault(kb, []).append(ka)
                 yellow_graph.setdefault(ka, []).append(kb)
@@ -173,7 +173,7 @@ def _red_edges(
                 effective_markers.append(ch)
         elif len(between) == 2:
             d, w = between[0], between[1]
-            if d in _PAIR_CLOSERS and _is_whitespace(w):
+            if d in _PAIR_CLOSERS and is_whitespace(w):
                 yellow_graph.setdefault(ka, []).append(kb)
                 yellow_graph.setdefault(kb, []).append(ka)
                 effective_markers.append(d)
@@ -295,7 +295,7 @@ def build_connector_structure(
     red_graph: dict[tuple[int, int, SpanCategory], list[tuple[int, int, SpanCategory]]] = {}
     effective_markers: list[str] = []
 
-    _red_edges(spans, yellow_graph, red_graph, effective_markers, text)
+    red_edges(spans, yellow_graph, red_graph, effective_markers, text)
     pair_ranges, pair_markers = _pair_ranges(spans, yellow, text)
     effective_markers.extend(pair_markers)
 
