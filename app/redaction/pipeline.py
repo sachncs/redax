@@ -36,7 +36,7 @@ class PipelineResult:
     stages: tuple[Outcome, ...]
     used_fallback: bool
     total_latency_ms: float
-    text_hash: str  # SHA-256 of input text; never log the text itself
+    digest: str  # SHA-256 of input text; never log the text itself
 
 
 @dataclass
@@ -67,7 +67,7 @@ class Pipeline:
         if not isinstance(text, str):
             raise TypeError("text must be str")
 
-        text_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
+        digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
         outcomes: list[Outcome] = []
         regex_outcome = await self.regex_gate_stage(text)
         outcomes.append(regex_outcome)
@@ -95,7 +95,7 @@ class Pipeline:
             stages=tuple(outcomes),
             used_fallback=model_outcome.circuit_open,
             total_latency_ms=total_latency,
-            text_hash=text_hash,
+            digest=digest,
         )
 
     async def regex_gate_stage(self, text: str) -> Outcome:

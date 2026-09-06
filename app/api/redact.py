@@ -37,7 +37,7 @@ class RedactResponse(BaseModel):
     relex_map: dict[str, str]
     used_pipeline: bool = False
     used_fallback: bool = False
-    text_hash: str | None = None
+    digest: str | None = None
 
 
 def register(app: FastAPI) -> None:
@@ -105,7 +105,7 @@ def register(app: FastAPI) -> None:
                 inference_start = time.perf_counter()
                 used_pipeline = False
                 used_fallback = False
-                text_hash: str | None = None
+                digest: str | None = None
 
                 pipeline = getattr(model_state, "pipeline", None)
                 response_body: dict[str, Any]
@@ -116,7 +116,7 @@ def register(app: FastAPI) -> None:
                     inference_ms = int(pipeline_result.total_latency_ms)
                     used_pipeline = True
                     used_fallback = pipeline_result.used_fallback
-                    text_hash = pipeline_result.text_hash
+                    digest = pipeline_result.digest
                     pipeline_spans: list[dict[str, Any]] = [
                         {
                             "start": s.start,
@@ -187,7 +187,7 @@ def register(app: FastAPI) -> None:
                     relex_map=response_relex_map,
                     used_pipeline=used_pipeline,
                     used_fallback=used_fallback,
-                    text_hash=text_hash,
+                    digest=digest,
                 )
         except TimeoutError:
             REQUESTS.labels(endpoint=endpoint, method=method, status="504").inc()

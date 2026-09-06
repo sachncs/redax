@@ -61,7 +61,7 @@ def test_pipeline_is_byte_deterministic_on_spans() -> None:
     a = _run(pipeline(text))
     b = _run(pipeline(text))
     assert a.spans == b.spans
-    assert a.text_hash == b.text_hash
+    assert a.digest == b.digest
 
 
 def test_pipeline_model_circuit_opens_after_failures() -> None:
@@ -106,7 +106,7 @@ def test_pipeline_does_not_log_text() -> None:
     result = _run(pipeline("super secret email jane@example.com ssn 000-00-0000"))
     assert "jane@example.com" not in str(result.stages)
     assert "000-00-0000" not in str(result.stages)
-    assert result.text_hash != ""
+    assert result.digest != ""
 
 
 def test_pipeline_handles_empty_input() -> None:

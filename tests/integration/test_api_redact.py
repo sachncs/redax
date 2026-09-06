@@ -201,7 +201,7 @@ def test_redact_pipeline_path_returns_used_pipeline_flag(monkeypatch):
     body = resp.json()
     assert body["used_pipeline"] is True
     assert body["used_fallback"] is False
-    assert body["text_hash"] is not None
+    assert body["digest"] is not None
     types = [s["type"] for s in body["spans"]]
     assert "EMAIL" in types, f"regex gate should have caught the email: {types}"
     assert "PERSON" in types, f"model stage should have added the name: {types}"
@@ -252,4 +252,4 @@ def test_redact_without_use_pipeline_uses_legacy_redactor(monkeypatch):
     body = resp.json()
     assert body["used_pipeline"] is False
     assert "[REDACTED]" in body["text"]
-    assert body["text_hash"] is None
+    assert body["digest"] is None
