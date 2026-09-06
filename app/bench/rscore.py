@@ -179,13 +179,13 @@ class RScoreReport:
             return {"p20": 0.0, "p50": 0.0, "mean": 0.0}
         scores = sorted(d.r_score for d in self.per_document.values())
         return {
-            "p20": _percentile(scores, 20),
-            "p50": _percentile(scores, 50),
+            "p20": percentile(scores, 20),
+            "p50": percentile(scores, 50),
             "mean": mean(scores),
         }
 
 
-def _percentile(sorted_scores: list[float], pct: float) -> float:
+def percentile(sorted_scores: list[float], pct: float) -> float:
     if not sorted_scores:
         return 0.0
     if len(sorted_scores) == 1:
@@ -343,7 +343,7 @@ def rscore(
                 continue
             per_category.setdefault(cat, []).append(rdoc.r_score)
     per_category_summaries = {
-        cat: {"mean": mean(v), "p50": _percentile(sorted(v), 50), "n": len(v)}
+        cat: {"mean": mean(v), "p50": percentile(sorted(v), 50), "n": len(v)}
         for cat, v in per_category.items()
     }
 
