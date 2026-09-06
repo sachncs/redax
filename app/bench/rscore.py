@@ -57,7 +57,7 @@ def _support_runs(spans: Iterable[LabelledSpan], text_len: int) -> list[tuple[in
     return _prediction_chars(spans, text_len)
 
 
-def _false_positive_runs(
+def false_positive_runs(
     prediction_runs: list[tuple[int, int]],
     support_runs: list[tuple[int, int]],
     text_len: int,
@@ -277,7 +277,7 @@ def score_document(
                 )
             )
 
-    fp_runs = _false_positive_runs(pred_runs, support_runs, text_len)
+    fp_runs = false_positive_runs(pred_runs, support_runs, text_len)
     gap_runs = _gap_runs(support_runs, text_len)
     gaps_ge3 = [g for g in gap_runs if (g[1] - g[0]) >= _GAP_THRESHOLD]
 
