@@ -49,7 +49,7 @@ class Mask:
         from app.redaction.apply import apply_spans
 
         fmt = config.get("format", "[REDACTED]")
-        masked = apply_spans(text, spans, fmt)
+        masked = apply_spans(text, spans, [fmt] * len(spans))
         return StrategyResult(
             text=masked,
             spans=spans,
@@ -112,7 +112,7 @@ class Regex:
         entity_types = config.get("entity_types", [])
         detected = await detector.detect(text, entity_types)
         fmt = config.get("format", "[REDACTED]")
-        masked = apply_spans(text, detected, fmt)
+        masked = apply_spans(text, detected, [fmt] * len(detected))
         return StrategyResult(
             text=masked,
             spans=detected,

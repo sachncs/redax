@@ -8,8 +8,8 @@ from collections.abc import Callable
 from app.inference.detector import Span
 
 
-def apply_spans(text: str, spans: list[Span], replacement: str | list[str] = "[REDACTED]") -> str:
-    """Substitute ``spans`` in ``text`` with ``replacement`` (or one per span).
+def apply_spans(text: str, spans: list[Span], replacement: list[str]) -> str:
+    """Substitute ``spans`` in ``text`` with ``replacement`` (one per span).
 
     Spans must not overlap. Callers should deduplicate (e.g. via
     ``dedupe_overlaps``) before invoking this function. The implementation
@@ -19,31 +19,26 @@ def apply_spans(text: str, spans: list[Span], replacement: str | list[str] = "[R
     Args:
         text: The source text to apply substitutions to.
         spans: The non-overlapping spans to substitute.
-        replacement: Either a single string applied to every span, or a
-            list with one entry per span.
+        replacement: A list of replacement strings, one per span. To
+            broadcast a single string across every span, wrap it: e.g.
+            ``replacement=[fmt] * len(spans)``.
 
     Returns:
         The text with each span replaced.
 
     Raises:
-        ValueError: If ``replacement`` is a list whose length does not
-            match ``spans``.
+        ValueError: If ``len(replacement) != len(spans)``.
     """
     if not spans:
         return text
-
-    if isinstance(replacement, str):
-        replacements = {i: replacement for i in range(len(spans))}
-    else:
-        if len(replacement) != len(spans):
-            raise ValueError("replacement list length must match spans length")
-        replacements = {i: r for i, r in enumerate(replacement)}
+    if len(replacement) != len(spans):
+        raise ValueError("replacement list length must match spans length")
 
     ordered = sorted(range(len(spans)), key=lambda i: spans[i].start, reverse=True)
     out = text
     for i in ordered:
         span = spans[i]
-        out = out[: span.start] + replacements[i] + out[span.end :]
+        out = out[: span.start] + replacement[i] + out[span.end :]
     return out
 
 

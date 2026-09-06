@@ -12,7 +12,7 @@ from app.redaction.apply import apply_spans, dedupe_overlaps, inverse_position_r
 def test_single_replacement_string() -> None:
     text = "Email me at a@b.com tomorrow"
     spans = [Span(12, 19, "EMAIL", 1.0)]
-    assert apply_spans(text, spans) == "Email me at [REDACTED] tomorrow"
+    assert apply_spans(text, spans, ["[REDACTED]"]) == "Email me at [REDACTED] tomorrow"
 
 
 def test_per_span_replacements() -> None:
@@ -23,7 +23,7 @@ def test_per_span_replacements() -> None:
 
 
 def test_no_spans_returns_text_unchanged() -> None:
-    assert apply_spans("hello", []) == "hello"
+    assert apply_spans("hello", [], []) == "hello"
 
 
 def test_replacement_list_length_must_match() -> None:
@@ -38,7 +38,7 @@ def test_replacement_list_length_must_match() -> None:
 def test_empty_replacement_yields_concatenation() -> None:
     text = "hello world"
     spans = [Span(5, 11, "X", 1.0)]
-    assert apply_spans(text, spans, "") == "hello"
+    assert apply_spans(text, spans, [""]) == "hello"
 
 
 def test_dedupe_overlaps_keeps_higher_confidence() -> None:
@@ -76,7 +76,7 @@ def test_dedupe_overlaps_empty() -> None:
 def test_inverse_remap_follows_substitution_layout() -> None:
     text = "Alice, email a@b.com"
     spans = [Span(0, 5, "PERSON", 1.0)]
-    new = apply_spans(text, spans, "[R]")
+    new = apply_spans(text, spans, ["[R]"])
     remap = inverse_position_remap(text, spans, ["[R]"])
     assert new == "[R], email a@b.com"
     assert remap(0) == 0  # inside replaced range -> span start
@@ -159,7 +159,7 @@ def test_apply_is_permutation_invariant(layout) -> None:
 @given(segmented_layout())
 def test_apply_string_replacement_keeps_kept_chars(layout) -> None:
     text, spans, _, parts, redact = layout
-    out = apply_spans(text, spans, "[X]")
+    out = apply_spans(text, spans, ["[X]"] * len(spans))
     expected = "".join(
         "[X]" if do_redact and part else part for part, do_redact in zip(parts, redact, strict=True)
     )

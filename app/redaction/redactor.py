@@ -61,7 +61,7 @@ class Redactor:
         for span in spans:
             ENTITIES_DETECTED.labels(entity_type=span.type, strategy="auto").inc()
         return RedactionResult(
-            text=apply_spans(text, spans, self.replacement),
+            text=apply_spans(text, spans, [self.replacement] * len(spans)),
             spans=spans,
         )
 
