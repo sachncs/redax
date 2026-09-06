@@ -185,15 +185,6 @@ class OpenMedPIIDetector:
             for span in spans
         ]
 
-    @staticmethod
-    def _to_span(text: str, current: dict[str, Any]) -> Span:
-        return Span(
-            start=current["start"],
-            end=current["end"] + 1,
-            type=str(current["label"]),
-            confidence=0.9,
-        )
-
     async def detect(self, text: str, entity_types: list[str]) -> list[Span]:
         return await asyncio.to_thread(self.detect_sync, text, entity_types)
 
