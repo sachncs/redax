@@ -80,13 +80,24 @@ def register(app: FastAPI) -> None:
 
 
 async def run_job(job_id: str, payload: dict[str, Any], store: JobStore) -> None:
+    from app.logging import get_logger
+    from app.observability import ERRORS
     from app.state import model_state
 
-    await store.set_status(job_id, "running")
-    start = time.perf_counter()
+    logger = get_logger("redax.jobs")
     try:
-        redactor = model_state.redactor
-        assert redactor is not None
+        await store.set_status(job_id, "running")
+    except Exception:
+        ERRORS.labels(type="job_store_unavailable").inc()
+        return
+    start = time.perf_counter()
+    redactor = model_state.redactor
+    if redactor is None:
+        ERRORS.labels(type="job_redactor_unavailable").inc()
+        await _record_failure(job_id, store, logger)
+        logger.error("redax.job_failed", job_id=job_id, error="redactor not initialized")
+        return
+    try:
         result = await redactor.redact(
             payload["text"],
             policy=payload.get("policy"),
@@ -102,4 +113,16 @@ async def run_job(job_id: str, payload: dict[str, Any], store: JobStore) -> None
             },
         )
     except Exception as exc:
-        await store.set_error(job_id, str(exc))
+        logger.error("redax.job_failed", job_id=job_id, error=exc)
+        ERRORS.labels(type="job_failed").inc()
+        await _record_failure(job_id, store, logger)
+
+
+async def _record_failure(job_id: str, store: JobStore, logger: Any) -> None:
+    from app.observability import ERRORS
+
+    try:
+        await store.set_error(job_id, JOB_FAILED)
+    except Exception:
+        logger.error("redax.job_store_write_failed", job_id=job_id)
+        ERRORS.labels(type="job_store_write_failed").inc()

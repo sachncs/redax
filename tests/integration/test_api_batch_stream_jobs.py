@@ -132,6 +132,18 @@ def test_job_lifecycle(app_with_state):
     assert body["result"]["text"] == "hi [REDACTED]"
 
 
+@pytest.fixture
+def app_with_no_redactor(monkeypatch):
+    test_state = ModelState()
+    test_state.settings = type("S", (), {"max_text_chars": 1000, "api_key_set": lambda: set()})()
+    test_state.job_store = _InMemoryJobStore()
+    test_state.ready = True
+    monkeypatch.setattr("app.state.model_state", test_state)
+    app = FastAPI()
+    register_jobs(app)
+    return app
+
+
 def test_job_not_found(app_with_state):
     with TestClient(app_with_state) as client:
         r = client.get("/v1/jobs/does-not-exist")
@@ -140,3 +152,22 @@ def test_job_not_found(app_with_state):
     body = r.json()
     assert body["status"] == 404
     assert body["title"] == "Job not found"
+
+
+def test_failed_job_does_not_leak_internal_error(app_with_no_redactor):
+    with TestClient(app_with_no_redactor) as client:
+        sub = client.post("/v1/jobs", json={"text": "hi a@b.com"})
+        assert sub.status_code == 202
+        job_id = sub.json()["id"]
+        deadline = 5.0
+        import time
+
+        start = time.time()
+        while time.time() - start < deadline:
+            r = client.get(f"/v1/jobs/{job_id}")
+            body = r.json()
+            if body["status"] == "failed":
+                break
+            time.sleep(0.05)
+    assert body["status"] == "failed"
+    assert body["error"] == "job failed"
