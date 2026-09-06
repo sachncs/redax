@@ -49,6 +49,18 @@ COPY --from=builder /install /usr/local
 COPY app /app/app
 COPY policies /policies
 
+# Pin and SHA-256-verify the production detector snapshot. Fail loud
+# (non-zero exit, container refuses to start) if the local copy does
+# not match the committed digest. Regenerate with:
+#   python scripts/download_models.py \
+#       --model OpenMed/OpenMed-PII-SuperClinical-Large-434M-v1 \
+#       --revision df7af994d39d358e52f929ff1b3a40d894adf022 --record
+COPY MODEL_HASHES.txt MODEL_HASHES.txt
+COPY scripts/download_models.py scripts/download_models.py
+RUN python scripts/download_models.py \
+        --model OpenMed/OpenMed-PII-SuperClinical-Large-434M-v1 \
+        --revision df7af994d39d358e52f929ff1b3a40d894adf022
+
 USER redax
 
 EXPOSE 8000

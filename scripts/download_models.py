@@ -142,8 +142,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.record:
             record_manifest(name, revision, digest, manifest)
             print(
-                f"re-recorded digest for {name}@{revision}: {digest} "
-                f"(was {expected})",
+                f"re-recorded digest for {name}@{revision}: {digest} (was {expected})",
                 file=sys.stderr,
             )
             return 0
