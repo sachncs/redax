@@ -8,7 +8,7 @@ from typing import Protocol
 from app.inference.detector import Span
 
 
-class _HasAsyncDetect(Protocol):
+class HasAsyncDetect(Protocol):
     name: str
 
     async def detect(self, text: str, entity_types: list[str]) -> list[Span]: ...
@@ -18,7 +18,7 @@ class _HasAsyncDetect(Protocol):
 class RegexGate:
     """Wrap any `Detector` with a uniform async signature."""
 
-    detector: _HasAsyncDetect
+    detector: HasAsyncDetect
 
     @classmethod
     def default(cls) -> RegexGate:

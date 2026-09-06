@@ -16,13 +16,13 @@ from typing import Any, Protocol
 from app.inference.detector import Span
 
 
-class _SyncDetector(Protocol):
+class SyncDetector(Protocol):
     name: str
 
     def detect_sync(self, text: str, entity_types: list[str]) -> list[Span]: ...
 
 
-class _AsyncDetector(Protocol):
+class AsyncDetector(Protocol):
     name: str
 
     async def detect(self, text: str, entity_types: list[str]) -> list[Span]: ...
@@ -38,7 +38,7 @@ class ModelStage:
     is async-only and is wrapped by `run_async` as a fallback.
     """
 
-    detector: _SyncDetector | _AsyncDetector | Any
+    detector: SyncDetector | AsyncDetector | Any
 
     def detector_sync(self, text: str, entity_types: list[str]) -> list[Span]:
         sync_attr: Callable[..., Any] | None = getattr(self.detector, "detect_sync", None)
