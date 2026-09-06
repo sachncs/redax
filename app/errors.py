@@ -180,7 +180,7 @@ def install_error_handlers(app: FastAPI) -> None:
     """
 
     @app.exception_handler(StarletteHTTPException)
-    async def _http_exception(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+    async def http_exception(request: Request, exc: StarletteHTTPException) -> JSONResponse:
         """Render a raised HTTP status as an RFC 7807 problem-details body."""
         detail = exc.detail if isinstance(exc.detail, str) else None
         title = detail or "Request failed"
@@ -193,7 +193,7 @@ def install_error_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(RequestValidationError)
-    async def _validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+    async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
         """Render a pydantic validation failure as an RFC 7807 422 problem."""
         issues = flatten_validation_errors(exc)
         return problem_response(
@@ -205,13 +205,13 @@ def install_error_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(TimeoutError)
-    async def _timeout_error(request: Request, exc: TimeoutError) -> JSONResponse:
+    async def timeout_handler(request: Request, exc: TimeoutError) -> JSONResponse:
         """Render an asyncio.timeout expiry as an RFC 7807 504 problem."""
         get_logger("redax.errors").warning("redax.request_timeout", exc_info=exc)
         return timeout_error(request)
 
     @app.exception_handler(Exception)
-    async def _unhandled_error(request: Request, exc: Exception) -> JSONResponse:
+    async def unhandled_error(request: Request, exc: Exception) -> JSONResponse:
         """Render any uncaught exception as a generic RFC 7807 500 problem."""
         get_logger("redax.errors").error("redax.unhandled_error", exc_info=exc)
         return problem_response(
