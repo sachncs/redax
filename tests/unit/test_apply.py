@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from itertools import pairwise
+
+import hypothesis.strategies as st
+from hypothesis import given
+
 from app.inference.detector import Span
 from app.redaction.apply import apply_spans, dedupe_overlaps, inverse_position_remap
 
@@ -101,3 +106,114 @@ def test_inverse_remap_rejects_length_mismatch() -> None:
 
     with pytest.raises(ValueError):
         inverse_position_remap("abc", [Span(0, 1, "A", 1.0)], [])
+
+
+@st.composite
+def segmented_layout(draw):
+    """Text built from segments; some segments are marked as redacted spans.
+
+    Returns (text, spans, replacements, parts, redact_mask) where spans are
+    mutually non-overlapping and in ascending order by construction.
+    """
+    parts = draw(st.lists(st.text("ab ", max_size=4), min_size=0, max_size=6))
+    redact = draw(st.lists(st.booleans(), min_size=len(parts), max_size=len(parts)))
+    spans = []
+    pos = 0
+    for part, do_redact in zip(parts, redact, strict=True):
+        if do_redact and part:
+            spans.append(Span(pos, pos + len(part), "T", 1.0))
+        pos += len(part)
+    replacements = draw(st.lists(st.text(max_size=4), min_size=len(spans), max_size=len(spans)))
+    return "".join(parts), spans, replacements, parts, redact
+
+
+def _expected(text, spans, replacements, parts, redact) -> str:
+    out = ""
+    repl_iter = iter(replacements)
+    for part, do_redact in zip(parts, redact, strict=True):
+        if do_redact and part:
+            out += next(repl_iter)
+        else:
+            out += part
+    return out
+
+
+@given(segmented_layout())
+def test_apply_preserves_kept_segments_and_length(layout) -> None:
+    text, spans, replacements, parts, redact = layout
+    out = apply_spans(text, spans, replacements)
+    assert out == _expected(text, spans, replacements, parts, redact)
+    assert len(out) == len(text) - sum(s.end - s.start for s in spans) + sum(
+        len(r) for r in replacements
+    )
+
+
+@given(segmented_layout())
+def test_apply_is_permutation_invariant(layout) -> None:
+    text, spans, replacements, _, _ = layout
+    assert apply_spans(text, list(reversed(spans)), list(reversed(replacements))) == apply_spans(
+        text, spans, replacements
+    )
+
+
+@given(segmented_layout())
+def test_apply_string_replacement_keeps_kept_chars(layout) -> None:
+    text, spans, _, parts, redact = layout
+    out = apply_spans(text, spans, "[X]")
+    expected = "".join(
+        "[X]" if do_redact and part else part for part, do_redact in zip(parts, redact, strict=True)
+    )
+    assert out == expected
+
+
+@given(segmented_layout())
+def test_remap_maps_each_output_char_to_its_origin(layout) -> None:
+    text, spans, replacements, parts, redact = layout
+    out = apply_spans(text, spans, replacements)
+    remap = inverse_position_remap(text, spans, replacements)
+    old_pos = 0
+    new_pos = 0
+    repl_iter = iter(replacements)
+    for part, do_redact in zip(parts, redact, strict=True):
+        if do_redact and part:
+            replacement = next(repl_iter)
+            span = Span(old_pos, old_pos + len(part), "T", 1.0)
+            for j in range(len(replacement)):
+                assert out[new_pos + j] == replacement[j]
+                assert remap(new_pos + j) == span.start
+            new_pos += len(replacement)
+        else:
+            for j, ch in enumerate(part):
+                assert out[new_pos + j] == ch
+                assert remap(new_pos + j) == old_pos + j
+            new_pos += len(part)
+        old_pos += len(part)
+    for i in range(1, len(out)):
+        assert remap(i - 1) <= remap(i)
+
+
+@given(st.lists(st.tuples(st.integers(0, 15), st.integers(0, 15)), max_size=8), st.floats(0.0, 1.0))
+def test_dedupe_output_is_sorted_and_non_overlapping(bounds, conf) -> None:
+    spans = [Span(a, b, "T", conf) for a, b in bounds if a < b]
+    out = dedupe_overlaps(spans)
+    assert all(span in spans for span in out)
+    for a, b in pairwise(out):
+        assert a.start <= b.start
+        assert a.end <= b.start
+    if spans:
+        assert len(out) >= 1
+
+
+@given(st.lists(st.tuples(st.integers(0, 12), st.integers(0, 12)), max_size=8))
+def test_dedupe_never_drops_below_one_for_nonempty(bounds) -> None:
+    spans = [Span(a, b, "T", 0.5) for a, b in bounds if a < b]
+    assert len(dedupe_overlaps(spans)) <= len(spans)
+
+
+def test_apply_roundtrips_multibyte_and_emoji() -> None:
+    text = "héllo 😀wörld ĉao"
+    spans = [Span(2, 7, "PERSON", 1.0), Span(8, 13, "EMAIL", 1.0)]
+    out = apply_spans(text, spans, ["[P]", "[E]"])
+    assert out == "hé[P]w[E]ĉao"
+    spans_alt = [Span(8, 13, "EMAIL", 1.0), Span(2, 7, "PERSON", 1.0)]
+    assert apply_spans(text, spans_alt, ["[E]", "[P]"]) == out
