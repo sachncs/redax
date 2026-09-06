@@ -23,7 +23,7 @@ class Strategy(Protocol):
 
     name: str
 
-    async def apply(
+    async def run(
         self,
         text: str,
         spans: list[Span],
@@ -36,7 +36,7 @@ class Skip:
 
     name = "passThrough"
 
-    async def apply(self, text: str, spans: list[Span], config: dict[str, Any]) -> StrategyResult:
+    async def run(self, text: str, spans: list[Span], config: dict[str, Any]) -> StrategyResult:
         return StrategyResult(text=text, spans=[], relex_map={})
 
 
@@ -45,7 +45,7 @@ class Mask:
 
     name = "mask"
 
-    async def apply(self, text: str, spans: list[Span], config: dict[str, Any]) -> StrategyResult:
+    async def run(self, text: str, spans: list[Span], config: dict[str, Any]) -> StrategyResult:
         from app.redaction.apply import apply_spans
 
         fmt = config.get("format", "[REDACTED]")
@@ -66,7 +66,7 @@ class Hash:
     def __init__(self, salt: str = "") -> None:
         self.salt = salt
 
-    async def apply(self, text: str, spans: list[Span], config: dict[str, Any]) -> StrategyResult:
+    async def run(self, text: str, spans: list[Span], config: dict[str, Any]) -> StrategyResult:
         import hashlib
 
         from app.redaction.apply import apply_spans
@@ -105,7 +105,7 @@ class Regex:
             self.detector = RegexDetector()
         return self.detector
 
-    async def apply(self, text: str, spans: list[Span], config: dict[str, Any]) -> StrategyResult:
+    async def run(self, text: str, spans: list[Span], config: dict[str, Any]) -> StrategyResult:
         from app.redaction.apply import apply_spans
 
         detector = self.resolve_detector()
@@ -145,7 +145,7 @@ class Deid:
         self.detectors = detectors or {}
         self.max_passes = max_passes
 
-    async def apply(self, text: str, spans: list[Span], config: dict[str, Any]) -> StrategyResult:
+    async def run(self, text: str, spans: list[Span], config: dict[str, Any]) -> StrategyResult:
         from app.inference.multi_pass import multi_pass_detect
         from app.redaction.apply import apply_spans
 

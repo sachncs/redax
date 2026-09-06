@@ -76,7 +76,7 @@ class Redactor:
             if strategy_name is None or strategy_name not in self.strategies:
                 continue
             strategy = self.strategies[strategy_name]
-            strategy_result = await strategy.apply(result_text, [], field_config)
+            strategy_result = await strategy.run(result_text, [], field_config)
             for span in strategy_result.spans:
                 if remap_to_original is not None:
                     recast = Span(
