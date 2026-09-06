@@ -8,12 +8,20 @@ from app.inference.detector import Span
 
 
 def normalize_gliner2_result(text: str, result: object) -> list[Span]:
-    """Convert a gliner2 result object into a sorted list of Spans.
+    """Convert a gliner2 result into a sorted list of Spans.
 
-    Accepts both dict values (with text/confidence/start/end keys) and
-    raw string values (position found via str.find).
+    Accepts both:
+      * a `gliner2` result object with `.entities` attribute, and
+      * a plain `dict` with an `'entities'` key (the current gliner2
+        0.3+ API returns a dict).
+
+    Each value is either a dict with `text/confidence/start/end` keys
+    or a raw string (position found via `str.find`).
     """
-    entities = getattr(result, "entities", None) or {}
+    if isinstance(result, dict):
+        entities = result.get("entities") or {}
+    else:
+        entities = getattr(result, "entities", None) or {}
     spans: list[Span] = []
     for label, values in entities.items():
         canonical = label.upper()

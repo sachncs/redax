@@ -40,6 +40,29 @@ def test_normalize_string_values_finds_offsets() -> None:
     assert spans[0].confidence == 1.0
 
 
+def test_normalize_accepts_plain_dict_results() -> None:
+    """gliner2 >=0.3 returns a plain dict rather than an object with
+    `.entities`. Normalise both shapes."""
+    result = {
+        "entities": {
+            "email": [
+                {
+                    "text": "a@b.com",
+                    "confidence": 0.91,
+                    "start": 9,
+                    "end": 16,
+                }
+            ]
+        }
+    }
+    spans = normalize_gliner2_result("write to a@b.com today", result)
+    assert len(spans) == 1
+    assert spans[0].type == "EMAIL"
+    assert spans[0].confidence == 0.91
+    assert spans[0].start == 9
+    assert spans[0].end == 16
+
+
 def test_normalize_skips_unmatchable_values() -> None:
     result = _StubResult({"person": ["nothere"]})
     spans = normalize_gliner2_result("Alice and Bob", result)
