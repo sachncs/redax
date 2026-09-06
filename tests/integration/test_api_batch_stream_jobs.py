@@ -57,14 +57,23 @@ class InMemoryJobStore(JobStore):
     async def stop(self) -> None:
         return None
 
-    async def create(self):
+    async def create(self, owner: str = ""):
         import uuid
 
         from app.jobs.store import JobRecord
 
-        rec = JobRecord(id=uuid.uuid4().hex, status="queued", result=None, error=None)
+        rec = JobRecord(
+            id=uuid.uuid4().hex,
+            status="queued",
+            result=None,
+            error=None,
+            owner=owner,
+        )
         self.records[rec.id] = rec
         return rec
+
+    async def count_for_key(self, owner: str):
+        return sum(1 for record in self.records.values() if record.owner == owner)
 
     async def get(self, job_id):
         return self.records.get(job_id)
@@ -73,10 +82,12 @@ class InMemoryJobStore(JobStore):
         self.records[job_id].status = status
 
     async def set_result(self, job_id, result):
+        self.records[job_id].owner = ""
         self.records[job_id].result = result
         self.records[job_id].status = "done"
 
     async def set_error(self, job_id, error):
+        self.records[job_id].owner = ""
         self.records[job_id].error = error
         self.records[job_id].status = "failed"
 
@@ -87,7 +98,7 @@ def app_with_state(monkeypatch):
     test_state.settings = type(
         "S",
         (),
-        {"max_text_chars": 100_000, "api_key_set": lambda: set()},
+        {"max_text_chars": 100_000, "api_key_set": lambda self: set()},
     )()
     test_state.redactor = Redactor(
         detector=_StubDetector(),
@@ -183,7 +194,9 @@ def test_job_lifecycle(app_with_state):
 @pytest.fixture
 def app_with_no_redactor(monkeypatch):
     test_state = ModelState()
-    test_state.settings = type("S", (), {"max_text_chars": 1000, "api_key_set": lambda: set()})()
+    test_state.settings = type(
+        "S", (), {"max_text_chars": 1000, "api_key_set": lambda self: set()}
+    )()
     test_state.job_store = InMemoryJobStore()
     test_state.ready = True
     monkeypatch.setattr("app.state.model_state", test_state)
@@ -238,7 +251,9 @@ class SlowDetector(_StubDetector):
 @pytest.fixture
 def app_with_slow_redactor(monkeypatch):
     test_state = ModelState()
-    test_state.settings = type("S", (), {"max_text_chars": 100_000, "api_key_set": lambda: set()})()
+    test_state.settings = type(
+        "S", (), {"max_text_chars": 100_000, "api_key_set": lambda self: set()}
+    )()
     test_state.redactor = Redactor(detector=SlowDetector(), strategies={})
     test_state.job_store = InMemoryJobStore()
     test_state.audit = MemoryAudit()
@@ -333,7 +348,7 @@ def app_with_max_inflight(monkeypatch):
         (),
         {
             "max_text_chars": 100_000,
-            "api_key_set": lambda: set(),
+            "api_key_set": lambda self: set(),
             "max_inflight": 1,
         },
     )()
@@ -362,6 +377,41 @@ def test_job_submission_rejected_when_inflight_full(app_with_max_inflight):
 
 
 @pytest.fixture
+def app_with_per_key_quota(monkeypatch):
+    test_state = ModelState()
+    test_state.settings = type(
+        "S",
+        (),
+        {
+            "max_text_chars": 100_000,
+            "api_key_set": lambda self: {"k1"},
+            "max_jobs_per_key": 1,
+        },
+    )()
+    test_state.job_store = InMemoryJobStore()
+    test_state.ready = True
+    monkeypatch.setattr("app.state.model_state", test_state)
+    app = FastAPI()
+    register_jobs(app)
+    return app
+
+
+def test_job_submission_rejected_over_per_key_quota(app_with_per_key_quota):
+    import asyncio
+
+    from app.state import model_state
+
+    store = model_state.job_store
+    asyncio.run(store.create(owner="k1"))
+    asyncio.run(store.create(owner="k1"))
+    with TestClient(app_with_per_key_quota) as client:
+        resp = client.post("/v1/jobs", json={"text": "more text"}, headers={"X-API-Key": "k1"})
+    assert resp.status_code == 429
+    assert resp.headers["content-type"].startswith("application/problem+json")
+    assert resp.json()["title"] == "Too Many Jobs"
+
+
+@pytest.fixture
 def app_with_short_job_timeout(monkeypatch):
     test_state = ModelState()
     test_state.settings = type(
@@ -369,7 +419,7 @@ def app_with_short_job_timeout(monkeypatch):
         (),
         {
             "max_text_chars": 100_000,
-            "api_key_set": lambda: set(),
+            "api_key_set": lambda self: set(),
             "request_timeout_seconds": 0.05,
         },
     )()

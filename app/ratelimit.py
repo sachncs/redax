@@ -4,8 +4,6 @@ import time
 
 from fastapi import HTTPException
 
-from app.state import model_state
-
 
 async def rate_limit(api_key: str) -> str:
     """Redis-backed fixed-window rate limit per API key.
@@ -15,12 +13,14 @@ async def rate_limit(api_key: str) -> str:
     unavailable (503) or when settings are missing (503). A disabled limit
     (rate_limit_per_minute <= 0) short-circuits without touching Redis.
     """
+    from app.state import model_state
+
     if api_key == "anonymous":
         return api_key
     settings = model_state.settings
     if settings is None:
         raise HTTPException(status_code=503, detail="Rate limiting unavailable")
-    limit = settings.rate_limit_per_minute
+    limit = getattr(settings, "rate_limit_per_minute", 0)
     if limit <= 0:
         return api_key
     job_store = model_state.job_store

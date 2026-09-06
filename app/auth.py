@@ -4,8 +4,6 @@ from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException
 
-from app.state import model_state
-
 
 def require_api_key(
     x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
@@ -15,7 +13,12 @@ def require_api_key(
     Returns the matched key. Raises HTTPException (RFC 7807 via the global
     handler) when the header is missing or invalid. Disabled (returns a
     sentinel "anonymous") when REDAX_API_KEYS is empty.
+
+    model_state is resolved at call time (matching every handler module) so
+    rebinding app.state.model_state in tests is observed here too.
     """
+    from app.state import model_state
+
     settings = model_state.settings
     if settings is None:
         return "anonymous"

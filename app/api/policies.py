@@ -8,7 +8,6 @@ from fastapi import APIRouter, Depends, FastAPI, Request
 from app.auth import require_api_key
 from app.observability import REQUEST_LATENCY, REQUESTS
 from app.redaction.policies import list_policies
-from app.state import model_state
 
 
 def register(app: FastAPI) -> None:
@@ -22,6 +21,8 @@ def register(app: FastAPI) -> None:
         endpoint = "GET /v1/policies"
         method = "GET"
         try:
+            from app.state import model_state
+
             settings = model_state.settings
             policies_dir = getattr(settings, "policies_dir", "./policies")
             loaded = list_policies(policies_dir)
