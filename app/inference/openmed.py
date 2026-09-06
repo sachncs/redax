@@ -105,7 +105,8 @@ class OpenMedPIIDetector:
     model: Any = None
     tokenizer: Any = None
 
-    def _load(self) -> None:
+    def load_model(self) -> None:
+        """Lazily load the tokenizer + model into ``self.tokenizer`` and ``self.model``."""
         if self.model is not None:
             return
         from transformers import AutoModelForTokenClassification, AutoTokenizer
@@ -120,7 +121,7 @@ class OpenMedPIIDetector:
 
     def detect_sync(self, text: str, entity_types: list[str]) -> list[Span]:
         """Synchronous inference — used by the pipeline's circuit breaker."""
-        self._load()
+        self.load_model()
         import torch
 
         assert self.tokenizer is not None and self.model is not None
@@ -189,7 +190,7 @@ class OpenMedPIIDetector:
         return await asyncio.to_thread(self.detect_sync, text, entity_types)
 
     async def warmup(self) -> None:
-        await asyncio.to_thread(self._load)
+        await asyncio.to_thread(self.load_model)
 
 
 def entity_to_span(current: dict[str, Any]) -> Span:
