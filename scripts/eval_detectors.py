@@ -108,7 +108,9 @@ async def _collect(
         "mean_latency_ms": statistics.fmean(latencies_ms) if latencies_ms else 0.0,
         "p50_latency_ms": statistics.median(latencies_ms) if latencies_ms else 0.0,
         "p95_latency_ms": (
-            statistics.quantiles(latencies_ms, n=20)[18] if len(latencies_ms) >= 20 else max(latencies_ms, default=0.0)
+            statistics.quantiles(latencies_ms, n=20)[18]
+            if len(latencies_ms) >= 20
+            else max(latencies_ms, default=0.0)
         ),
         "peak_rss_kb": max(rss_samples) if rss_samples else 0,
     }

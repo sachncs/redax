@@ -124,17 +124,30 @@ class OpenMedPIIDetector:
         import torch
 
         assert self._tokenizer is not None and self._model is not None
-        inputs = self._tokenizer(
-            text,
-            return_tensors="pt",
+        tokenizer_kwargs: dict[str, Any] = dict(
             truncation=True,
             max_length=384,
+            return_offsets_mapping=True,
         )
+        # Some tokenizers (e.g. DebertaV2) reject `return_offsets_mapping` when
+        # they cannot honour it. Fall back to the plain tokenizer output
+        # in that case; we recover character offsets via str.find() below.
+        try:
+            tokens = self._tokenizer(text, return_tensors="pt", **tokenizer_kwargs)
+        except TypeError:
+            tokens = self._tokenizer(text, return_tensors="pt", truncation=True, max_length=384)
         with torch.no_grad():
-            outputs = self._model(**inputs)
+            model_inputs = {k: v for k, v in tokens.items() if k != "offset_mapping"}
+            outputs = self._model(**model_inputs)
         preds = outputs.logits.argmax(dim=-1)[0].tolist()
-        word_ids = inputs.word_ids(0)
+        word_ids = tokens.word_ids(0)
         id2label = self._model.config.id2label
+        offset_mapping = tokens.get("offset_mapping")
+        offsets: list[tuple[int, int]] = (
+            [(int(s), int(e)) for s, e in offset_mapping[0].tolist()]
+            if offset_mapping is not None
+            else []
+        )
 
         spans: list[Span] = []
         current: dict[str, Any] | None = None
@@ -143,49 +156,34 @@ class OpenMedPIIDetector:
                 current = None
                 continue
             label = id2label.get(preds[idx], "O")
+            char_start, char_end = offsets[idx] if idx < len(offsets) else (0, 0)
             if label.startswith("B-"):
                 if current is not None:
-                    spans.append(self._to_span(text, current))
+                    spans.append(_entity_to_span(current))
                 current = {
                     "label": label[2:],
-                    "start": inputs["input_ids"][0][idx],
-                    "end": inputs["input_ids"][0][idx],
+                    "char_start": char_start,
+                    "char_end": char_end,
                     "word_id": wid,
                 }
             elif label.startswith("I-") and current is not None:
-                current["end"] = inputs["input_ids"][0][idx]
+                current["char_end"] = char_end
             else:
                 if current is not None:
-                    spans.append(self._to_span(text, current))
+                    spans.append(_entity_to_span(current))
                 current = None
         if current is not None:
-            spans.append(self._to_span(text, current))
+            spans.append(_entity_to_span(current))
 
-        offsets = inputs.get("offset_mapping")
-        if offsets is not None:
-            resolved: list[Span] = []
-            for span in spans:
-                start, end = _resolve_offsets(text, offsets, span)
-                resolved.append(
-                    Span(start=start, end=end, type=sanitize_label(span.type), confidence=0.9)
-                )
-            return resolved
-
-        decoded: list[Span] = []
-        for span in spans:
-            decoded_text = self._tokenizer.decode([span.start, span.end])
-            s = text.find(decoded_text)
-            if s == -1:
-                continue
-            decoded.append(
-                Span(
-                    start=s,
-                    end=s + len(decoded_text),
-                    type=sanitize_label(str(span.type)),
-                    confidence=0.9,
-                )
+        return [
+            Span(
+                start=span.start,
+                end=span.end,
+                type=sanitize_label(span.type),
+                confidence=0.9,
             )
-        return decoded
+            for span in spans
+        ]
 
     @staticmethod
     def _to_span(text: str, current: dict[str, Any]) -> Span:
@@ -203,12 +201,10 @@ class OpenMedPIIDetector:
         await asyncio.to_thread(self._load)
 
 
-def _resolve_offsets(
-    text: str,
-    offsets: Any,
-    span: Span,
-) -> tuple[int, int]:
-    for _i, (s, e) in enumerate(offsets[0].tolist()):
-        if s == span.start:
-            return int(s), int(e)
-    return 0, min(len(text), span.end)
+def _entity_to_span(current: dict[str, Any]) -> Span:
+    return Span(
+        start=int(current["char_start"]),
+        end=int(current["char_end"]),
+        type=str(current["label"]),
+        confidence=0.9,
+    )
