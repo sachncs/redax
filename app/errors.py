@@ -140,7 +140,7 @@ def timeout_error(
     )
 
 
-def _flatten_validation_errors(exc: RequestValidationError) -> list[str]:
+def flatten_validation_errors(exc: RequestValidationError) -> list[str]:
     out: list[str] = []
     for error in exc.errors():
         loc = ".".join(str(p) for p in error.get("loc", ()))
@@ -172,7 +172,7 @@ def install_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(RequestValidationError)
     async def _validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
-        issues = _flatten_validation_errors(exc)
+        issues = flatten_validation_errors(exc)
         return problem_response(
             request,
             type="https://redax.ai/errors/validation-error",
