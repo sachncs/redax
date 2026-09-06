@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 
 from app.auth import require_api_key
 from app.errors import internal_error, payload_too_large
+from app.logging import get_logger
 from app.observability import REQUEST_LATENCY, REQUESTS
 
 
@@ -118,9 +119,12 @@ def register(app: FastAPI) -> None:
                         )
                     )
                 REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
-            except Exception:
+            except (OSError, RuntimeError, ValueError, TypeError, KeyError) as exc:
                 yield f"data: {json.dumps({'error': 'internal error'})}\n\n"
                 REQUESTS.labels(endpoint=endpoint, method=method, status="500").inc()
+                get_logger("redax.api").error(
+                    "redax.stream_chunk_failed", error=exc.__class__.__name__
+                )
             finally:
                 REQUEST_LATENCY.labels(endpoint=endpoint, method=method).observe(
                     time.perf_counter() - latency_start

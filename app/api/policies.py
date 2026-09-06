@@ -13,6 +13,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, FastAPI, Request
 
 from app.auth import require_api_key
+from app.logging import get_logger
 from app.observability import REQUEST_LATENCY, REQUESTS
 from app.redaction.policies import list_policies
 
@@ -45,8 +46,11 @@ def register(app: FastAPI) -> None:
                     for p in loaded
                 ]
             }
-        except Exception:
+        except (OSError, ValueError, RuntimeError) as exc:
             REQUESTS.labels(endpoint=endpoint, method=method, status="500").inc()
+            get_logger("redax.api").error(
+                "redax.policies_failed", error=exc.__class__.__name__
+            )
             raise
         finally:
             REQUEST_LATENCY.labels(endpoint=endpoint, method=method).observe(

@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 from app.auth import require_api_key
 from app.errors import internal_error, job_limit, payload_too_large, problem_response, queue_full
 from app.jobs.store import JobStore
+from app.logging import get_logger
 from app.observability import QUEUE_DEPTH, REQUESTS, queue_depth
 
 JOB_FAILED = "job failed"
@@ -72,8 +73,11 @@ def register(app: FastAPI) -> None:
             background_tasks.add_task(run_job, record.id, body.model_dump(), store, request_id)
             REQUESTS.labels(endpoint=endpoint, method=method, status="202").inc()
             return {"id": record.id, "status": record.status}
-        except Exception:
+        except (OSError, RuntimeError, ValueError, KeyError) as exc:
             REQUESTS.labels(endpoint=endpoint, method=method, status="500").inc()
+            get_logger("redax.api").error(
+                "redax.queue_failed", error=exc.__class__.__name__
+            )
             return internal_error(request)
 
     @router.get("/v1/jobs/{job_id}", response_model=None)
