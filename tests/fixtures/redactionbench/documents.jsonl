@@ -1,0 +1,6 @@
+{"id": "vehicle_record", "text": "Vehicle: \"5N1AT2MK4FC824170\" \"2015 Nissan Rogue\" plate= 321ABC", "category": "operations", "genre": "vehicle_record", "source": "synthetic"}
+{"id": "email_alice", "text": "Reach me at alice@example.com tomorrow please", "category": "emails", "genre": "personal_social", "source": "synthetic"}
+{"id": "email_john", "text": "His name is John M. Doe and he lives in Springfield.", "category": "emails", "genre": "personal_social", "source": "synthetic"}
+{"id": "note_over_redact", "text": "Note from 2024-01-15: meeting at 1600 Pennsylvania Ave NW", "category": "operations", "genre": "internal_creds", "source": "synthetic"}
+{"id": "multiline_invoice", "text": "See the attached\ninvoice #INV-2026-001 for the breakdown", "category": "financial", "genre": "invoice", "source": "synthetic"}
+{"id": "email_phone", "text": "Call me at (415) 555-2671 between 9 and 5", "category": "emails", "genre": "personal_social", "source": "synthetic"}

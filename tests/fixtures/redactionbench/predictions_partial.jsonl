@@ -1,0 +1,6 @@
+{"doc_id": "vehicle_record", "predictions": [{"start": 10, "end": 27}, {"start": 56, "end": 62}]}
+{"doc_id": "email_alice", "predictions": [{"start": 12, "end": 22}]}
+{"doc_id": "email_john", "predictions": [{"start": 12, "end": 16}]}
+{"doc_id": "note_over_redact", "predictions": [{"start": 10, "end": 15}]}
+{"doc_id": "multiline_invoice", "predictions": [{"start": 17, "end": 25}]}
+{"doc_id": "email_phone", "predictions": [{"start": 11, "end": 20}]}
