@@ -96,7 +96,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         log.warning("redax.redis_unavailable", error=str(exc))
         model_state.job_store = None
 
-    audit = LocalFileAuditBackend(settings.audit_path)
+    audit = LocalFileAuditBackend(
+        settings.audit_path,
+        fsync=settings.audit_fsync,
+        max_bytes=settings.audit_max_bytes,
+        rotation_backups=settings.audit_rotation_backups,
+        retention_seconds=settings.audit_retention_seconds,
+    )
     await audit.start()
     model_state.audit = audit
 

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -15,63 +17,136 @@ class LocalFileAuditBackend:
     that holds the file descriptor open across writes (so heavy redaction
     traffic doesn't open+close the file per event). File I/O runs in the
     default executor so it doesn't block the event loop.
+
+    Hardening is configurable: optional fsync per line, size-based
+    rotation with a bounded backup count, and a retention window enforced
+    on startup.
     """
 
-    def __init__(self, path: str) -> None:
-        self._path = Path(path)
-        self._queue: asyncio.Queue[AuditEvent] | None = None
-        self._task: asyncio.Task[None] | None = None
-        self._loop: asyncio.AbstractEventLoop | None = None
-        self._stopped = asyncio.Event()
-        self._dropped = 0
+    def __init__(
+        self,
+        path: str,
+        fsync: bool = True,
+        max_bytes: int = 1_000_000_000,
+        rotation_backups: int = 5,
+        retention_seconds: int = 90 * 24 * 3600,
+    ) -> None:
+        self.path = Path(path)
+        self.fsync = fsync
+        self.max_bytes = max_bytes
+        self.rotation_backups = rotation_backups
+        self.retention_seconds = retention_seconds
+        self.queue: asyncio.Queue[AuditEvent] | None = None
+        self.task: asyncio.Task[None] | None = None
+        self.loop: asyncio.AbstractEventLoop | None = None
+        self.dropped = 0
 
     async def start(self) -> None:
         # Ensure parent directory exists synchronously so the very first
         # append has somewhere to land.
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        Path(self._path).touch(exist_ok=True)
-        self._queue = asyncio.Queue(maxsize=10000)
-        self._loop = asyncio.get_running_loop()
-        self._task = asyncio.create_task(self._drain())
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.path.touch(exist_ok=True)
+        self.loop = asyncio.get_running_loop()
+        await self.loop.run_in_executor(None, prune_old_events, self.path, self.retention_seconds)
+        self.queue = asyncio.Queue(maxsize=10000)
+        self.task = asyncio.create_task(self.drain())
 
     async def stop(self) -> None:
-        if self._queue is not None:
-            await self._queue.put(_SENTINEL)
-        if self._task is not None:
-            await self._task
-        self._loop = None
+        if self.queue is not None:
+            await self.queue.put(SENTINEL)
+        if self.task is not None:
+            await self.task
+        self.loop = None
 
     async def record(self, event: AuditEvent) -> None:
-        if self._queue is None:
+        if self.queue is None:
             return
         try:
-            self._queue.put_nowait(event)
+            self.queue.put_nowait(event)
         except asyncio.QueueFull:
-            self._dropped += 1
+            self.dropped += 1
 
-    async def _drain(self) -> None:
-        assert self._queue is not None and self._loop is not None
-        loop = self._loop
+    async def drain(self) -> None:
+        assert self.queue is not None and self.loop is not None
+        loop = self.loop
         while True:
-            item = await self._queue.get()
-            if item is _SENTINEL:
+            item = await self.queue.get()
+            if item is SENTINEL:
                 return
-            try:
-                line = json.dumps(event_to_dict(_with_timestamp(item))) + "\n"
-                await loop.run_in_executor(None, _append_line, str(self._path), line)
-            except Exception:
-                pass
+            line = json.dumps(event_to_dict(with_timestamp(item))) + "\n"
+            with contextlib.suppress(Exception):
+                await loop.run_in_executor(
+                    None,
+                    append_line,
+                    self.path,
+                    line,
+                    self.fsync,
+                    self.max_bytes,
+                    self.rotation_backups,
+                )
 
 
-_SENTINEL: AuditEvent = AuditEvent(request_id="", ts="", policy_version="", text_chars=0)
+SENTINEL: AuditEvent = AuditEvent(request_id="", ts="", policy_version="", text_chars=0)
 
 
-def _append_line(path: str, line: str) -> None:
+def append_line(path: Path, line: str, fsync: bool, max_bytes: int, rotation_backups: int) -> None:
+    rotate_if_needed(path, max_bytes, rotation_backups)
     with open(path, "a", encoding="utf-8") as fp:
         fp.write(line)
+        if fsync:
+            fp.flush()
+            os.fsync(fp.fileno())
 
 
-def _with_timestamp(event: AuditEvent) -> AuditEvent:
+def rotate_if_needed(path: Path, max_bytes: int, rotation_backups: int) -> None:
+    """Rotate the current log into path.1..path.{backups} once it is full.
+
+    A rotation_backups of 0 truncates the file instead of keeping backups.
+    """
+    if max_bytes <= 0:
+        return
+    if not path.exists() or path.stat().st_size < max_bytes:
+        return
+    if rotation_backups <= 0:
+        with open(path, "w", encoding="utf-8") as fp:
+            fp.truncate()
+        return
+    for i in range(rotation_backups, 1, -1):
+        src = Path(f"{path}.{i - 1}")
+        if src.exists():
+            src.rename(Path(f"{path}.{i}"))
+    path.rename(Path(f"{path}.1"))
+
+
+def prune_old_events(path: Path, retention_seconds: int) -> None:
+    """Drop lines older than `retention_seconds` (startup maintenance).
+
+    Lines without a parseable timestamp are kept. Never rewrites the file
+    unless at least one line was removed, so a no-op startup is cheap.
+    """
+    if retention_seconds <= 0 or not path.exists():
+        return
+    cutoff = datetime.now(UTC).timestamp() - retention_seconds
+    lines = path.read_text(encoding="utf-8").splitlines()
+    kept: list[str] = []
+    removed = False
+    for line in lines:
+        try:
+            ts_value = json.loads(line).get("ts")
+            if not ts_value:
+                kept.append(line)
+                continue
+            if datetime.fromisoformat(ts_value).timestamp() >= cutoff:
+                kept.append(line)
+            else:
+                removed = True
+        except Exception:
+            kept.append(line)
+    if removed:
+        path.write_text("\n".join(kept) + ("\n" if kept else ""), encoding="utf-8")
+
+
+def with_timestamp(event: AuditEvent) -> AuditEvent:
     if event.ts:
         return event
     return AuditEvent(
