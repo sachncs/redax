@@ -42,7 +42,7 @@ class Category(enum.StrEnum):
     TERMINAL = "terminal"
 
 
-_CATEGORY_TO_STRUCTURE: dict[Category, Structure] = {
+CATEGORY_TO_STRUCTURE: dict[Category, Structure] = {
     Category.ACADEMIC: Structure.UNSTRUCTURED,
     Category.EMAILS: Structure.UNSTRUCTURED,
     Category.FINANCIAL: Structure.UNSTRUCTURED,
@@ -59,7 +59,7 @@ _CATEGORY_TO_STRUCTURE: dict[Category, Structure] = {
 
 def structure_of(category: Category) -> Structure:
     """Return the structure classification for a given category."""
-    return _CATEGORY_TO_STRUCTURE[category]
+    return CATEGORY_TO_STRUCTURE[category]
 
 
 @dataclass(frozen=True)

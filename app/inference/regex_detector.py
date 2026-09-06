@@ -29,7 +29,7 @@ def luhn_ok(number: str) -> bool:
     return total % 10 == 0
 
 
-_RULES: tuple[_Rule, ...] = (
+RULES: tuple[_Rule, ...] = (
     _Rule("EMAIL", re.compile(r"\b[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}\b")),
     _Rule(
         "CREDIT_CARD",
@@ -62,7 +62,7 @@ class RegexDetector:
 
     name = "regex"
 
-    def __init__(self, rules: tuple[_Rule, ...] = _RULES) -> None:
+    def __init__(self, rules: tuple[_Rule, ...] = RULES) -> None:
         self._rules = rules
 
     async def detect(self, text: str, entity_types: list[str]) -> list[Span]:

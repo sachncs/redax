@@ -33,7 +33,7 @@ OPENMED_MODEL_NAME = "OpenMed/OpenMed-PII-SuperClinical-Large-434M-v1"
 OPENMED_SHA256_MANIFEST_KEY = "openmed-pii-superclinical-large-434m-v1"
 
 
-_LABEL_MAP: dict[str, str] = {
+LABEL_MAP: dict[str, str] = {
     "account_number": "CREDIT_CARD",
     "api_key": "URL",
     "bank_routing_number": "CREDIT_CARD",
@@ -90,7 +90,7 @@ def sanitize_label(label: str) -> str:
     if not label:
         return "URL"
     cleaned = label.lower().strip().replace(" ", "_").replace("-", "_")
-    return _LABEL_MAP.get(cleaned, "URL")
+    return LABEL_MAP.get(cleaned, "URL")
 
 
 @dataclass

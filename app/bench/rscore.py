@@ -29,7 +29,7 @@ from app.bench.fusion import (
     selected_contextual_spans,
 )
 
-_GAP_THRESHOLD = 3
+GAP_THRESHOLD = 3
 
 
 def _prediction_chars(spans: Iterable[LabelledSpan], text_len: int) -> list[tuple[int, int]]:
@@ -279,7 +279,7 @@ def score_document(
 
     fp_runs = false_positive_runs(pred_runs, support_runs, text_len)
     gap_runs = _gap_runs(support_runs, text_len)
-    gaps_ge3 = [g for g in gap_runs if (g[1] - g[0]) >= _GAP_THRESHOLD]
+    gaps_ge3 = [g for g in gap_runs if (g[1] - g[0]) >= GAP_THRESHOLD]
 
     def _covers_entire_gap(fp: tuple[int, int]) -> bool:
         return any(fp[0] <= g[0] and fp[1] >= g[1] for g in gaps_ge3)
