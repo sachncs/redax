@@ -2,13 +2,16 @@
 
 Self-hosted PII redaction engine. Sits before your LLM so sensitive data never enters the prompt in cleartext.
 
-- **≤1B params**, runs on CPU (default model: [`fastino/gliner2-privacy-filter-PII-multi`](https://huggingface.co/fastino/gliner2-privacy-filter-PII-multi), 0.3B)
+- **≤1B params**, runs on CPU (default model: [`fastino/gliner2-privacy-filter-PII-multi`](https://huggingface.co/fastino/gliner2-privacy-filter-PII-multi), 0.3B; production default: [`OpenMed/OpenMed-PII-SuperClinical-Large-434M-v1`](https://huggingface.co/OpenMed/OpenMed-PII-SuperClinical-Large-434M-v1), Apache-2.0)
 - Deterministic, inspectable, no second LLM call
 - Sync, batch, SSE-stream, and async-job API surfaces
 - Versioned YAML policies, diffable for audit
 - Reversible typed placeholders + Hiding-in-Plain-Sight relexicalization
 - WASM bundle for browser / edge (same model, quantized)
 - Audit log records what was redacted, never the values
+- RedactionBench-compatible R-Score metric (`scripts/run_bench.py`, see [`docs/bench.md`](docs/bench.md))
+- Multi-stage pipeline: regex gate + encoder + circuit-breaker + consensus fusion, see [`docs/pipeline.md`](docs/pipeline.md)
+- Quantified vs the `ai4privacy/pii-masking-200k` benchmark; reproducible via `scripts/eval_detectors.py`
 
 ## Quickstart
 
