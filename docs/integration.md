@@ -42,6 +42,7 @@ def redact(text: str) -> str:
 r = httpx.post(
     "http://localhost:8000/v1/redact/batch",
     json={"items": [{"text": t1}, {"text": t2}]},
+    headers={"X-API-Key": "..."},
 )
 ```
 
@@ -52,6 +53,7 @@ with httpx.stream(
     "POST",
     "http://localhost:8000/v1/redact/stream",
     json={"text": long_doc, "chunk_chars": 2000},
+    headers={"X-API-Key": "..."},
 ) as r:
     for line in r.iter_lines():
         if line.startswith("data:"):
@@ -62,18 +64,34 @@ with httpx.stream(
 ## Async jobs (large workloads)
 
 ```python
-r = httpx.post("http://localhost:8000/v1/jobs", json={"text": doc})
+r = httpx.post(
+    "http://localhost:8000/v1/jobs",
+    json={"text": doc},
+    headers={"X-API-Key": "..."},
+)
 job_id = r.json()["id"]
 
 while True:
-    s = httpx.get(f"http://localhost:8000/v1/jobs/{job_id}").json()
+    s = httpx.get(
+        f"http://localhost:8000/v1/jobs/{job_id}",
+        headers={"X-API-Key": "..."},
+    ).json()
     if s["status"] == "done":
         redacted = s["result"]["text"]
         break
     if s["status"] == "failed":
-        raise RuntimeError(s["error"])
+        raise RuntimeError(s["error"])  # stable "job failed" marker
     time.sleep(0.5)
 ```
+
+An unknown job id raises a `404 Not Found` (RFC 7807 body), not a
+softly-shaped 200.
+
+## Correlation ids
+
+Send your own trace id in `X-Request-ID`; Redax echoes it back on the response
+and includes it (with a server-generated fallback) in every structured log
+line and audit event for the request.
 
 ## Idempotency
 
@@ -91,6 +109,7 @@ regardless of API key (1h TTL). Tunable via `REDAX_CACHE_TTL_SECONDS`.
 
 ## Audit log
 
-Every successful redaction writes one line to the audit log containing only
-counts, types, durations, and request metadata — never the original values.
-See `docs/architecture.md` for the schema.
+Every successful redaction — synchronous, batch, stream, or job — writes one
+line to the audit log containing only counts, types, durations, and request
+metadata (never the original values). See `docs/architecture.md` for the
+schema.

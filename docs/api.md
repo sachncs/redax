@@ -32,17 +32,23 @@ Redact a single text. Returns `{text, spans, relex_map}`.
 }
 ```
 
-**Errors**: 413 (oversize), 422 (validation), 429 (rate-limited), 503 (not ready).
+**Errors**: 413 (oversize), 422 (validation), 429 (rate-limited), 503 (not ready), 504 (timeout).
 
 **Headers honored**: `X-API-Key`, `Authorization: Bearer ...`, `Idempotency-Key`.
+Every response echoes the request's `X-Request-ID` (or a server-generated one).
 
 ## POST /v1/redact/batch
 
-Up to 1000 items per call. Runs in parallel via `asyncio.gather`.
+Up to 1000 items per call. Runs in parallel via `asyncio.gather` under a single
+overall timeout.
 
 ```json
 {"items": [{"text": "..."}, {"text": "..."}]}
 ```
+
+Requires an API key when configured. Enforces `max_text_chars` per item (413),
+the shared rate limit (429/503), a per-request timeout (504), and emits one
+audit event per request with aggregated span counts.
 
 ## POST /v1/redact/stream
 
@@ -55,10 +61,16 @@ curl -N -X POST http://localhost:8000/v1/redact/stream \
   -d '{"text": "long doc...", "chunk_chars": 1000}'
 ```
 
+Requires an API key when configured. Rejects oversized payloads (413), enforces
+the shared rate limit (429/503), and a per-chunk timeout yields a
+`{"error": "request timeout", "status": 504}` SSE event. Emits one audit event
+per request.
+
 ## POST /v1/jobs, GET /v1/jobs/{id}
 
 Submit an async redaction; poll the result. Useful for long documents or
-high-throughput pipelines.
+high-throughput pipelines. Both endpoints require an API key when configured;
+submission enforces `max_text_chars` (413) and the shared rate limit (429/503).
 
 **Submit**:
 
@@ -77,6 +89,10 @@ curl http://localhost:8000/v1/jobs/{id}
 # {"id": "...", "status": "done", "result": {...}, "error": null}
 ```
 
+An unknown `{id}` returns a 404 `application/problem+json` body. A failed job
+surfaces the stable `"error": "job failed"` marker — never an internal
+exception string. Completed jobs are recorded in the audit log.
+
 ## GET /v1/policies
 
 List the policies shipped in `policies/`.
@@ -94,5 +110,5 @@ List the policies shipped in `policies/`.
 | Endpoint | Purpose |
 |---|---|
 | `GET /healthz` | Process liveness, always 200 |
-| `GET /readyz` | Model loaded, 200 / 503 |
+| `GET /readyz` | Redactor initialized; 200 or 503 `application/problem+json` |
 | `GET /metrics` | Prometheus exposition format |
