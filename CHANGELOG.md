@@ -61,6 +61,52 @@ adheres to [Semantic Versioning](https://semver.org/).
   and always emits the per-type span summary without the original
   text.
 
+### Changed (more recent)
+
+- `POST /v1/redact` accepts `use_pipeline: bool` (default `false`).
+  When `true`, the request is routed through the new multi-stage
+  pipeline (`app/redaction/pipeline.py`) — regex gate → model stage →
+  consensus fusion → fallback. The response shape grows three fields:
+  `used_pipeline: bool`, `used_fallback: bool`, `text_hash: str | None`.
+  When the pipeline is not configured (regex-only deployment) or the
+  flag is false, the legacy Redactor path is used unchanged.
+
+- `Settings` gains `pipeline_breaker_threshold` (default 3) and
+  `pipeline_breaker_cooldown_s` (default 5.0) so the model stage's
+  circuit breaker can be tuned per deployment without a code change.
+
+- `scripts/run_bench.py` and `scripts/eval_detectors.py` now call the
+  detector's `warmup()` (when defined) before the per-document loop
+  and redirect the model's stdout chatter so the emitted JSON stays
+  parseable. Both scripts previously failed cold-start with
+  `RuntimeError: GLiNER2 model is not loaded`.
+
+- `tests/integration/test_bench_approved.py` gains an approval-style
+  assertion: the strongest local model detector's R-Score must be ≥
+  the regex baseline's R-Score on `tests/fixtures/redactionbench/`. If
+  this assertion ever fires, the regex safety net has been overtaken
+  by the model and the docs/benchmark-results.md comparison table
+  needs to be regenerated.
+
+- `tests/integration/test_api_redact.py` gains two tests for the new
+  `use_pipeline=true` path: one verifies the pipeline's regex gate
+  + model stage both contribute spans (EMAIL from regex, PERSON from
+  the stub model); one verifies the legacy Redactor is still used when
+  `use_pipeline=false`.
+
+- `docs/architecture.md` documents the multi-stage pipeline (regex
+  gate + model + consensus + circuit-broken fallback) and the
+  reconciliation with the philterd critique ("never trust a single
+  LLM in the redaction hot path; the regex gate is the deterministic
+  safety net; the model stage provides recall lift on PERSON +
+  contextual entities; the consensus stage prevents the model from
+  overriding regex anchors").
+
+- `docs/api.md` documents the new request field (`use_pipeline`) and
+  the three new response fields (`used_pipeline`, `used_fallback`,
+  `text_hash`).
+
+
 ## [0.1.0] — 2026-09-05
 
 ### Added

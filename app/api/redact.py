@@ -20,12 +20,16 @@ class RedactRequest(BaseModel):
     text: str = Field(min_length=1)
     entity_types: list[str] | None = None
     policy: dict[str, Any] | None = None
+    use_pipeline: bool = False
 
 
 class RedactResponse(BaseModel):
     text: str
     spans: list[Span]
     relex_map: dict[str, str]
+    used_pipeline: bool = False
+    used_fallback: bool = False
+    text_hash: str | None = None
 
 
 def register(app: FastAPI) -> None:
@@ -91,16 +95,47 @@ def register(app: FastAPI) -> None:
                         return json.loads(cache_raw)
 
                 inference_start = time.perf_counter()
-                result = await redactor.redact(
-                    body.text, policy=body.policy, entity_types=body.entity_types
-                )
-                inference_ms = int((time.perf_counter() - inference_start) * 1000)
+                used_pipeline = False
+                used_fallback = False
+                text_hash: str | None = None
 
-                response_body = {
-                    "text": result.text,
-                    "spans": [s.__dict__ for s in result.spans],
-                    "relex_map": result.relex_map,
-                }
+                pipeline = getattr(model_state, "pipeline", None)
+                response_body: dict[str, Any]
+                spans: list[Span]
+                if body.use_pipeline and pipeline is not None:
+                    pipeline_result = await pipeline(body.text)
+                    spans = list(pipeline_result.spans)
+                    inference_ms = int(pipeline_result.total_latency_ms)
+                    used_pipeline = True
+                    used_fallback = pipeline_result.used_fallback
+                    text_hash = pipeline_result.text_hash
+                    pipeline_spans: list[dict[str, Any]] = [
+                        {
+                            "start": s.start,
+                            "end": s.end,
+                            "type": s.type,
+                            "confidence": s.confidence,
+                        }
+                        for s in spans
+                    ]
+                    relex_map: dict[str, str] = {}
+                    response_body = {
+                        "text": body.text,
+                        "spans": pipeline_spans,
+                        "relex_map": relex_map,
+                    }
+                else:
+                    result = await redactor.redact(
+                        body.text, policy=body.policy, entity_types=body.entity_types
+                    )
+                    inference_ms = int((time.perf_counter() - inference_start) * 1000)
+                    spans = list(result.spans)
+                    response_body = {
+                        "text": result.text,
+                        "spans": [s.__dict__ for s in result.spans],
+                        "relex_map": result.relex_map,
+                    }
+                    spans = list(result.spans)
 
                 ttl = getattr(settings, "cache_ttl_seconds", 3600)
                 if job_store is not None:
@@ -121,22 +156,30 @@ def register(app: FastAPI) -> None:
                         if isinstance(body.policy, dict) and body.policy.get("version")
                         else "default"
                     )
-                    await audit.record(
-                        AuditEvent(
-                            request_id=request_id,
-                            ts="",
-                            policy_version=str(version),
-                            text_chars=len(body.text),
-                            entities_detected=span_summary(result.spans),
-                            inference_ms=inference_ms,
-                        )
+                    audit_kwargs: dict[str, Any] = dict(
+                        request_id=request_id,
+                        ts="",
+                        policy_version=str(version),
+                        text_chars=len(body.text),
+                        entities_detected=span_summary(spans),
+                        inference_ms=inference_ms,
                     )
+                    if used_pipeline:
+                        audit_kwargs["model_hash"] = (
+                            model_state.detector.name if model_state.detector else ""
+                        )
+                    await audit.record(AuditEvent(**audit_kwargs))
 
                 REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
+                response_text: str = str(response_body["text"])
+                response_relex_map = {k: str(v) for k, v in response_body["relex_map"].items()}
                 return RedactResponse(
-                    text=response_body["text"],
-                    spans=result.spans,
-                    relex_map=response_body["relex_map"],
+                    text=response_text,
+                    spans=spans,
+                    relex_map=response_relex_map,
+                    used_pipeline=used_pipeline,
+                    used_fallback=used_fallback,
+                    text_hash=text_hash,
                 )
         except TimeoutError:
             REQUESTS.labels(endpoint=endpoint, method=method, status="504").inc()

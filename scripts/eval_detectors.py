@@ -85,10 +85,15 @@ async def _collect(
     annotations_by_id: dict[str, Any],
 ) -> tuple[Any, dict[str, float]]:
     # Some detectors (notably GLiNER2) require explicit loading before
-    # their first detect() call. Call warmup() if it's defined.
+    # their first detect() call. Call warmup() if it's defined. Redirect
+    # the model's stdout chatter so the JSON report stays clean.
+    import contextlib
+    import io
+
     warmup = getattr(detector, "warmup", None)
     if callable(warmup):
-        await warmup()
+        with contextlib.redirect_stdout(io.StringIO()):
+            await warmup()
 
     inputs: list[tuple[str, str, list[LabelledSpan], list[LabelledSpan]]] = []
     rss_samples: list[int] = []

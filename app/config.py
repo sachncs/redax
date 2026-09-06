@@ -68,6 +68,10 @@ class Settings(BaseSettings):
     relex_cache_size: int = Field(default=10_000, ge=0)
     multi_pass_max: int = Field(default=3, ge=1)
 
+    pipeline_breaker_threshold: int = Field(default=3, ge=1)
+    pipeline_breaker_cooldown_s: float = Field(default=5.0, ge=0.1)
+    pipeline_enabled: bool = True
+
     metrics_by_tenant: bool = False
 
     otlp_endpoint: str | None = None

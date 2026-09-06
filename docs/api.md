@@ -4,7 +4,10 @@ All endpoints speak JSON. Errors come back as RFC 7807 `application/problem+json
 
 ## POST /v1/redact
 
-Redact a single text. Returns `{text, spans, relex_map}`.
+Redact a single text. Returns `{text, spans, relex_map, used_pipeline,
+used_fallback, text_hash}`. The shape is stable across the legacy
+`Redactor` path (default) and the new multi-stage pipeline path
+(`use_pipeline=true`).
 
 **Request body**:
 
@@ -18,19 +21,52 @@ Redact a single text. Returns `{text, spans, relex_map}`.
     "fields": {
       "free_text": {"strategy": "autoDeID", "relex": true}
     }
-  }
+  },
+  "use_pipeline": false                // optional, default false; flip to true
+                                       // to route through the multi-stage
+                                       // pipeline (regex gate + model +
+                                       // consensus + circuit-broken model
+                                       // fallback). When the pipeline is
+                                       // unavailable (regex-only deployment
+                                       // or model breaker permanently open)
+                                       // the legacy Redactor path is used.
 }
 ```
 
-**Response 200**:
+**Response 200** (legacy Redactor path):
 
 ```json
 {
   "text": "Email me at [EMAIL_0001]",
   "spans": [{"start": 12, "end": 29, "type": "EMAIL", "confidence": 1.0}],
-  "relex_map": {"alice@example.com": "[EMAIL_0001]"}
+  "relex_map": {"alice@example.com": "[EMAIL_0001]"},
+  "used_pipeline": false,
+  "used_fallback": false,
+  "text_hash": null
 }
 ```
+
+**Response 200** (`use_pipeline=true`):
+
+```json
+{
+  "text": "Email me at alice@example.com",
+  "spans": [
+    {"start": 8,  "end": 24, "type": "EMAIL",    "confidence": 0.99},
+    {"start": 0,  "end": 8,  "type": "PERSON",   "confidence": 0.85}
+  ],
+  "relex_map": {},
+  "used_pipeline": true,
+  "used_fallback": false,
+  "text_hash": "e38dfce0ad75a983ef463bae56cb70f6a338b708e253c15104bd01e1649bea1a"
+}
+```
+
+The pipeline response keeps the original text (no relexicalization at
+the route level — the existing redax redactor still owns relex) and
+records `used_fallback=true` when the model stage's circuit breaker is
+open. `text_hash` is a SHA-256 of the input text for log correlation;
+the audit log records the hash but never the text itself.
 
 **Errors**: 413 (oversize), 422 (validation), 429 (rate-limited), 503 (not ready), 504 (timeout).
 

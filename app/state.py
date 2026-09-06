@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import Request
+
+if TYPE_CHECKING:
+    from app.redaction.pipeline import Pipeline
 
 
 @dataclass
@@ -19,6 +22,7 @@ class ModelState:
     redis: Any | None = None
     extras: dict[str, Any] = field(default_factory=dict)
     request: Request | None = None
+    pipeline: Pipeline | None = None
 
 
 model_state = ModelState()

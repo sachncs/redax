@@ -24,7 +24,11 @@ from app.jobs.store import JobStore
 from app.logging import configure_logging, get_logger
 from app.middleware import register_request_context
 from app.observability import configure_tracing
+from app.redaction.circuit.breaker import CircuitBreaker
+from app.redaction.pipeline import Pipeline
 from app.redaction.redactor import Redactor
+from app.redaction.stages.model_stage import ModelStage
+from app.redaction.stages.regex_gate import RegexGate
 from app.redaction.strategy import AutoDeID, Hash, Mask, PassThrough, Regex, Strategy
 from app.state import model_state
 
@@ -87,6 +91,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         strategies=strategies,
         replacement="[REDACTED]",
     )
+
+    pipeline: Pipeline | None = None
+    if active is not regex:
+        pipeline = Pipeline(
+            regex_gate=RegexGate(detector=regex),
+            model_stage=ModelStage(detector=active),
+            model_breaker=CircuitBreaker(
+                name="model",
+                failure_threshold=settings.pipeline_breaker_threshold,
+                cooldown_s=settings.pipeline_breaker_cooldown_s,
+            ),
+        )
+    model_state.pipeline = pipeline
 
     store = JobStore(settings.redis_url, ttl_seconds=settings.job_ttl_seconds)
     try:

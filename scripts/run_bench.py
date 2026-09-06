@@ -56,6 +56,17 @@ async def _run_detector(detector: Any, text: str) -> list[LabelledSpan]:
     return [LabelledSpan(start=s.start, end=s.end, category=SpanCategory.MANDATORY) for s in spans]
 
 
+async def _warmup(detector: Any) -> None:
+    warmup = getattr(detector, "warmup", None)
+    if not callable(warmup):
+        return
+    import contextlib
+    import io
+
+    with contextlib.redirect_stdout(io.StringIO()):
+        await warmup()
+
+
 def _serialise_report(report: Any) -> dict[str, Any]:
     per_document: dict[str, dict[str, Any]] = {}
     for doc_id, rdoc in report.per_document.items():
@@ -99,6 +110,7 @@ def main() -> int:
     annotations = load_annotations(annotations_path, {d.id: d.text for d in documents})
     ann_by_id = {a.doc_id: a for a in annotations}
     detector = _build_detector(args.detector)
+    asyncio.run(_warmup(detector))
 
     async def collect() -> list[tuple[str, str, list[LabelledSpan], list[LabelledSpan]]]:
         inputs: list[tuple[str, str, list[LabelledSpan], list[LabelledSpan]]] = []
