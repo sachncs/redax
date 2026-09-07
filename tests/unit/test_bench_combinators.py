@@ -10,7 +10,10 @@ from app.bench.combinators import (
 )
 
 
-def _span(text: str, sub: str, category: SpanCategory, start: int | None = None) -> LabelledSpan:
+def make_labelled_span(
+    text: str, sub: str, category: SpanCategory, start: int | None = None
+) -> LabelledSpan:
+    """Build a LabelledSpan covering the first ``sub`` inside ``text``."""
     if start is None:
         start = text.find(sub)
     assert start >= 0, f"sub not found: {sub!r}"
@@ -20,18 +23,20 @@ def _span(text: str, sub: str, category: SpanCategory, start: int | None = None)
 WORKED_EXAMPLE_TEXT = 'Vehicle: "5N1AT2MK4FC824170" "2015 Nissan Rogue" plate= 321ABC'
 
 
-def _worked_red() -> list[LabelledSpan]:
+def worked_red_spans() -> list[LabelledSpan]:
+    """Mandatory spans from the worked-example vehicle record (VIN + plate)."""
     return [
-        _span(WORKED_EXAMPLE_TEXT, "5N1AT2MK4FC824170", SpanCategory.MANDATORY),
-        _span(WORKED_EXAMPLE_TEXT, "321ABC", SpanCategory.MANDATORY),
+        make_labelled_span(WORKED_EXAMPLE_TEXT, "5N1AT2MK4FC824170", SpanCategory.MANDATORY),
+        make_labelled_span(WORKED_EXAMPLE_TEXT, "321ABC", SpanCategory.MANDATORY),
     ]
 
 
-def _worked_yellow() -> list[LabelledSpan]:
+def worked_yellow_spans() -> list[LabelledSpan]:
+    """Contextual spans from the worked-example vehicle record (quoted strings)."""
     return [
-        _span(WORKED_EXAMPLE_TEXT, '"', SpanCategory.CONTEXTUAL, start=9),
-        _span(WORKED_EXAMPLE_TEXT, '"', SpanCategory.CONTEXTUAL, start=27),
-        _span(WORKED_EXAMPLE_TEXT, '"2015 Nissan Rogue"', SpanCategory.CONTEXTUAL),
+        make_labelled_span(WORKED_EXAMPLE_TEXT, '"', SpanCategory.CONTEXTUAL, start=9),
+        make_labelled_span(WORKED_EXAMPLE_TEXT, '"', SpanCategory.CONTEXTUAL, start=27),
+        make_labelled_span(WORKED_EXAMPLE_TEXT, '"2015 Nissan Rogue"', SpanCategory.CONTEXTUAL),
     ]
 
 
@@ -107,8 +112,8 @@ def test_pair_range_handles_symmetric_quotes() -> None:
 
 
 def test_worked_example_vehicle_record_structure() -> None:
-    red = _worked_red()
-    yellow = _worked_yellow()
+    red = worked_red_spans()
+    yellow = worked_yellow_spans()
     structure = build_connector_structure(WORKED_EXAMPLE_TEXT, red, yellow)
 
     assert len(structure.red_fusion_groups) == 2
@@ -130,8 +135,12 @@ def test_worked_example_vehicle_record_drops_open_quote_as_singleton_marker() ->
     pytest.importorskip("app.bench.fusion")
     from app.bench.fusion import fused_entity_groups
 
-    structure = build_connector_structure(WORKED_EXAMPLE_TEXT, _worked_red(), _worked_yellow())
-    entities = fused_entity_groups(_worked_red(), _worked_yellow(), structure, WORKED_EXAMPLE_TEXT)
+    structure = build_connector_structure(
+        WORKED_EXAMPLE_TEXT, worked_red_spans(), worked_yellow_spans()
+    )
+    entities = fused_entity_groups(
+        worked_red_spans(), worked_yellow_spans(), structure, WORKED_EXAMPLE_TEXT
+    )
     flat = [m for g in entities.contextual_entities for m in g.members]
     flat_starts = sorted(s.start for s in flat)
     assert flat_starts == [
