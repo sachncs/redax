@@ -49,7 +49,7 @@ class _MemoryAudit(Backend):
 
 
 @pytest.fixture
-def app_with_redactor(monkeypatch):
+def app_with_redactor():
     test_state = State()
     test_state.settings = type(
         "S", (), {"max_text_chars": 1000, "hash_salt": "x", "api_key_set": lambda self: set()}
@@ -67,8 +67,8 @@ def app_with_redactor(monkeypatch):
     test_state.job_store = None  # disable cache/idempotency
     test_state.ready = True
 
-    monkeypatch.setattr("app.state.state", test_state)
     app = FastAPI()
+    app.state.state = test_state
     register(app)
     return app
 
@@ -101,7 +101,7 @@ def test_redact_over_max_text_returns_413(app_with_redactor):
     assert resp.status_code == 413
 
 
-def test_redact_records_audit_event(monkeypatch):
+def test_redact_records_audit_event():
     test_state = State()
     test_state.settings = type(
         "S",
@@ -125,11 +125,11 @@ def test_redact_records_audit_event(monkeypatch):
     )
     test_state.job_store = None
     test_state.ready = True
-    monkeypatch.setattr("app.state.state", test_state)
 
     from app.api.redact import register as register_redact
 
     app = FastAPI()
+    app.state.state = test_state
     register_redact(app)
 
     with TestClient(app) as client:
@@ -158,7 +158,7 @@ class _StubModelDetector:
         return self.detect_sync(text, entity_types)
 
 
-def test_redact_pipeline_path_returns_used_pipeline_flag(monkeypatch):
+def test_redact_pipeline_path_returns_used_pipeline_flag():
     test_state = State()
     test_state.settings = type(
         "S",
@@ -188,9 +188,9 @@ def test_redact_pipeline_path_returns_used_pipeline_flag(monkeypatch):
     test_state.audit = _MemoryAudit()
     test_state.job_store = None
     test_state.ready = True
-    monkeypatch.setattr("app.state.state", test_state)
 
     app = FastAPI()
+    app.state.state = test_state
     register(app)
 
     text = "Dr. Jane Doe lives at jane@example.com"
@@ -207,7 +207,7 @@ def test_redact_pipeline_path_returns_used_pipeline_flag(monkeypatch):
     assert "PERSON" in types, f"model stage should have added the name: {types}"
 
 
-def test_redact_without_use_pipeline_uses_legacy_redactor(monkeypatch):
+def test_redact_without_use_pipeline_uses_legacy_redactor():
     test_state = State()
     test_state.settings = type(
         "S",
@@ -237,9 +237,9 @@ def test_redact_without_use_pipeline_uses_legacy_redactor(monkeypatch):
     test_state.audit = _MemoryAudit()
     test_state.job_store = None
     test_state.ready = True
-    monkeypatch.setattr("app.state.state", test_state)
 
     app = FastAPI()
+    app.state.state = test_state
     register(app)
 
     with TestClient(app) as client:

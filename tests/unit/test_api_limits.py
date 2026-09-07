@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import asyncio
 
-import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api import register_batch, register_jobs, register_stream
 from app.errors import install_error_handlers
-from app.state import state
+from app.state import State
 
 
 class Result:
@@ -64,35 +63,28 @@ class StubSettings:
         return {"limited-key"}
 
 
-def patch_state(
-    monkeypatch: pytest.MonkeyPatch,
-    *,
-    redactor: FastRedactor,
-    client: FakeClient | None,
-    settings: StubSettings,
-) -> None:
-    monkeypatch.setattr(state, "redactor", redactor)
-    monkeypatch.setattr(state, "job_store", FakeStore(client) if client else None)
-    monkeypatch.setattr(state, "settings", settings)
-
-
-def build_app() -> FastAPI:
+def build_app(
+    *, redactor: FastRedactor, client: FakeClient | None, settings: StubSettings
+) -> FastAPI:
+    test_state = State()
+    test_state.redactor = redactor
+    test_state.job_store = FakeStore(client) if client else None
+    test_state.settings = settings
     app = FastAPI()
     install_error_handlers(app)
     register_batch(app)
     register_stream(app)
     register_jobs(app)
+    app.state.state = test_state
     return app
 
 
-def test_batch_over_limit_returns_429(monkeypatch: pytest.MonkeyPatch) -> None:
-    patch_state(
-        monkeypatch,
+def test_batch_over_limit_returns_429() -> None:
+    app = build_app(
         redactor=FastRedactor(),
         client=FakeClient([6]),
         settings=StubSettings(5),
     )
-    app = build_app()
     with TestClient(app) as client:
         resp = client.post(
             "/v1/redact/batch",
@@ -103,14 +95,12 @@ def test_batch_over_limit_returns_429(monkeypatch: pytest.MonkeyPatch) -> None:
     assert resp.headers["content-type"].startswith("application/problem+json")
 
 
-def test_batch_rate_limit_down_returns_503(monkeypatch: pytest.MonkeyPatch) -> None:
-    patch_state(
-        monkeypatch,
+def test_batch_rate_limit_down_returns_503() -> None:
+    app = build_app(
         redactor=FastRedactor(),
         client=FakeClient(error=ConnectionRefusedError("redis down")),
         settings=StubSettings(5),
     )
-    app = build_app()
     with TestClient(app) as client:
         resp = client.post(
             "/v1/redact/batch",
@@ -121,14 +111,12 @@ def test_batch_rate_limit_down_returns_503(monkeypatch: pytest.MonkeyPatch) -> N
     assert resp.headers["content-type"].startswith("application/problem+json")
 
 
-def test_batch_timeout_returns_504(monkeypatch: pytest.MonkeyPatch) -> None:
-    patch_state(
-        monkeypatch,
+def test_batch_timeout_returns_504() -> None:
+    app = build_app(
         redactor=SlowRedactor(),
         client=FakeClient([1]),
         settings=StubSettings(5, request_timeout_seconds=0.001),
     )
-    app = build_app()
     with TestClient(app) as client:
         resp = client.post(
             "/v1/redact/batch",
@@ -139,14 +127,12 @@ def test_batch_timeout_returns_504(monkeypatch: pytest.MonkeyPatch) -> None:
     assert resp.headers["content-type"].startswith("application/problem+json")
 
 
-def test_batch_payload_too_large_returns_413(monkeypatch: pytest.MonkeyPatch) -> None:
-    patch_state(
-        monkeypatch,
+def test_batch_payload_too_large_returns_413() -> None:
+    app = build_app(
         redactor=FastRedactor(),
         client=FakeClient([1]),
         settings=StubSettings(5),
     )
-    app = build_app()
     with TestClient(app) as client:
         resp = client.post(
             "/v1/redact/batch",
@@ -157,14 +143,12 @@ def test_batch_payload_too_large_returns_413(monkeypatch: pytest.MonkeyPatch) ->
     assert resp.headers["content-type"].startswith("application/problem+json")
 
 
-def test_stream_timeout_yields_504_event(monkeypatch: pytest.MonkeyPatch) -> None:
-    patch_state(
-        monkeypatch,
+def test_stream_timeout_yields_504_event() -> None:
+    app = build_app(
         redactor=SlowRedactor(),
         client=FakeClient([1]),
         settings=StubSettings(5, request_timeout_seconds=0.001),
     )
-    app = build_app()
     with TestClient(app) as client:
         resp = client.post(
             "/v1/redact/stream",
@@ -175,14 +159,12 @@ def test_stream_timeout_yields_504_event(monkeypatch: pytest.MonkeyPatch) -> Non
     assert any('"status": 504' in line for line in lines)
 
 
-def test_stream_payload_too_large_returns_413(monkeypatch: pytest.MonkeyPatch) -> None:
-    patch_state(
-        monkeypatch,
+def test_stream_payload_too_large_returns_413() -> None:
+    app = build_app(
         redactor=FastRedactor(),
         client=FakeClient([1]),
         settings=StubSettings(5),
     )
-    app = build_app()
     with TestClient(app) as client:
         resp = client.post(
             "/v1/redact/stream",
@@ -193,14 +175,12 @@ def test_stream_payload_too_large_returns_413(monkeypatch: pytest.MonkeyPatch) -
     assert resp.headers["content-type"].startswith("application/problem+json")
 
 
-def test_jobs_over_limit_returns_429(monkeypatch: pytest.MonkeyPatch) -> None:
-    patch_state(
-        monkeypatch,
+def test_jobs_over_limit_returns_429() -> None:
+    app = build_app(
         redactor=FastRedactor(),
         client=FakeClient([6]),
         settings=StubSettings(5),
     )
-    app = build_app()
     with TestClient(app) as client:
         resp = client.post(
             "/v1/jobs",
@@ -211,14 +191,12 @@ def test_jobs_over_limit_returns_429(monkeypatch: pytest.MonkeyPatch) -> None:
     assert resp.headers["content-type"].startswith("application/problem+json")
 
 
-def test_jobs_payload_too_large_returns_413(monkeypatch: pytest.MonkeyPatch) -> None:
-    patch_state(
-        monkeypatch,
+def test_jobs_payload_too_large_returns_413() -> None:
+    app = build_app(
         redactor=FastRedactor(),
         client=FakeClient([1]),
         settings=StubSettings(5),
     )
-    app = build_app()
     with TestClient(app) as client:
         resp = client.post(
             "/v1/jobs",

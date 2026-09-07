@@ -11,13 +11,13 @@ from app.state import State
 
 
 @pytest.fixture
-def app_with_policies(monkeypatch, policies_path: Path):
+def app_with_policies(policies_path: Path):
     test_state = State()
     test_state.settings = type(
         "S", (), {"policies_dir": str(policies_path), "api_key_set": lambda self: set()}
     )()
-    monkeypatch.setattr("app.state.state", test_state)
     app = FastAPI()
+    app.state.state = test_state
     register(app)
     return app
 
