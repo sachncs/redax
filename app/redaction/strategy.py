@@ -10,6 +10,20 @@ from app.inference.regex import RegexDetector
 
 @dataclass
 class StrategyResult:
+    """The output of one :meth:`Strategy.run` invocation.
+
+    Attributes:
+        text: The text after the strategy has been applied.
+        spans: The spans the strategy operated on (detected for
+            detection-based strategies, or the input spans for
+            substitution-only strategies).
+        relex_map: Original-entity-to-placeholder map; populated by
+            relex-capable strategies (e.g. ``Deid`` with ``relex=True``).
+        substitutions: One (span, replacement_string) per applied
+            substitution. The Redactor uses this to keep reported
+            span coordinates aligned with the original input.
+    """
+
     text: str
     spans: list[Span]
     relex_map: dict[str, str]
@@ -37,6 +51,7 @@ class Skip:
     name = "passThrough"
 
     async def run(self, text: str, spans: list[Span], config: dict[str, Any]) -> StrategyResult:
+        """Return the input text and spans unchanged (no PII redaction)."""
         return StrategyResult(text=text, spans=[], relex_map={})
 
 
@@ -46,6 +61,11 @@ class Mask:
     name = "mask"
 
     async def run(self, text: str, spans: list[Span], config: dict[str, Any]) -> StrategyResult:
+        """Replace every input span with the configured format string.
+
+        The format is read from ``config["format"]`` and defaults to
+        ``"[REDACTED]"``.
+        """
         from app.redaction.apply import apply_spans
 
         fmt = config.get("format", "[REDACTED]")
@@ -67,6 +87,12 @@ class Hash:
         self.salt = salt
 
     async def run(self, text: str, spans: list[Span], config: dict[str, Any]) -> StrategyResult:
+        """Replace every input span with ``[HASH:<first-N-of-SHA256(salt+text)>]``.
+
+        Deterministic: the same input text + same salt always produces
+        the same placeholder, so the same entity in different
+        documents maps to the same token.
+        """
         import hashlib
 
         from app.redaction.apply import apply_spans
@@ -106,6 +132,11 @@ class Regex:
         return self.detector
 
     async def run(self, text: str, spans: list[Span], config: dict[str, Any]) -> StrategyResult:
+        """Run the regex detector over ``text`` and mask each hit.
+
+        Entity-type filter and format string are read from
+        ``config["entity_types"]`` and ``config["format"]``.
+        """
         from app.redaction.apply import apply_spans
 
         detector = self.resolve_detector()
@@ -146,6 +177,14 @@ class Deid:
         self.max_passes = max_passes
 
     async def run(self, text: str, spans: list[Span], config: dict[str, Any]) -> StrategyResult:
+        """Run multi-pass NER detection and emit relex or format placeholders.
+
+        Reads ``config["detector"]`` (optional name into ``self.detectors``),
+        ``config["entity_types"]``, ``config["multi_pass"]``, ``config["relex"]``,
+        and ``config["format"]`` (only when ``relex`` is false). Raises
+        :class:`ValueError` if a policy names a detector that was not
+        registered.
+        """
         from app.inference.multipass import multi_pass_detect
         from app.redaction.apply import apply_spans
 
