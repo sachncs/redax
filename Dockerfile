@@ -7,30 +7,17 @@ ENV PIP_NO_CACHE_DIR=1 \
 
 WORKDIR /build
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        build-essential \
-        gcc \
-    && rm -rf /var/lib/apt/lists/*
+# Install the exact pinned + hashed dependency set the project tests against.
+# Pinned-only: range specifiers are banned. This is the same lockfile used
+# by `make install` locally, so the production image and dev environment
+# are bit-for-bit reproducible.
+COPY requirements.lock /build/requirements.lock
+RUN pip install --prefix=/install --no-deps -r /build/requirements.lock
 
-COPY pyproject.toml ./
-RUN pip install --prefix=/install \
-        fastapi>=0.115 \
-        "uvicorn[standard]>=0.32" \
-        "pydantic>=2.9" \
-        "pydantic-settings>=2.6" \
-        "structlog>=24.4" \
-        "httpx>=0.27" \
-        "redis>=5.2" \
-        "arq>=0.26" \
-        "prometheus-client>=0.21" \
-        "opentelemetry-api>=1.27" \
-        "opentelemetry-sdk>=1.27" \
-        "opentelemetry-exporter-otlp>=1.27" \
-        "transformers>=4.46" \
-        "gliner>=0.2.13" \
-        "optimum>=1.23" \
-        "onnxruntime>=1.20" \
-        "pyyaml>=6.0"
+# Install the package itself with no deps (deps were resolved above).
+COPY pyproject.toml /build/
+COPY app /build/app
+RUN pip install --prefix=/install --no-deps /build
 
 FROM python:3.11-slim AS runtime
 
