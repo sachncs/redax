@@ -7,7 +7,8 @@ from app.config import Settings
 
 
 @pytest.fixture(autouse=True)
-def _no_env(monkeypatch: pytest.MonkeyPatch) -> None:
+def clear_redax_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Wipe every REDAX_* env var so each test starts from a clean environment."""
     for key in list(__import__("os").environ):
         if key.startswith("REDAX_"):
             monkeypatch.delenv(key, raising=False)
