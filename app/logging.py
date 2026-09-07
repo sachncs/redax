@@ -46,4 +46,17 @@ def configure_logging(level: str = "INFO") -> None:
 
 
 def get_logger(name: str | None = None) -> structlog.stdlib.BoundLogger:
+    """Return a bound structlog logger.
+
+    Thin convenience wrapper over :func:`structlog.get_logger` that
+    centralises the return-type annotation for the rest of the
+    codebase.
+
+    Args:
+        name: Optional dotted logger name; ``None`` returns the root
+            structlog logger.
+
+    Returns:
+        The bound logger.
+    """
     return structlog.get_logger(name)  # type: ignore[no-any-return]
