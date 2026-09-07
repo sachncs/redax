@@ -17,7 +17,18 @@ import os
 from pathlib import Path
 
 
-def _sha256_file(path: Path) -> str:
+def sha256_file(path: Path) -> str:
+    """Compute the SHA-256 hex digest of a single file.
+
+    Reads the file in 1 MiB chunks so very large model snapshots do not
+    have to fit in memory.
+
+    Args:
+        path: The file to hash.
+
+    Returns:
+        The 64-character hex SHA-256 digest.
+    """
     digest = hashlib.sha256()
     with path.open("rb") as fh:
         for chunk in iter(lambda: fh.read(1 << 20), b""):
@@ -48,6 +59,6 @@ def snapshot_digest(root: Path) -> str:
     for rel in files:
         h.update(os.fsencode(rel.as_posix()))
         h.update(b"\n")
-        h.update(bytes.fromhex(_sha256_file(root / rel)))
+        h.update(bytes.fromhex(sha256_file(root / rel)))
         h.update(b"\n")
     return h.hexdigest()
