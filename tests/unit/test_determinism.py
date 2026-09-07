@@ -36,7 +36,6 @@ from app.redaction.redactor import Redactor
 from app.redaction.stages.consensus import fuse
 from app.redaction.strategy import Deid, Hash, Mask, Regex, Skip
 
-
 _FIXTURES: tuple[tuple[str, str], ...] = (
     ("Email me at alice@example.com", "alice@example.com"),
     ("Reach Dr. Bob at +1 415-555-2671", "+1 415-555-2671"),
