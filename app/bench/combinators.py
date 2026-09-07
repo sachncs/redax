@@ -53,14 +53,17 @@ def is_punct_char(ch: str) -> bool:
 
 
 def is_whitespace(ch: str) -> bool:
+    """Return True if ``ch`` is a space or tab character."""
     return ch in (" ", "\t")
 
 
 def span_text(text: str, span: LabelledSpan) -> str:
+    """Return the slice of ``text`` covered by ``span``."""
     return text[span.start : span.end]
 
 
 def is_digit_only(text: str, span: LabelledSpan) -> bool:
+    """Return True if every character in ``span`` is an ASCII digit."""
     return all(c in DIGITS for c in span_text(text, span))
 
 
@@ -99,6 +102,7 @@ class SpanGroup:
 
     @property
     def start(self) -> int:
+        """Start offset of the first member span."""
         return self.members[0].start
 
     def __iter__(self) -> Iterator[LabelledSpan]:
@@ -206,6 +210,7 @@ def pair_ranges(
         return any(s.start < hi and s.end > lo for s in yellow_spans)
 
     def crosses_red(o: int, l_end: int) -> bool:
+        """Return True if any MANDATORY span is fully contained in [o, l_end]."""
         return any(
             s.category is SpanCategory.MANDATORY and s.start >= o and s.end <= l_end + 1
             for s in spans
