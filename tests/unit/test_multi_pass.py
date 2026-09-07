@@ -6,7 +6,9 @@ from app.inference.detector import Span
 from app.inference.multipass import multi_pass_detect
 
 
-class _VariableDetector:
+class VariableDetector:
+    """Detector that returns a different span list on each successive call."""
+
     def __init__(self, name: str, outputs: list[list[Span]]) -> None:
         self.name = name
         self._outputs = outputs
@@ -23,7 +25,7 @@ class _VariableDetector:
 
 @pytest.mark.asyncio
 async def test_single_pass_returns_deduped() -> None:
-    d = _VariableDetector("v", [[Span(0, 5, "PERSON", 0.9), Span(2, 5, "PERSON", 0.5)]])
+    d = VariableDetector("v", [[Span(0, 5, "PERSON", 0.9), Span(2, 5, "PERSON", 0.5)]])
     out = await multi_pass_detect(d, "alice", ["person"], passes=1)
     assert len(out) == 1
     assert out[0].confidence == 0.9
@@ -31,7 +33,7 @@ async def test_single_pass_returns_deduped() -> None:
 
 @pytest.mark.asyncio
 async def test_two_passes_union_spans() -> None:
-    d = _VariableDetector(
+    d = VariableDetector(
         "v",
         [
             [Span(0, 5, "PERSON", 0.9)],
@@ -45,7 +47,9 @@ async def test_two_passes_union_spans() -> None:
 
 @pytest.mark.asyncio
 async def test_zero_passes_raises() -> None:
-    class _Stub:
+    class ZeroPassStub:
+        """Detector for the zero-passes validation test; returns no spans."""
+
         name = "x"
 
         async def detect(self, text, entity_types):
@@ -55,24 +59,24 @@ async def test_zero_passes_raises() -> None:
             return None
 
     with pytest.raises(ValueError):
-        await multi_pass_detect(_Stub(), "x", [], passes=0)
+        await multi_pass_detect(ZeroPassStub(), "x", [], passes=0)
 
 
 @pytest.mark.asyncio
 async def test_two_passes_with_same_output_dedupes() -> None:
-    d = _VariableDetector("v", [[Span(0, 5, "PERSON", 0.9)], [Span(0, 5, "PERSON", 0.9)]])
+    d = VariableDetector("v", [[Span(0, 5, "PERSON", 0.9)], [Span(0, 5, "PERSON", 0.9)]])
     out = await multi_pass_detect(d, "alice", ["person"], passes=2)
     assert len(out) == 1
 
 
 @pytest.mark.asyncio
 async def test_passes_capped_by_max_passes() -> None:
-    d = _VariableDetector("v", [[Span(0, 5, "PERSON", 0.9)]])
+    d = VariableDetector("v", [[Span(0, 5, "PERSON", 0.9)]])
     with pytest.raises(ValueError, match=r"max_passes \(3\)"):
         await multi_pass_detect(d, "alice", ["person"], passes=4)
 
 
 @pytest.mark.asyncio
 async def test_passes_allow_custom_max() -> None:
-    d = _VariableDetector("v", [[Span(0, 5, "PERSON", 0.9)]])
+    d = VariableDetector("v", [[Span(0, 5, "PERSON", 0.9)]])
     assert await multi_pass_detect(d, "alice", ["person"], passes=5, max_passes=5)
