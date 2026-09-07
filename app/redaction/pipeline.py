@@ -10,7 +10,7 @@ from app.inference.detector import Span
 from app.redaction.circuit.breaker import Breaker, OpenError
 from app.redaction.stages.consensus import fuse
 from app.redaction.stages.fallback import from_regex_only
-from app.redaction.stages.gate import RegexGate
+from app.redaction.stages.gate import Gate
 from app.redaction.stages.model import ModelStage
 
 log = logging.getLogger(__name__)
@@ -47,7 +47,7 @@ class Pipeline:
     request. `__call__` is the only public method aside from `stats`.
     """
 
-    regex_gate: RegexGate
+    regex_gate: Gate
     model_stage: ModelStage
     model_breaker: Breaker
     stages: list[PipelineStage] = field(default_factory=list)

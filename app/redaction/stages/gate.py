@@ -14,7 +14,7 @@ from app.inference.detector import Span
 
 
 class HasAsyncDetect(Protocol):
-    """Structural type for any async detector that ``RegexGate`` can wrap.
+    """Structural type for any async detector that ``Gate`` can wrap.
 
     Attributes:
         name: Human-readable detector name, surfaced on the pipeline's
@@ -27,7 +27,7 @@ class HasAsyncDetect(Protocol):
 
 
 @dataclass
-class RegexGate:
+class Gate:
     """Wrap any async ``Detector`` with a uniform ``run`` entrypoint.
 
     Attributes:
@@ -37,8 +37,8 @@ class RegexGate:
     detector: HasAsyncDetect
 
     @classmethod
-    def default(cls) -> RegexGate:
-        """Build a RegexGate around the process-wide ``RegexDetector``."""
+    def default(cls) -> Gate:
+        """Build a Gate around the process-wide ``RegexDetector``."""
         from app.inference.regex import RegexDetector
 
         return cls(detector=RegexDetector())

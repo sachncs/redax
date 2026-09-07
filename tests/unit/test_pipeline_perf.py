@@ -19,7 +19,7 @@ from typing import Any
 from app.inference.detector import Span
 from app.redaction.circuit.breaker import Breaker
 from app.redaction.pipeline import Pipeline
-from app.redaction.stages.gate import RegexGate
+from app.redaction.stages.gate import Gate
 from app.redaction.stages.model import ModelStage
 
 
@@ -46,7 +46,7 @@ def _build(detector: Any, threshold: int = 5, cooldown: float = 0.05) -> Pipelin
     from app.inference.regex import RegexDetector
 
     return Pipeline(
-        regex_gate=RegexGate(detector=RegexDetector()),
+        regex_gate=Gate(detector=RegexDetector()),
         model_stage=ModelStage(detector=detector),
         model_breaker=Breaker(name="t", threshold=threshold, cooldown_s=cooldown),
     )

@@ -11,7 +11,7 @@ from app.inference.regex import RegexDetector
 from app.redaction.circuit.breaker import Breaker
 from app.redaction.pipeline import Pipeline
 from app.redaction.redactor import Redactor
-from app.redaction.stages.gate import RegexGate
+from app.redaction.stages.gate import Gate
 from app.redaction.stages.model import ModelStage
 from app.redaction.strategy import Deid, Mask, Regex, Skip
 from app.state import ModelState
@@ -172,7 +172,7 @@ def test_redact_pipeline_path_returns_used_pipeline_flag(monkeypatch):
     test_state.detector = _StubModelDetector()
     test_state.regex_detector = RegexDetector()
     test_state.pipeline = Pipeline(
-        regex_gate=RegexGate(detector=test_state.regex_detector),
+        regex_gate=Gate(detector=test_state.regex_detector),
         model_stage=ModelStage(detector=test_state.detector),
         model_breaker=Breaker(name="m", threshold=3, cooldown_s=5.0),
     )
@@ -221,7 +221,7 @@ def test_redact_without_use_pipeline_uses_legacy_redactor(monkeypatch):
     test_state.detector = _StubModelDetector()
     test_state.regex_detector = RegexDetector()
     test_state.pipeline = Pipeline(
-        regex_gate=RegexGate(detector=test_state.regex_detector),
+        regex_gate=Gate(detector=test_state.regex_detector),
         model_stage=ModelStage(detector=test_state.detector),
         model_breaker=Breaker(name="m", threshold=3, cooldown_s=5.0),
     )

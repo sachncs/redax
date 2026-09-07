@@ -8,7 +8,7 @@ import pytest
 from app.inference.detector import Span
 from app.inference.regex import RegexDetector
 from app.redaction.pipeline import Pipeline
-from app.redaction.stages.gate import RegexGate
+from app.redaction.stages.gate import Gate
 from app.redaction.stages.model import ModelStage
 
 
@@ -32,7 +32,7 @@ def _build_pipeline(
     detector = detector or _FakeModel()
     regex = RegexDetector()
     return Pipeline(
-        regex_gate=RegexGate(detector=regex),
+        regex_gate=Gate(detector=regex),
         model_stage=ModelStage(detector=detector),
         model_breaker=Breaker(name="m", threshold=threshold, cooldown_s=cooldown),
     )

@@ -34,7 +34,7 @@ from app.observability import configure_tracing
 from app.redaction.circuit.breaker import Breaker
 from app.redaction.pipeline import Pipeline
 from app.redaction.redactor import Redactor
-from app.redaction.stages.gate import RegexGate
+from app.redaction.stages.gate import Gate
 from app.redaction.stages.model import ModelStage
 from app.redaction.strategy import Deid, Hash, Mask, Regex, Skip, Strategy
 from app.state import model_state
@@ -110,7 +110,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     pipeline: Pipeline | None = None
     if active is not regex:
         pipeline = Pipeline(
-            regex_gate=RegexGate(detector=regex),
+            regex_gate=Gate(detector=regex),
             model_stage=ModelStage(detector=active),
             model_breaker=Breaker(
                 name="model",
