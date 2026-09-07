@@ -3,8 +3,6 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-import pytest
-
 from app.inference.detector import Span
 from app.inference.regex import RegexDetector
 from app.redaction.pipeline import Pipeline

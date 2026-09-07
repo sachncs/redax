@@ -23,7 +23,9 @@ class HasAsyncDetect(Protocol):
 
     name: str
 
-    async def detect(self, text: str, entity_types: list[str]) -> list[Span]: ...
+    async def detect(self, text: str, entity_types: list[str]) -> list[Span]:
+        """Run detection asynchronously and return the detected spans."""
+        ...
 
 
 @dataclass

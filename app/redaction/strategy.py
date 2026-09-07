@@ -42,7 +42,9 @@ class Strategy(Protocol):
         text: str,
         spans: list[Span],
         config: dict[str, Any],
-    ) -> StrategyResult: ...
+    ) -> StrategyResult:
+        """Apply this strategy to (text, spans) and return the redacted result."""
+        ...
 
 
 class Skip:

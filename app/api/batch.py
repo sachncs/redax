@@ -56,6 +56,7 @@ def register(app: FastAPI) -> None:
         state: Annotated[State, Depends(get_state)],
         api_key: Annotated[str, Depends(require_api_key)],
     ) -> BatchResponse | JSONResponse:
+        """Run every item in the batch concurrently under a single asyncio timeout."""
         start = time.perf_counter()
         endpoint = "POST /v1/redact/batch"
         method = "POST"
@@ -81,6 +82,7 @@ def register(app: FastAPI) -> None:
             async with asyncio.timeout(timeout_seconds):
 
                 async def run_one(text: str, entity_types: list[str] | None) -> Any:
+                    """Run one item under the per-batch concurrency semaphore."""
                     async with semaphore:
                         return await redactor.redact(text, entity_types=entity_types)
 

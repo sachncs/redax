@@ -25,7 +25,9 @@ class SyncDetector(Protocol):
 
     name: str
 
-    def detect_sync(self, text: str, entity_types: list[str]) -> list[Span]: ...
+    def detect_sync(self, text: str, entity_types: list[str]) -> list[Span]:
+        """Run detection synchronously and return the detected spans."""
+        ...
 
 
 class AsyncDetector(Protocol):
@@ -37,7 +39,9 @@ class AsyncDetector(Protocol):
 
     name: str
 
-    async def detect(self, text: str, entity_types: list[str]) -> list[Span]: ...
+    async def detect(self, text: str, entity_types: list[str]) -> list[Span]:
+        """Run detection asynchronously and return the detected spans."""
+        ...
 
 
 @dataclass
@@ -71,6 +75,25 @@ class ModelStage:
             return list(sync_attr(text, entity_types))
         detect_attr: Callable[..., Any] = self.detector.detect  # type: ignore[union-attr]
         return run_async(detect_attr(text, entity_types))
+
+    async def detect(self, text: str, entity_types: list[str]) -> list[Span]:
+        """Async passthrough that runs the wrapped detector's async detect.
+
+        Mirrors the Detector protocol so ``ModelStage`` can be used as
+        a standalone detector. Sync detectors can still be wrapped by
+        going through :meth:`detector_sync` on a worker thread.
+
+        Args:
+            text: The input text to redact.
+            entity_types: Optional list of entity types to filter on.
+
+        Returns:
+            The detector's spans as a list.
+        """
+        detector_detect = getattr(self.detector, "detect", None)
+        if detector_detect is None:
+            return list(self.detector_sync(text, entity_types))
+        return list(await detector_detect(text, entity_types))
 
 
 def run_async(coro: Any) -> list[Span]:

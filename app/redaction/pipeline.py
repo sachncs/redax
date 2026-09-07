@@ -135,6 +135,7 @@ class Pipeline:
         t0 = time.perf_counter()
 
         def sync_call() -> tuple[Span, ...]:
+            """Sync wrapper around detector_sync; runs on a worker thread."""
             return tuple(self.model_stage.detector_sync(text, []))
 
         try:
