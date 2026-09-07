@@ -15,39 +15,13 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import hashlib
 import os
 import sys
 from pathlib import Path
 
+from app.integrity import snapshot_digest
+
 DEFAULT_MANIFEST = Path(__file__).resolve().parent.parent / "MODEL_HASHES.txt"
-
-
-def snapshot_digest(root: Path) -> str:
-    """Deterministic sha256 over all files under root.
-
-    Combines the relative path and each file's sha256 (ordered by path) so
-    any content or layout change alters the digest.
-    """
-    files = sorted(
-        (p.relative_to(root) for p in root.rglob("*") if p.is_file()),
-        key=lambda p: os.fsencode(p.as_posix()),
-    )
-    h = hashlib.sha256()
-    for rel in files:
-        h.update(os.fsencode(rel.as_posix()))
-        h.update(b"\n")
-        h.update(bytes.fromhex(_sha256_file(root / rel)))
-        h.update(b"\n")
-    return h.hexdigest()
-
-
-def _sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as fh:
-        for chunk in iter(lambda: fh.read(1 << 20), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 def read_manifest(path: Path = DEFAULT_MANIFEST) -> dict[tuple[str, str], str]:
