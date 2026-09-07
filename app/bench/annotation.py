@@ -50,9 +50,11 @@ class Annotation:
     meta: dict[str, str]
 
     def mandatory(self) -> list[LabelledSpan]:
+        """Return the subset of spans tagged as MANDATORY."""
         return [s for s in self.spans if s.category is SpanCategory.MANDATORY]
 
     def contextual(self) -> list[LabelledSpan]:
+        """Return the subset of spans tagged as CONTEXTUAL."""
         return [s for s in self.spans if s.category is SpanCategory.CONTEXTUAL]
 
 
