@@ -6,7 +6,81 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Module-level state singleton removed.** `app/state.py` no longer
+  exports a process-wide `state` instance. The `State` dataclass is
+  populated in `app/main.py` lifespan and attached to
+  `app.state.state`; routes read it via `Depends(get_state)` (or pass
+  it through explicitly). Per AGENTS.md: no module-level globals for
+  stateful resources. Tests rebind `app.state.state` on a fixture
+  `FastAPI()` instead of patching the module attribute.
+- **`rate_limit` takes `state` explicitly.** No more module-level
+  lookup. The dependency injection flows from the route handler down.
+- **Background-task workers receive `state` as a parameter.** The
+  `run_job` function no longer reads from a module global; the
+  per-submit `State` is captured and forwarded so the worker
+  operates on the same typed container the route used.
+- **`Dockerfile` now installs from `requirements.lock`** (pinned +
+  hashed) instead of `>=` ranges, so the production image is
+  bit-for-bit reproducible against the same lockfile CI uses.
+- **`/v1/redact/batch` is now bounded by `inference_concurrency`.**
+  A 1000-item batch no longer fans out 1000 concurrent detectors; the
+  new semaphore matches the per-detector cap so a burst cannot
+  exhaust CPU or the event loop.
+- **All lazy `from x import y` statements inside route handlers have
+  been hoisted to module top.** Per AGENTS.md, no function-level
+  imports.
+
 ### Added
+
+- **`/v1/stats` introspection endpoint.** API-key-gated; reports
+  detector names, audit backend, redis availability, and the
+  pipeline's per-stage `stats()` (including the model circuit
+  breaker state).
+- **`redax_audit_dropped_total{backend}` Prometheus counter.**
+  `FileAudit` now exports the `dropped` count to the metrics
+  registry so an operator can alert on audit data loss instead of
+  scraping the in-process attribute.
+- **`app/integrity.py` shared module.** The `snapshot_digest` helper
+  (deterministic SHA-256 over a model snapshot) is now a public
+  module, imported by `scripts/download_models.py` and the
+  determinism tests. No code duplication.
+- **`make verify` reproducibility gate.** Runs `make test lint
+  typecheck` plus a new `verify-determinism` target. CI should call
+  this single target to gate every merge.
+- **`tests/unit/test_determinism.py`** with 16 regression tests that
+  pin deterministic behaviour: regex, redactor, hash, dedupe, fuse,
+  multi-pass, cache key, span summary, minute bucket, snapshot
+  digest, end-to-end pipeline, and rate-limit minute bucket stability.
+- **`tests/unit/test_jobs_store.py`** now covers `set_record` with
+  both `None` and falsy-but-non-`None` results; `get` now converts
+  the empty Redis string back to `None` for both `result` and
+  `error` fields.
+- **`tests/unit/test_audit.py`** now asserts the new dropped-events
+  metric is incremented when the queue saturates.
+
+### Fixed
+
+- **`JobStore.set_record` distinguished `None` from empty result.**
+  Previously `{"x": 0}` (a falsy dict) was stored as the empty
+  string; now only `None` becomes `""` and any other value is
+  JSON-encoded normally.
+- **`JobStore.get` returns `None` for empty result/error fields**
+  rather than the empty string from Redis, so callers that compare
+  with `is None` see the expected value.
+- **`FileAudit` shutdown is now tolerant of partial teardown.**
+  `teardown_state` catches and logs per-resource exceptions so the
+  lifespan finaliser always completes and the process can exit
+  cleanly even if a single resource is wedged.
+
+### Removed
+
+- **Dead `Pipeline.stages` field and `PipelineStage` dataclass.**
+  The pipeline ran the stages inline in `__call__`; the indirection
+  through `self.stages` was never executed. The dead code is gone.
+
+### Added (carried over from prior unreleased work)
 
 - `app/bench` package: RedactionBench R-Score metric and combinator
   structure (Algorithms 1 + 2 from arXiv:2606.18782, Brynjolfsson et al.
@@ -107,7 +181,7 @@ adheres to [Semantic Versioning](https://semver.org/).
   `text_hash`).
 
 
-## [0.1.0] — 2026-09-05
+## [0.1.0] — 2026-09-05 (initial release)
 
 ### Added
 
