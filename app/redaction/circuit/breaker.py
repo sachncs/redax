@@ -33,6 +33,21 @@ T = TypeVar("T")
 
 @dataclass(frozen=True)
 class Stats:
+    """Snapshot of a Breaker's state for an introspection endpoint.
+
+    Attributes:
+        state: One of ``"closed"`` / ``"open"`` / ``"half_open"`` (the
+            last is internal; the public surface only reports closed or
+            open).
+        consecutive_failures: Failure count since the last success.
+        opened_at: ``time.monotonic()`` value when the breaker opened,
+            or ``None`` if closed.
+        probes_in_flight: ``True`` if a half-open probe is currently
+            executing.
+        total_calls: Lifetime successful + failed call count.
+        total_failures: Lifetime failure count (any transient exception).
+    """
+
     state: str
     consecutive_failures: int
     opened_at: float | None
@@ -87,6 +102,12 @@ class Breaker:
         return True, False
 
     def on_success(self, was_probe: bool) -> None:
+        """Record a successful call; close the breaker if a probe succeeded.
+
+        Args:
+            was_probe: ``True`` if this success completed a half-open
+                probe; the probe slot is released in that case.
+        """
         if was_probe:
             self.probe_in_flight = False
         self.consecutive_failures = 0
@@ -94,6 +115,13 @@ class Breaker:
         self.opened_at = None
 
     def on_failure(self, was_probe: bool) -> None:
+        """Record a transient failure; open the breaker at the threshold or on a failed probe.
+
+        Args:
+            was_probe: ``True`` if this failure was the half-open probe;
+                the probe slot is released and the breaker is immediately
+                reopened.
+        """
         if was_probe:
             self.probe_in_flight = False
         self.total_failures += 1
@@ -103,6 +131,23 @@ class Breaker:
             self.opened_at = time.monotonic()
 
     def call(self, fn: Callable[..., T], *args: object, **kwargs: object) -> T:
+        """Invoke ``fn`` under the breaker's protection.
+
+        Args:
+            fn: The synchronous callable to run.
+            *args: Positional arguments forwarded to ``fn``.
+            **kwargs: Keyword arguments forwarded to ``fn``.
+
+        Returns:
+            The return value of ``fn`` on success.
+
+        Raises:
+            OpenError: If the breaker is OPEN and no probe is available.
+            BaseException: Any exception ``fn`` raises. Transient
+                exceptions (per ``transient_predicate``) are recorded
+                as failures; non-transient exceptions re-raise without
+                affecting state.
+        """
         with self.lock:
             allow, is_probe = self.allow()
             if not allow:
@@ -121,6 +166,7 @@ class Breaker:
             return result
 
     def report(self) -> Stats:
+        """Return a snapshot of the breaker's current state under the lock."""
         with self.lock:
             return Stats(
                 state=self.state,
