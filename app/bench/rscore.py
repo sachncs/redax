@@ -245,7 +245,7 @@ def score_document(
 
     structure = build_connector_structure(text, mandatory, contextual)
     selected = selected_contextual_spans(contextual, prediction_spans, structure)
-    entities = fused_entity_groups(mandatory, contextual, structure, text)
+    entities = fused_entity_groups(contextual, structure, text)
 
     red_scores: list[EntityScore] = []
     for idx, group in enumerate(entities.red_entities):

@@ -311,15 +311,3 @@ def build_connector_structure(
         pair_ranges=tuple(found_pairs),
         effective_markers=tuple(effective_markers),
     )
-
-
-def is_connector_marker(span: LabelledSpan, structure: ConnectorStructure) -> bool:
-    """Return True if `span` is a single-char yellow span that is one of the
-    detected connector markers (Punct char, slash, or pair delimiter).
-
-    Used by Algorithm 2 to drop "singleton" contextual entities whose only
-    span is a connector marker (these don't represent real entities).
-    """
-    if span.end - span.start != 1:
-        return False
-    return bool(structure.effective_markers)

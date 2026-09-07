@@ -142,7 +142,6 @@ def marker_positions(
 
 
 def fused_entity_groups(
-    target_red: list[LabelledSpan],
     target_yellow: list[LabelledSpan],
     structure: ConnectorStructure,
     text: str,

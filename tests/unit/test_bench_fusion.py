@@ -53,7 +53,7 @@ def test_fused_entity_groups_links_via_context_component() -> None:
         LabelledSpan(4, 7, SpanCategory.CONTEXTUAL),
     ]
     structure = build_test_structure(text, [], yellow)
-    entities = fused_entity_groups([], yellow, structure, text)
+    entities = fused_entity_groups(yellow, structure, text)
     assert len(entities.contextual_entities) == 1
     assert {(s.start, s.end) for s in entities.contextual_entities[0].members} == {(0, 3), (4, 7)}
 
@@ -62,7 +62,7 @@ def test_fused_entity_groups_links_via_pair_range() -> None:
     text = "[ABC]"
     yellow = [LabelledSpan(1, 4, SpanCategory.CONTEXTUAL)]
     structure = build_test_structure(text, [], yellow)
-    entities = fused_entity_groups([], yellow, structure, text)
+    entities = fused_entity_groups(yellow, structure, text)
     assert len(entities.contextual_entities) == 1
 
 
@@ -73,7 +73,7 @@ def test_fused_entity_groups_drops_singleton_marker() -> None:
         LabelledSpan(2, 8, SpanCategory.CONTEXTUAL),
     ]
     structure = build_test_structure(text, [], yellow)
-    entities = fused_entity_groups([], yellow, structure, text)
+    entities = fused_entity_groups(yellow, structure, text)
     kept = [m for g in entities.contextual_entities for m in g.members]
     assert (2, 8) in {(s.start, s.end) for s in kept}
 
@@ -86,7 +86,7 @@ def test_fused_entity_groups_red_uses_red_fusion() -> None:
         LabelledSpan(8, 9, SpanCategory.MANDATORY),
     ]
     structure = build_test_structure(text, red, [])
-    entities = fused_entity_groups(red, [], structure, text)
+    entities = fused_entity_groups([], structure, text)
     assert len(entities.red_entities) == 1
     members = entities.red_entities[0].members
     assert {(s.start, s.end) for s in members} == {(0, 3), (4, 7), (8, 9)}

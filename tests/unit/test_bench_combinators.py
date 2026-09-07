@@ -138,9 +138,7 @@ def test_worked_example_vehicle_record_drops_open_quote_as_singleton_marker() ->
     structure = build_connector_structure(
         WORKED_EXAMPLE_TEXT, worked_red_spans(), worked_yellow_spans()
     )
-    entities = fused_entity_groups(
-        worked_red_spans(), worked_yellow_spans(), structure, WORKED_EXAMPLE_TEXT
-    )
+    entities = fused_entity_groups(worked_yellow_spans(), structure, WORKED_EXAMPLE_TEXT)
     flat = [m for g in entities.contextual_entities for m in g.members]
     flat_starts = sorted(s.start for s in flat)
     assert flat_starts == [
