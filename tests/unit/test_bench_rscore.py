@@ -15,7 +15,8 @@ from app.bench.rscore import rscore, score_document
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures" / "redactionbench"
 
 
-def _vehicle_annotation() -> list[LabelledSpan]:
+def vehicle_annotation() -> list[LabelledSpan]:
+    """Hand-built annotation for the worked-example vehicle record (matches docs/bench.md)."""
     text = 'Vehicle: "5N1AT2MK4FC824170" "2015 Nissan Rogue" plate= 321ABC'
     return [
         LabelledSpan(text.find('"'), text.find('"') + 1, SpanCategory.CONTEXTUAL),
@@ -161,7 +162,7 @@ def test_contextual_partial_hit_penalises_when_mandatory_exists() -> None:
 
 
 def test_worked_example_perfect_prediction_yields_R_one() -> None:
-    annotation = _vehicle_annotation()
+    annotation = vehicle_annotation()
     pred = [
         LabelledSpan(
             VEHICLE_TEXT.find("5N1AT2MK4FC824170"),
@@ -177,7 +178,7 @@ def test_worked_example_perfect_prediction_yields_R_one() -> None:
 
 
 def test_worked_example_empty_prediction_yields_R_zero() -> None:
-    result = score_document(VEHICLE_TEXT, _vehicle_annotation(), [], doc_id="vehicle")
+    result = score_document(VEHICLE_TEXT, vehicle_annotation(), [], doc_id="vehicle")
     assert result.r_score == 0.0
 
 
@@ -190,13 +191,13 @@ def test_worked_example_only_mandatory_predictions_yields_R_one() -> None:
         ),
         LabelledSpan(56, 62, SpanCategory.MANDATORY),
     ]
-    result = score_document(VEHICLE_TEXT, _vehicle_annotation(), pred, doc_id="vehicle")
+    result = score_document(VEHICLE_TEXT, vehicle_annotation(), pred, doc_id="vehicle")
     assert result.r_score == 1.0
 
 
 def test_worked_example_all_text_penalises_over_redaction() -> None:
     pred = [LabelledSpan(0, len(VEHICLE_TEXT), SpanCategory.MANDATORY)]
-    result = score_document(VEHICLE_TEXT, _vehicle_annotation(), pred, doc_id="vehicle")
+    result = score_document(VEHICLE_TEXT, vehicle_annotation(), pred, doc_id="vehicle")
     fp_weights = sorted(f.d for f in result.false_positives)
     assert fp_weights == [1.0, 2.0, 2.0]
     assert result.r_score == pytest.approx(2.0 / 7.0)
@@ -204,13 +205,13 @@ def test_worked_example_all_text_penalises_over_redaction() -> None:
 
 def test_worked_example_open_quote_singleton_does_not_penalise() -> None:
     pred = [LabelledSpan(9, 10, SpanCategory.CONTEXTUAL)]
-    result = score_document(VEHICLE_TEXT, _vehicle_annotation(), pred, doc_id="vehicle")
+    result = score_document(VEHICLE_TEXT, vehicle_annotation(), pred, doc_id="vehicle")
     assert result.r_score == 0.0
 
 
 def test_worked_example_close_quote_pulls_in_2015_via_punct() -> None:
     pred = [LabelledSpan(27, 28, SpanCategory.CONTEXTUAL)]
-    result = score_document(VEHICLE_TEXT, _vehicle_annotation(), pred, doc_id="vehicle")
+    result = score_document(VEHICLE_TEXT, vehicle_annotation(), pred, doc_id="vehicle")
     ctx = result.contextual_entities[0]
     assert ctx.n == 0.0
     assert ctx.d == pytest.approx(0.5)
