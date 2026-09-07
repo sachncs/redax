@@ -107,11 +107,12 @@ class JobStore:
         if not raw:
             return None
         result_raw = raw.get("result")
+        error_raw = raw.get("error")
         return JobRecord(
             id=raw["id"],
             status=raw["status"],
             result=json.loads(result_raw) if result_raw else None,
-            error=raw.get("error"),
+            error=error_raw if error_raw else None,
             owner=raw.get("owner", ""),
         )
 
@@ -146,12 +147,13 @@ class JobStore:
         client = self.client
         if client is None:
             raise RuntimeError("JobStore.start() must run before set_record()")
+        result_value = json.dumps(record.result) if record.result is not None else ""
         await client.hset(  # type: ignore[misc]
             self.KEY.format(id=record.id),
             mapping={
                 "id": record.id,
                 "status": record.status,
-                "result": json.dumps(record.result) if record.result else "",
+                "result": result_value,
                 "error": record.error or "",
                 "owner": record.owner,
             },
