@@ -28,6 +28,8 @@ from app.state import State, get_state
 
 
 class RedactRequest(BaseModel):
+    """Request body for POST /v1/redact."""
+
     text: str = Field(min_length=1)
     entity_types: list[str] | None = None
     policy: dict[str, Any] | None = None
@@ -35,6 +37,8 @@ class RedactRequest(BaseModel):
 
 
 class RedactResponse(BaseModel):
+    """Response body for POST /v1/redact."""
+
     text: str
     spans: list[Span]
     relex_map: dict[str, str]
@@ -44,6 +48,8 @@ class RedactResponse(BaseModel):
 
 
 def register(app: FastAPI) -> None:
+    """Mount the POST /v1/redact route on ``app``."""
+
     router = APIRouter()
 
     @router.post("/v1/redact", response_model=RedactResponse)
@@ -54,6 +60,7 @@ def register(app: FastAPI) -> None:
         api_key: Annotated[str, Depends(require_api_key)],
         x_idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
     ) -> Any:
+        """Single-document redaction entry point; honours the idempotency and response caches."""
         await rate_limit(api_key, state)
 
         start = time.perf_counter()

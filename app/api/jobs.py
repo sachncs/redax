@@ -30,12 +30,16 @@ JOB_FAILED = "job failed"
 
 
 class JobSubmit(BaseModel):
+    """Request body for POST /v1/jobs."""
+
     text: str = Field(min_length=1)
     policy: dict[str, Any] | None = None
     entity_types: list[str] | None = None
 
 
 def register(app: FastAPI) -> None:
+    """Mount the POST /v1/jobs and GET /v1/jobs/{id} routes on ``app``."""
+
     router = APIRouter()
 
     @router.post("/v1/jobs", status_code=202, response_model=None)
@@ -46,6 +50,7 @@ def register(app: FastAPI) -> None:
         state: Annotated[State, Depends(get_state)],
         api_key: Annotated[str, Depends(require_api_key)],
     ) -> dict[str, Any] | JSONResponse:
+        """Admit a new redaction job; schedule the worker and return the job id."""
         endpoint = "POST /v1/jobs"
         method = "POST"
         request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
@@ -88,6 +93,7 @@ def register(app: FastAPI) -> None:
         state: Annotated[State, Depends(get_state)],
         api_key: Annotated[str, Depends(require_api_key)],
     ) -> dict[str, Any] | JSONResponse:
+        """Return the current status, result, and error marker for ``job_id``."""
         endpoint = "GET /v1/jobs/{id}"
         method = "GET"
         store: JobStore | None = state.job_store
@@ -187,6 +193,7 @@ async def run_job(
 
 
 async def record_failure(job_id: str, store: JobStore, logger: Any) -> None:
+    """Mark a job as failed in the JobStore; logs and counts write failures."""
     try:
         await store.set_error(job_id, JOB_FAILED)
     except (OSError, TimeoutError, RuntimeError):

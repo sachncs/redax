@@ -20,6 +20,8 @@ from app.state import State, get_state
 
 
 def register(app: FastAPI) -> None:
+    """Mount the GET /v1/policies route on ``app``."""
+
     router = APIRouter()
 
     @router.get("/v1/policies")
@@ -27,6 +29,7 @@ def register(app: FastAPI) -> None:
         state: Annotated[State, Depends(get_state)],
         api_key: Annotated[str, Depends(require_api_key)],
     ) -> dict[str, Any]:
+        """List every policy YAML in the configured policies directory."""
         start = time.perf_counter()
         endpoint = "GET /v1/policies"
         method = "GET"

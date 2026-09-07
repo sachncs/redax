@@ -23,6 +23,8 @@ from app.state import State, get_state
 
 
 class StreamRequest(BaseModel):
+    """Request body for POST /v1/redact/stream."""
+
     text: str = Field(min_length=1)
     policy: dict[str, Any] | None = None
     entity_types: list[str] | None = None
@@ -51,6 +53,8 @@ def split_chunks(text: str, chunk_chars: int, chunk_bytes: int) -> list[str]:
 
 
 def register(app: FastAPI) -> None:
+    """Mount the POST /v1/redact/stream route on ``app``."""
+
     router = APIRouter()
 
     @router.post("/v1/redact/stream", response_model=None)
@@ -60,6 +64,7 @@ def register(app: FastAPI) -> None:
         state: Annotated[State, Depends(get_state)],
         api_key: Annotated[str, Depends(require_api_key)],
     ) -> StreamingResponse | JSONResponse:
+        """Streaming SSE redaction: one event per chunk, final [DONE] event."""
         endpoint = "POST /v1/redact/stream"
         method = "POST"
         request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
@@ -81,6 +86,7 @@ def register(app: FastAPI) -> None:
         latency_start = time.perf_counter()
 
         async def event_source() -> AsyncIterator[str]:
+            """Async generator that yields one ``data:`` SSE event per chunk + a final ``[DONE]``."""
             try:
                 text = body.text
                 chunk = body.chunk_chars or default_chunk_chars
