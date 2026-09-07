@@ -8,7 +8,8 @@ from fastapi.testclient import TestClient
 from app.errors import install_error_handlers, timeout_error
 
 
-def _make_app() -> tuple[FastAPI, TestClient]:
+def make_error_test_app() -> tuple[FastAPI, TestClient]:
+    """Build a FastAPI app with three test routes that exercise each error branch."""
     app = FastAPI()
     install_error_handlers(app)
 
@@ -28,7 +29,7 @@ def _make_app() -> tuple[FastAPI, TestClient]:
 
 
 def test_error_responses_are_rfc7807() -> None:
-    _, client = _make_app()
+    _, client = make_error_test_app()
     resp = client.get("/crash")
     assert resp.status_code == 500
     assert resp.headers["content-type"].startswith("application/problem+json")
@@ -40,7 +41,7 @@ def test_error_responses_are_rfc7807() -> None:
 
 
 def test_unhandled_errors_do_not_leak_internals() -> None:
-    _, client = _make_app()
+    _, client = make_error_test_app()
     body = client.get("/crash").json()
     assert "ZeroDivisionError" not in body.get("detail", "")
     assert "internal secret detail" not in body.get("detail", "")
@@ -48,7 +49,7 @@ def test_unhandled_errors_do_not_leak_internals() -> None:
 
 
 def test_http_exception_becomes_problem() -> None:
-    _, client = _make_app()
+    _, client = make_error_test_app()
     resp = client.get("/http-error")
     assert resp.status_code == 401
     assert resp.headers["content-type"].startswith("application/problem+json")
