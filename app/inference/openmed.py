@@ -187,13 +187,30 @@ class OpenMedPIIDetector:
         ]
 
     async def detect(self, text: str, entity_types: list[str]) -> list[Span]:
+        """Run token-classification detection on ``text`` off the event loop.
+
+        Args:
+            text: The input text.
+            entity_types: Optional list of entity types to filter on
+                (currently accepted for API compatibility; the
+                OpenMed labels are the union of what the model emits).
+
+        Returns:
+            The detected spans, mapped to redax's canonical types.
+        """
         return await asyncio.to_thread(self.detect_sync, text, entity_types)
 
     async def warmup(self) -> None:
+        """Preload the OpenMed tokenizer + model on a worker thread."""
         await asyncio.to_thread(self.load_model)
 
 
 def entity_to_span(current: dict[str, Any]) -> Span:
+    """Convert one OpenMed per-entity dict to a redax Span.
+
+    The dict shape mirrors the keys produced by ``detect_sync``:
+    ``char_start``, ``char_end``, ``label``.
+    """
     return Span(
         start=int(current["char_start"]),
         end=int(current["char_end"]),
