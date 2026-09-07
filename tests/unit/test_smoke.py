@@ -113,14 +113,16 @@ def test_stats_endpoint_requires_api_key() -> None:
     from app.errors import install_error_handlers
     from app.state import State
 
-    class _Settings:
+    class AuthSettings:
+        """Settings stub that advertises one valid API key 'k1'."""
+
         def api_key_set(self) -> set[str]:
             return {"k1"}
 
     test_state = State()
     test_state.ready = True
     test_state.redactor = object()
-    test_state.settings = _Settings()
+    test_state.settings = AuthSettings()
     app = FastAPI()
     app.state.state = test_state
     install_error_handlers(app)
@@ -143,7 +145,9 @@ def test_stats_endpoint_reports_pipeline_when_present() -> None:
     from app.redaction.stages.model import ModelStage
     from app.state import State
 
-    class _StubModel:
+    class StatsStubModel:
+        """Detector stub for the /v1/stats pipeline-stats test; returns no spans."""
+
         name = "stub_model"
 
         def detect_sync(self, text, entity_types):
@@ -152,15 +156,17 @@ def test_stats_endpoint_reports_pipeline_when_present() -> None:
         async def detect(self, text, entity_types):
             return []
 
-    class _Settings:
+    class NoAuthSettings:
+        """Settings stub with an empty API key set, so the endpoint is un-gated."""
+
         def api_key_set(self) -> set[str]:
             return set()
 
     test_state = State()
     test_state.ready = True
     test_state.redactor = object()
-    test_state.settings = _Settings()
-    test_state.detector = _StubModel()
+    test_state.settings = NoAuthSettings()
+    test_state.detector = StatsStubModel()
     test_state.regex_detector = type("R", (), {"name": "regex"})()
     test_state.pipeline = Pipeline(
         regex_gate=Gate(detector=test_state.regex_detector),
