@@ -39,7 +39,7 @@ from app.bench.corpus import load_corpus
 from app.bench.rscore import rscore
 
 
-def _build_detector(name: str) -> Any:
+def build_bench_detector(name: str) -> Any:
     if name == "regex":
         from app.inference.regex import RegexDetector
 
@@ -51,12 +51,12 @@ def _build_detector(name: str) -> Any:
     raise SystemExit(f"unknown detector: {name}")
 
 
-async def _run_detector(detector: Any, text: str) -> list[LabelledSpan]:
+async def run_bench_detector(detector: Any, text: str) -> list[LabelledSpan]:
     spans = await detector.detect(text, [])
     return [LabelledSpan(start=s.start, end=s.end, category=SpanCategory.MANDATORY) for s in spans]
 
 
-async def _warmup(detector: Any) -> None:
+async def warmup_bench_detector(detector: Any) -> None:
     warmup = getattr(detector, "warmup", None)
     if not callable(warmup):
         return
@@ -67,7 +67,7 @@ async def _warmup(detector: Any) -> None:
         await warmup()
 
 
-def _serialise_report(report: Any) -> dict[str, Any]:
+def serialise_bench_report(report: Any) -> dict[str, Any]:
     per_document: dict[str, dict[str, Any]] = {}
     for doc_id, rdoc in report.per_document.items():
         per_document[doc_id] = {
@@ -109,8 +109,8 @@ def main() -> int:
     documents = load_corpus(documents_path)
     annotations = load_annotations(annotations_path, {d.id: d.text for d in documents})
     ann_by_id = {a.doc_id: a for a in annotations}
-    detector = _build_detector(args.detector)
-    asyncio.run(_warmup(detector))
+    detector = build_bench_detector(args.detector)
+    asyncio.run(warmup_bench_detector(detector))
 
     async def collect() -> list[tuple[str, str, list[LabelledSpan], list[LabelledSpan]]]:
         inputs: list[tuple[str, str, list[LabelledSpan], list[LabelledSpan]]] = []
@@ -119,7 +119,7 @@ def main() -> int:
             if ann is None:
                 print(f"warning: no annotation for {doc.id}, skipping", file=sys.stderr)
                 continue
-            predictions = await _run_detector(detector, doc.text)
+            predictions = await run_bench_detector(detector, doc.text)
             inputs.append((doc.id, doc.text, list(ann.spans), predictions))
         return inputs
 
@@ -127,7 +127,7 @@ def main() -> int:
     cats = {doc.id: doc.category.value for doc in documents}
     report = rscore(inputs, cats)
 
-    payload = _serialise_report(report)
+    payload = serialise_bench_report(report)
     text = json.dumps(payload, indent=2, sort_keys=True)
     if args.output is not None:
         args.output.write_text(text, encoding="utf-8")
