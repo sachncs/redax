@@ -36,7 +36,7 @@ from app.redaction.redactor import Redactor
 from app.redaction.stages.consensus import fuse
 from app.redaction.strategy import Deid, Hash, Mask, Regex, Skip
 
-_FIXTURES: tuple[tuple[str, str], ...] = (
+FIXTURES: tuple[tuple[str, str], ...] = (
     ("Email me at alice@example.com", "alice@example.com"),
     ("Reach Dr. Bob at +1 415-555-2671", "+1 415-555-2671"),
     ("Card: 4532 0151 1283 0366", "4532 0151 1283 0366"),
@@ -45,24 +45,25 @@ _FIXTURES: tuple[tuple[str, str], ...] = (
 )
 
 
-def _gather() -> list[tuple[str, list[Span]]]:
+def gather_detector_runs() -> list[tuple[str, list[Span]]]:
+    """Run the regex detector over every fixture text and return text+spans pairs."""
     detector = RegexDetector()
     out: list[tuple[str, list[Span]]] = []
-    for text, _ in _FIXTURES:
+    for text, _ in FIXTURES:
         spans = asyncio.run(detector.detect(text, []))
         out.append((text, list(spans)))
     return out
 
 
 def test_regex_detector_is_deterministic() -> None:
-    runs = [_gather() for _ in range(5)]
+    runs = [gather_detector_runs() for _ in range(5)]
     for i in range(1, len(runs)):
         assert runs[i] == runs[0], f"run {i} diverged from run 0"
 
 
 def test_regex_spans_sorted_and_unique() -> None:
     detector = RegexDetector()
-    for text, _ in _FIXTURES:
+    for text, _ in FIXTURES:
         spans = asyncio.run(detector.detect(text, []))
         for a, b in pairwise(spans):
             assert a.start <= b.start, f"unsorted spans in {text!r}: {spans}"
@@ -70,7 +71,9 @@ def test_regex_spans_sorted_and_unique() -> None:
         assert len(starts) == len(set(starts)), f"duplicate start offsets in {text!r}: {spans}"
 
 
-class _FrozenDetector:
+class FrozenDetector:
+    """A detector that returns the same pre-built span list for every input."""
+
     name = "frozen"
 
     def __init__(self, spans: list[Span]) -> None:
@@ -80,11 +83,12 @@ class _FrozenDetector:
         return list(self._spans)
 
 
-def _build_redactor() -> Redactor:
+def build_test_redactor() -> Redactor:
+    """Construct a Redactor wired to two FrozenDetector instances (primary + regex strategy)."""
     spans_a = [Span(0, 5, "PERSON", 1.0), Span(14, 21, "EMAIL", 1.0)]
-    detector = _FrozenDetector(spans_a)
+    detector = FrozenDetector(spans_a)
     regex_spans = [Span(0, 5, "PERSON", 1.0), Span(14, 21, "EMAIL", 1.0)]
-    regex = _FrozenDetector(regex_spans)
+    regex = FrozenDetector(regex_spans)
     return Redactor(
         detector=detector,
         strategies={
@@ -99,7 +103,7 @@ def _build_redactor() -> Redactor:
 
 def test_redactor_outputs_byte_identical_across_runs() -> None:
     text = "Alice wrote to bob@x.io today"
-    redactor = _build_redactor()
+    redactor = build_test_redactor()
     first = asyncio.run(redactor.redact(text, policy=None, entity_types=None))
     for _ in range(10):
         again = asyncio.run(redactor.redact(text, policy=None, entity_types=None))
@@ -109,7 +113,7 @@ def test_redactor_outputs_byte_identical_across_runs() -> None:
 
 
 def test_hash_strategy_is_deterministic() -> None:
-    detector = _FrozenDetector([Span(0, 5, "PERSON", 1.0)])
+    detector = FrozenDetector([Span(0, 5, "PERSON", 1.0)])
     redactor = Redactor(
         detector=detector,
         strategies={"hash": Hash(salt="salt-x")},
@@ -237,7 +241,7 @@ def test_pipeline_repeated_runs_yield_same_digest() -> None:
     text = "Alice at alice@example.com"
     pipeline = Pipeline(
         regex_gate=Gate(detector=RegexDetector()),
-        model_stage=ModelStage(detector=_FrozenDetector([Span(0, 5, "PERSON", 0.9)])),
+        model_stage=ModelStage(detector=FrozenDetector([Span(0, 5, "PERSON", 0.9)])),
         model_breaker=Breaker(name="m", threshold=3, cooldown_s=5.0),
     )
     first = asyncio.run(pipeline(text))
