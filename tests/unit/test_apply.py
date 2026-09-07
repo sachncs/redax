@@ -127,7 +127,8 @@ def segmented_layout(draw):
     return "".join(parts), spans, replacements, parts, redact
 
 
-def _expected(text, spans, replacements, parts, redact) -> str:
+def expected_output(text, spans, replacements, parts, redact) -> str:
+    """Build the expected string by replaying the parts+redact+replacements sequence."""
     out = ""
     repl_iter = iter(replacements)
     for part, do_redact in zip(parts, redact, strict=True):
@@ -142,7 +143,7 @@ def _expected(text, spans, replacements, parts, redact) -> str:
 def test_apply_preserves_kept_segments_and_length(layout) -> None:
     text, spans, replacements, parts, redact = layout
     out = apply_spans(text, spans, replacements)
-    assert out == _expected(text, spans, replacements, parts, redact)
+    assert out == expected_output(text, spans, replacements, parts, redact)
     assert len(out) == len(text) - sum(s.end - s.start for s in spans) + sum(
         len(r) for r in replacements
     )
