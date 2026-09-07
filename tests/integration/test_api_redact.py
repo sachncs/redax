@@ -17,7 +17,9 @@ from app.redaction.strategy import Deid, Mask, Regex, Skip
 from app.state import State
 
 
-class _StubDetector:
+class RedactStubDetector:
+    """Stub that returns the email-looking word surrounding any '@' in the text."""
+
     name = "stub"
 
     async def detect(self, text: str, entity_types: list[str]) -> list[Span]:
@@ -34,7 +36,9 @@ class _StubDetector:
         return None
 
 
-class _MemoryAudit(Backend):
+class MemoryAuditBackend(Backend):
+    """In-memory audit backend that keeps every event in a list for assertion."""
+
     def __init__(self) -> None:
         self.records: list[Event] = []
 
@@ -55,15 +59,15 @@ def app_with_redactor():
         "S", (), {"max_text_chars": 1000, "hash_salt": "x", "api_key_set": lambda self: set()}
     )()
     test_state.redactor = Redactor(
-        detector=_StubDetector(),
+        detector=RedactStubDetector(),
         strategies={
             "passThrough": Skip(),
             "mask": Mask(),
             "regex": Regex(),
-            "autoDeID": Deid(_StubDetector()),
+            "autoDeID": Deid(RedactStubDetector()),
         },
     )
-    test_state.audit = _MemoryAudit()
+    test_state.audit = MemoryAuditBackend()
     test_state.job_store = None  # disable cache/idempotency
     test_state.ready = True
 
@@ -112,15 +116,15 @@ def test_redact_records_audit_event():
             "api_key_set": lambda self: set(),
         },
     )()
-    audit = _MemoryAudit()
+    audit = MemoryAuditBackend()
     test_state.audit = audit
     test_state.redactor = Redactor(
-        detector=_StubDetector(),
+        detector=RedactStubDetector(),
         strategies={
             "passThrough": Skip(),
             "mask": Mask(),
             "regex": Regex(),
-            "autoDeID": Deid(_StubDetector()),
+            "autoDeID": Deid(RedactStubDetector()),
         },
     )
     test_state.job_store = None
@@ -144,7 +148,9 @@ def test_redact_records_audit_event():
     assert rec.entities_detected[0]["type"] == "EMAIL"
 
 
-class _StubModelDetector:
+class StubModelDetector:
+    """Model-stage detector that finds a fixed name string; used to exercise the pipeline path."""
+
     name = "stub_model"
 
     def detect_sync(self, text: str, entity_types: list[str]) -> list[Span]:
@@ -169,7 +175,7 @@ def test_redact_pipeline_path_returns_used_pipeline_flag():
             "api_key_set": lambda self: set(),
         },
     )()
-    test_state.detector = _StubModelDetector()
+    test_state.detector = StubModelDetector()
     test_state.regex_detector = RegexDetector()
     test_state.pipeline = Pipeline(
         regex_gate=Gate(detector=test_state.regex_detector),
@@ -177,15 +183,15 @@ def test_redact_pipeline_path_returns_used_pipeline_flag():
         model_breaker=Breaker(name="m", threshold=3, cooldown_s=5.0),
     )
     test_state.redactor = Redactor(
-        detector=_StubDetector(),
+        detector=RedactStubDetector(),
         strategies={
             "passThrough": Skip(),
             "mask": Mask(),
             "regex": Regex(),
-            "autoDeID": Deid(_StubDetector()),
+            "autoDeID": Deid(RedactStubDetector()),
         },
     )
-    test_state.audit = _MemoryAudit()
+    test_state.audit = MemoryAuditBackend()
     test_state.job_store = None
     test_state.ready = True
 
@@ -218,7 +224,7 @@ def test_redact_without_use_pipeline_uses_legacy_redactor():
             "api_key_set": lambda self: set(),
         },
     )()
-    test_state.detector = _StubModelDetector()
+    test_state.detector = StubModelDetector()
     test_state.regex_detector = RegexDetector()
     test_state.pipeline = Pipeline(
         regex_gate=Gate(detector=test_state.regex_detector),
@@ -226,15 +232,15 @@ def test_redact_without_use_pipeline_uses_legacy_redactor():
         model_breaker=Breaker(name="m", threshold=3, cooldown_s=5.0),
     )
     test_state.redactor = Redactor(
-        detector=_StubDetector(),
+        detector=RedactStubDetector(),
         strategies={
             "passThrough": Skip(),
             "mask": Mask(),
             "regex": Regex(),
-            "autoDeID": Deid(_StubDetector()),
+            "autoDeID": Deid(RedactStubDetector()),
         },
     )
-    test_state.audit = _MemoryAudit()
+    test_state.audit = MemoryAuditBackend()
     test_state.job_store = None
     test_state.ready = True
 
