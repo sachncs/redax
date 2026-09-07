@@ -97,6 +97,14 @@ class Pipeline:
         )
 
     async def regex_gate_stage(self, text: str) -> Outcome:
+        """Run the Stage-1 regex gate and time the call.
+
+        Args:
+            text: The input text.
+
+        Returns:
+            The :class:`Outcome` with the regex gate's spans and latency.
+        """
         t0 = time.perf_counter()
         spans = await self.regex_gate.run(text)
         return Outcome(
@@ -106,6 +114,24 @@ class Pipeline:
         )
 
     async def model_stage_stage(self, text: str, _regex_hits: tuple[Span, ...]) -> Outcome:
+        """Run the Stage-2 encoder through the circuit breaker.
+
+        The detector is invoked on a worker thread (``asyncio.to_thread``)
+        so the event loop is never blocked by model inference. A
+        breaker-open or transient failure returns an empty
+        :class:`Outcome` with ``circuit_open=True``; the consensus
+        stage then falls back to the regex-only path.
+
+        Args:
+            text: The input text.
+            _regex_hits: Regex hits (currently unused, kept for
+                future cross-attention between stages).
+
+        Returns:
+            The :class:`Outcome` with the model's spans and latency, or
+            an empty outcome with ``circuit_open=True`` when the
+            breaker is open or the call failed transiently.
+        """
         t0 = time.perf_counter()
 
         def sync_call() -> tuple[Span, ...]:
@@ -137,9 +163,30 @@ class Pipeline:
         )
 
     def consensus_stage(self, _text: str) -> Outcome:
+        """Record the consensus-fusion outcome (the fusion itself happens in __call__).
+
+        Args:
+            _text: The input text (currently unused; fusion only
+                operates on the two stage outcomes).
+
+        Returns:
+            An empty :class:`Outcome` placeholder for the audit log;
+            the fused spans are returned by :meth:`__call__` directly.
+        """
         return Outcome(name="consensus", spans=(), latency_ms=0.0)
 
     def fallback_stage(self, fused: tuple[Span, ...], circuit_open: bool) -> Outcome:
+        """Return the Stage-4 fallback :class:`Outcome`.
+
+        Args:
+            fused: The fused spans from the consensus stage.
+            circuit_open: ``True`` if the model stage breaker is open;
+                the fallback then yields an empty span set so the
+                caller knows no model output was applied.
+
+        Returns:
+            The :class:`Outcome` for the fallback stage.
+        """
         return Outcome(
             name="fallback",
             spans=from_regex_only(fused) if not circuit_open else (),
@@ -148,6 +195,14 @@ class Pipeline:
         )
 
     def stats(self) -> dict[str, object]:
+        """Return a JSON-serialisable snapshot of the live pipeline wiring.
+
+        Returned dict has ``regex_detector`` (str), ``model_detector``
+        (str), and ``model_breaker`` (a :class:`Stats` dataclass).
+
+        Returns:
+            The introspection dict for the ``/v1/stats`` endpoint.
+        """
         return {
             "regex_detector": self.regex_gate.detector.name,
             "model_detector": self.model_stage.detector.name,
