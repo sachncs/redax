@@ -56,6 +56,13 @@ QUEUE_DEPTH = Gauge(
     registry=REGISTRY,
 )
 
+AUDIT_DROPPED = Counter(
+    "redax_audit_dropped_total",
+    "Audit events dropped because the in-process queue was full.",
+    labelnames=("backend",),
+    registry=REGISTRY,
+)
+
 
 def queue_depth() -> float:
     """Read the current ``QUEUE_DEPTH`` gauge.

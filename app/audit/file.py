@@ -20,6 +20,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from app.audit.backend import Event, event_to_dict
+from app.observability import AUDIT_DROPPED
 
 
 class FileAudit:
@@ -34,6 +35,11 @@ class FileAudit:
     rotation with a bounded backup count, and a retention window
     enforced on startup.
 
+    Dropped events (queue full) are counted both on the instance
+    (``dropped``) and on the global Prometheus counter
+    ``redax_audit_dropped_total{backend="file"}`` so an operator can
+    alert on audit data loss.
+
     Attributes:
         path: Destination JSONL file.
         fsync: ``True`` to flush + ``os.fsync`` every line.
@@ -41,6 +47,8 @@ class FileAudit:
         rotation_backups: How many ``.1`` .. ``.N`` backups to keep.
         retention_seconds: Lines older than this are pruned at startup.
         dropped: Count of events dropped because the queue was full.
+        backend_label: Label value used when incrementing
+            ``redax_audit_dropped_total``; defaults to ``"file"``.
     """
 
     def __init__(
@@ -50,12 +58,14 @@ class FileAudit:
         max_bytes: int = 1_000_000_000,
         rotation_backups: int = 5,
         retention_seconds: int = 90 * 24 * 3600,
+        backend_label: str = "file",
     ) -> None:
         self.path = Path(path)
         self.fsync = fsync
         self.max_bytes = max_bytes
         self.rotation_backups = rotation_backups
         self.retention_seconds = retention_seconds
+        self.backend_label = backend_label
         self.queue: asyncio.Queue[Event] | None = None
         self.task: asyncio.Task[None] | None = None
         self.loop: asyncio.AbstractEventLoop | None = None
@@ -90,6 +100,7 @@ class FileAudit:
             self.queue.put_nowait(event)
         except asyncio.QueueFull:
             self.dropped += 1
+            AUDIT_DROPPED.labels(backend=self.backend_label).inc()
 
     async def drain(self) -> None:
         """Drain queued events to disk until a sentinel arrives."""

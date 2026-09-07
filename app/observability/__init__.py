@@ -1,4 +1,5 @@
 from .metrics import (
+    AUDIT_DROPPED,
     CACHE_HITS,
     ENTITIES_DETECTED,
     ERRORS,
@@ -12,6 +13,7 @@ from .metrics import (
 from .tracing import configure_tracing, current_trace_id_hex
 
 __all__ = [
+    "AUDIT_DROPPED",
     "CACHE_HITS",
     "ENTITIES_DETECTED",
     "ERRORS",

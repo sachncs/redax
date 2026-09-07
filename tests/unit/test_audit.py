@@ -47,6 +47,32 @@ async def test_drops_when_queue_full(tmp_path: Path, monkeypatch) -> None:
     await backend.stop()
 
 
+@pytest.mark.asyncio
+async def test_drops_increment_audit_dropped_metric(tmp_path: Path) -> None:
+    from app.observability.metrics import REGISTRY
+
+    path = tmp_path / "audit.jsonl"
+    backend = FileAudit(str(path), backend_label="file")
+    await backend.start()
+    backend.queue = asyncio.Queue(maxsize=1)
+    before = _audit_dropped_count(REGISTRY, "file")
+    for _ in range(5):
+        await backend.record(Event(request_id="x", ts="t", policy_version="p", text_chars=0))
+    after = _audit_dropped_count(REGISTRY, "file")
+    assert after >= before + 1
+    await backend.stop()
+
+
+def _audit_dropped_count(registry, backend_label: str) -> float:
+    from app.observability.metrics import AUDIT_DROPPED
+
+    for metric in AUDIT_DROPPED.collect():
+        for sample in metric.samples:
+            if sample.labels.get("backend") == backend_label:
+                return float(sample.value)
+    return 0.0
+
+
 def test_local_file_satisfies_protocol() -> None:
     backend = FileAudit("/tmp/r.jsonl")
     assert isinstance(backend, Backend)
