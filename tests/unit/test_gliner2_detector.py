@@ -9,13 +9,15 @@ from app.inference.detector import Span
 from app.inference.gliner2 import GLiNER2Detector, normalize_gliner2_result
 
 
-class _StubResult:
+class StubResult:
+    """Minimal stand-in for a gliner2 result object exposing only .entities."""
+
     def __init__(self, entities: dict) -> None:
         self.entities = entities
 
 
 def test_normalize_dict_with_spans() -> None:
-    result = _StubResult(
+    result = StubResult(
         {
             "person": [
                 {"text": "Alice", "confidence": 0.91, "start": 0, "end": 5},
@@ -31,7 +33,7 @@ def test_normalize_dict_with_spans() -> None:
 
 
 def test_normalize_string_values_finds_offsets() -> None:
-    result = _StubResult({"email": ["a@b.com"]})
+    result = StubResult({"email": ["a@b.com"]})
     spans = normalize_gliner2_result("write to a@b.com today", result)
     assert len(spans) == 1
     assert spans[0].type == "EMAIL"
@@ -64,18 +66,18 @@ def test_normalize_accepts_plain_dict_results() -> None:
 
 
 def test_normalize_skips_unmatchable_values() -> None:
-    result = _StubResult({"person": ["nothere"]})
+    result = StubResult({"person": ["nothere"]})
     spans = normalize_gliner2_result("Alice and Bob", result)
     assert spans == []
 
 
 def test_normalize_empty() -> None:
-    result = _StubResult({})
+    result = StubResult({})
     assert normalize_gliner2_result("anything", result) == []
 
 
 def test_normalize_sorts_by_start() -> None:
-    result = _StubResult(
+    result = StubResult(
         {
             "person": [
                 {"text": "Bob", "confidence": 0.9, "start": 10, "end": 13},
@@ -87,7 +89,9 @@ def test_normalize_sorts_by_start() -> None:
     assert spans[0].start < spans[1].start
 
 
-class _StubModel:
+class StubModel:
+    """In-memory gliner2 stand-in that records call and concurrency counters."""
+
     def __init__(self) -> None:
         self.calls = 0
         self.concurrent = 0
@@ -101,7 +105,7 @@ class _StubModel:
         self.max_concurrent = max(self.max_concurrent, self.concurrent)
         time.sleep(0.01)
         self.concurrent -= 1
-        return _StubResult(
+        return StubResult(
             {"person": [{"text": text, "confidence": 0.9, "start": 0, "end": max(len(text), 1)}]}
         )
 
@@ -115,7 +119,7 @@ async def test_detect_before_load_raises() -> None:
 
 @pytest.mark.asyncio
 async def test_detect_with_injected_model_and_concurrency_bound() -> None:
-    model = _StubModel()
+    model = StubModel()
     detector = GLiNER2Detector(concurrency=2, model=model)
 
     results = await asyncio.gather(*[detector.detect(f"text{i}", ["person"]) for i in range(8)])
@@ -128,14 +132,14 @@ async def test_detect_with_injected_model_and_concurrency_bound() -> None:
 
 @pytest.mark.asyncio
 async def test_warmup_loads_and_runs() -> None:
-    detector = GLiNER2Detector(model=_StubModel())
+    detector = GLiNER2Detector(model=StubModel())
     await detector.warmup()
     assert detector.is_loaded
 
 
 @pytest.mark.asyncio
 async def test_model_is_loaded_only_once() -> None:
-    detector = GLiNER2Detector(model=_StubModel())
+    detector = GLiNER2Detector(model=StubModel())
     await detector.load()
     await detector.load()
     await detector.load()
