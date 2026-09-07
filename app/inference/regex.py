@@ -9,12 +9,23 @@ from app.inference.detector import Span
 
 @dataclass(frozen=True)
 class Rule:
+    """One pattern + validator pair for the regex detector.
+
+    Attributes:
+        type: Canonical Span type label (e.g. ``"EMAIL"``).
+        pattern: Compiled regular expression.
+        validator: Optional callable that accepts the matched substring
+            and returns ``True`` if the match is accepted. Used by
+            ``CREDIT_CARD`` to run a Luhn checksum.
+    """
+
     type: str
     pattern: re.Pattern[str]
     validator: Callable[[str], bool] | None = None
 
 
 def luhn_ok(number: str) -> bool:
+    """Return True if ``number`` (digits + optional separators) passes the Luhn checksum."""
     digits = [int(c) for c in re.sub(r"\D", "", number)]
     if len(digits) < 13 or len(digits) > 19:
         return False
@@ -66,6 +77,16 @@ class RegexDetector:
         self.rules = rules
 
     async def detect(self, text: str, entity_types: list[str]) -> list[Span]:
+        """Run every matching rule over ``text`` and return sorted, validated spans.
+
+        Args:
+            text: The input text to scan.
+            entity_types: List of ``Rule.type`` labels to fire; an
+                empty list runs every rule.
+
+        Returns:
+            The matched spans, sorted by ``(start, end)``.
+        """
         active = (
             [r for r in self.rules if r.type in entity_types] if entity_types else list(self.rules)
         )
@@ -86,4 +107,5 @@ class RegexDetector:
         return spans
 
     async def warmup(self) -> None:
+        """No-op: the regex detector has no model state to load."""
         return None
