@@ -6,7 +6,25 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **`LICENSE` file** at the repo root, Apache 2.0 boilerplate, copyright line `Copyright 2026 sachin <sachncs@gmail.com>`. The license is the same one declared in `pyproject.toml`; the file makes the license text shippable on the GHCR image and PyPI wheel.
+
 ### Changed
+
+- **`README.md` rewritten** with a centered header + project tagline
+  + shields.io badges, "What is this?" one-sentence Q+A, "Who is
+  this for?" audience section, feature bullet list, "Before you
+  start" prerequisites, three installation paths (Docker Compose,
+  GHCR prebuilt, from source), curl + Python quickstart, env-var
+  configuration table, "Where to go next" doc links, and a `make
+  verify` cheat-sheet. All doc links point at files that actually
+  exist in the repo (`docs/api.md`, `docs/integration.md`,
+  `docs/policies.md`, `docs/architecture.md`, `docs/bench.md`,
+  `docs/benchmark-results.md`, `docs/deployment.md`,
+  `docs/models-survey.md`, `CHANGELOG.md`, `AGENTS.md`).
+
+
 
 - **Module-level state singleton removed.** `app/state.py` no longer
   exports a process-wide `state` instance. The `State` dataclass is
