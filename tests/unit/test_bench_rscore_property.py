@@ -9,7 +9,8 @@ from app.bench.rscore import score_document
 
 
 @st.composite
-def _mandatory_only_doc(draw):
+def mandatory_only_doc(draw):
+    """Hypothesis strategy: text + 1-3 MANDATORY spans with non-overlapping offsets."""
     text = draw(
         st.text(
             alphabet=st.characters(min_codepoint=32, max_codepoint=126), min_size=8, max_size=40
@@ -100,7 +101,7 @@ def test_unified_predictions_match_split_predictions() -> None:
     assert unified.r_score == split.r_score
 
 
-@given(_mandatory_only_doc())
+@given(mandatory_only_doc())
 @settings(max_examples=50)
 def test_property_R_in_unit_interval(doc) -> None:
     text, spans = doc
@@ -111,7 +112,7 @@ def test_property_R_in_unit_interval(doc) -> None:
     assert 0.0 <= result.r_score <= 1.0
 
 
-@given(_mandatory_only_doc())
+@given(mandatory_only_doc())
 @settings(max_examples=50)
 def test_property_perfect_predictions_score_one(doc) -> None:
     text, spans = doc
