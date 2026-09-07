@@ -68,6 +68,11 @@ class JobStore:
         self.client = client
 
     async def start(self) -> None:
+        """Connect to Redis and verify the link with a ping.
+
+        Builds the async client from ``self.url`` only if one was not
+        injected via the constructor (the latter path is used by tests).
+        """
         if self.client is None:
             self.client = aioredis.from_url(  # type: ignore[no-untyped-call]
                 self.url, decode_responses=True
@@ -75,11 +80,21 @@ class JobStore:
             await self.client.ping()
 
     async def stop(self) -> None:
+        """Close the Redis client; safe to call when already stopped."""
         if self.client is not None:
             await self.client.aclose()
             self.client = None
 
     async def create(self, owner: str = "") -> JobRecord:
+        """Mint a new job id, store the queued record, and bump the per-owner counter.
+
+        Args:
+            owner: The API key (or empty string for an unauthenticated
+                job) that will own this job's admission slot.
+
+        Returns:
+            The new :class:`JobRecord` in ``"queued"`` status.
+        """
         client = self.client
         if client is None:
             raise RuntimeError("JobStore.start() must run before create()")
@@ -93,6 +108,7 @@ class JobStore:
         return record
 
     async def count_for_key(self, owner: str) -> int:
+        """Return the number of in-flight jobs for ``owner``; 0 if the counter is missing."""
         client = self.client
         if client is None:
             raise RuntimeError("JobStore.start() must run before count_for_key()")
@@ -100,6 +116,11 @@ class JobStore:
         return int(raw) if raw else 0
 
     async def get(self, job_id: str) -> JobRecord | None:
+        """Return the :class:`JobRecord` for ``job_id`` or ``None`` if absent.
+
+        Empty ``result`` / ``error`` fields stored on disk are mapped
+        back to ``None`` so callers can rely on ``is None`` checks.
+        """
         client = self.client
         if client is None:
             raise RuntimeError("JobStore.start() must run before get()")
@@ -117,6 +138,7 @@ class JobStore:
         )
 
     async def set_status(self, job_id: str, status: str) -> None:
+        """Set the ``status`` field on the job hash and refresh the TTL."""
         client = self.client
         if client is None:
             raise RuntimeError("JobStore.start() must run before set_status()")
@@ -124,6 +146,7 @@ class JobStore:
         await client.expire(self.KEY.format(id=job_id), self.ttl_seconds)
 
     async def set_result(self, job_id: str, result: dict[str, Any]) -> None:
+        """Mark the job as ``done``, store its result, and release the per-key slot."""
         client = self.client
         if client is None:
             raise RuntimeError("JobStore.start() must run before set_result()")
@@ -134,6 +157,7 @@ class JobStore:
         await release_owner_count(client, key)
 
     async def set_error(self, job_id: str, error: str) -> None:
+        """Mark the job as ``failed``, record the error, and release the per-key slot."""
         client = self.client
         if client is None:
             raise RuntimeError("JobStore.start() must run before set_error()")
@@ -144,6 +168,11 @@ class JobStore:
         await release_owner_count(client, key)
 
     async def set_record(self, record: JobRecord) -> None:
+        """Write the full :class:`JobRecord` fields into the job hash.
+
+        ``None`` ``result`` is stored as the empty string; any other
+        value is JSON-encoded normally. The job's TTL is refreshed.
+        """
         client = self.client
         if client is None:
             raise RuntimeError("JobStore.start() must run before set_record()")
@@ -162,7 +191,7 @@ class JobStore:
 
 
 async def release_owner_count(client: aioredis.Redis, job_key: str) -> None:
-    """Reclaim the job's per-key admission slot when it reaches a terminal state."""
+    """Decrement (or delete) the per-owner counter when a job reaches a terminal state."""
     owner = await client.hget(job_key, "owner")  # type: ignore[misc]
     if not owner:
         return
@@ -177,4 +206,5 @@ async def release_owner_count(client: aioredis.Redis, job_key: str) -> None:
 
 
 def build_default_store(redis_url: str | None = None) -> JobStore:
+    """Build a JobStore using the provided URL or ``REDAX_REDIS_URL`` env var."""
     return JobStore(redis_url or os.environ.get("REDAX_REDIS_URL", "redis://localhost:6379/0"))
