@@ -213,9 +213,6 @@ def load_ai4privacy(target_per_category: dict[str, int], seed: int) -> dict[str,
     return buckets
 
 
-SYNTHETIC_TEMPLATES: dict[str, list[tuple[str, list[tuple[int, int, str, str]]]]] = {}
-
-
 def synth_code_entries(n: int) -> list[Entry]:
     snippets = [
         (

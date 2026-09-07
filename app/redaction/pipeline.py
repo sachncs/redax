@@ -163,19 +163,6 @@ class Pipeline:
             latency_ms=(time.perf_counter() - t0) * 1000.0,
         )
 
-    def consensus_stage(self, _text: str) -> Outcome:
-        """Record the consensus-fusion outcome (the fusion itself happens in __call__).
-
-        Args:
-            _text: The input text (currently unused; fusion only
-                operates on the two stage outcomes).
-
-        Returns:
-            An empty :class:`Outcome` placeholder for the audit log;
-            the fused spans are returned by :meth:`__call__` directly.
-        """
-        return Outcome(name="consensus", spans=(), latency_ms=0.0)
-
     def fallback_stage(self, fused: tuple[Span, ...], circuit_open: bool) -> Outcome:
         """Return the Stage-4 fallback :class:`Outcome`.
 

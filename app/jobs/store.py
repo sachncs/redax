@@ -9,7 +9,6 @@ and decremented on terminal transitions.
 from __future__ import annotations
 
 import json
-import os
 import uuid
 from dataclasses import dataclass
 from typing import Any
@@ -203,8 +202,3 @@ async def release_owner_count(client: aioredis.Redis, job_key: str) -> None:
         await client.delete(count_key)
     else:
         await client.decr(count_key, 1)
-
-
-def build_default_store(redis_url: str | None = None) -> JobStore:
-    """Build a JobStore using the provided URL or ``REDAX_REDIS_URL`` env var."""
-    return JobStore(redis_url or os.environ.get("REDAX_REDIS_URL", "redis://localhost:6379/0"))

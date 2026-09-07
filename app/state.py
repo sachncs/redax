@@ -24,16 +24,10 @@ Attributes:
         successful ``/v1/redact`` records counts/durations only,
         never input or output text.
     settings: The validated pydantic-settings ``Settings`` instance.
-    shutdown_event: ``asyncio.Event`` set during lifespan teardown.
     job_store: ``JobStore`` for the in-process job queue; ``None``
         when Redis is unavailable.
-    redis: The async Redis client used by ``JobStore`` and the
-        rate limiter; ``None`` when Redis is unavailable.
     extras: Extension point for downstream deployments to stash
         arbitrary objects on the shared state.
-    request: The currently-active ``Request``; ``None`` outside a
-        request scope. Routes should prefer ``request.state`` for
-        per-request data.
     pipeline: The multi-stage redaction ``Pipeline`` (regex gate +
         model stage + consensus + circuit-broken fallback) used
         when ``/v1/redact`` is called with ``use_pipeline=true``.
@@ -63,11 +57,8 @@ class State:
     redactor: Any | None = None
     audit: Any | None = None
     settings: Any | None = None
-    shutdown_event: Any | None = None
     job_store: Any | None = None
-    redis: Any | None = None
     extras: dict[str, Any] = field(default_factory=dict)
-    request: Request | None = None
     pipeline: Pipeline | None = None
 
 

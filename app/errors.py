@@ -69,39 +69,6 @@ def problem_response(
     ).to_response(request)
 
 
-def bad_request(request: Request, detail: str) -> JSONResponse:
-    """RFC 7807 400 problem with the caller's ``detail`` message."""
-    return problem_response(
-        request,
-        type="https://redax.ai/errors/bad-request",
-        title="Bad request",
-        status=400,
-        detail=detail,
-    )
-
-
-def unauthorized(request: Request, detail: str = "Invalid or missing API key") -> JSONResponse:
-    """RFC 7807 401 problem for missing or bad API-key auth."""
-    return problem_response(
-        request,
-        type="https://redax.ai/errors/unauthorized",
-        title="Unauthorized",
-        status=401,
-        detail=detail,
-    )
-
-
-def rate_limited(request: Request, detail: str = "Rate limit exceeded") -> JSONResponse:
-    """RFC 7807 429 problem when the per-API-key rate limit is exceeded."""
-    return problem_response(
-        request,
-        type="https://redax.ai/errors/rate-limited",
-        title="Too Many Requests",
-        status=429,
-        detail=detail,
-    )
-
-
 def queue_full(request: Request, detail: str = "Job queue is full") -> JSONResponse:
     """RFC 7807 429 problem when the in-process job queue has no room."""
     return problem_response(

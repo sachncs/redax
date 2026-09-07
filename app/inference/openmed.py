@@ -30,7 +30,6 @@ from app.inference.detector import Span
 log = logging.getLogger(__name__)
 
 OPENMED_MODEL_NAME = "OpenMed/OpenMed-PII-SuperClinical-Large-434M-v1"
-OPENMED_SHA256_MANIFEST_KEY = "openmed-pii-superclinical-large-434m-v1"
 
 
 LABEL_MAP: dict[str, str] = {

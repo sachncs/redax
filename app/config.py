@@ -74,7 +74,6 @@ class Settings(BaseSettings):
     stream_chunk_bytes: int = Field(default=4096, ge=64)
     stream_chunk_chars: int = Field(default=2000, ge=100, le=50_000)
 
-    relex_cache_size: int = Field(default=10_000, ge=0)
     multi_pass_max: int = Field(default=3, ge=1)
 
     pipeline_breaker_threshold: int = Field(default=3, ge=1)

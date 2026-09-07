@@ -38,13 +38,6 @@ class Gate:
 
     detector: HasAsyncDetect
 
-    @classmethod
-    def default(cls) -> Gate:
-        """Build a Gate around the process-wide ``RegexDetector``."""
-        from app.inference.regex import RegexDetector
-
-        return cls(detector=RegexDetector())
-
     async def run(self, text: str) -> tuple[Span, ...]:
         """Invoke ``detector.detect(text, [])`` and return the result as a tuple."""
         return tuple(await self.detector.detect(text, []))
