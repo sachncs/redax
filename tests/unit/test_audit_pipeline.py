@@ -3,16 +3,28 @@ from __future__ import annotations
 from app.audit.backend import pipeline_to_event, span_summary
 
 
-def test_span_summary_counts_per_type() -> None:
-    class _S:
-        def __init__(self, t: str, c: float) -> None:
-            self.type = t
-            self.confidence = c
+class SpanStub:
+    """Minimal stand-in for a Span: type + confidence."""
 
+    def __init__(self, t: str, c: float) -> None:
+        self.type = t
+        self.confidence = c
+
+
+class ValueSpanStub:
+    """SpanStub plus an extra .value attribute to verify the audit never carries text."""
+
+    def __init__(self, t: str, c: float, v: str = "") -> None:
+        self.type = t
+        self.confidence = c
+        self.value = v
+
+
+def test_span_summary_counts_per_type() -> None:
     spans = [
-        _S("EMAIL", 0.9),
-        _S("EMAIL", 0.7),
-        _S("PHONE", 0.8),
+        SpanStub("EMAIL", 0.9),
+        SpanStub("EMAIL", 0.7),
+        SpanStub("PHONE", 0.8),
     ]
     summary = span_summary(spans)
     by_type = {row["type"]: row for row in summary}
@@ -22,13 +34,7 @@ def test_span_summary_counts_per_type() -> None:
 
 
 def test_pipeline_to_event_does_not_carry_text() -> None:
-    class _S:
-        def __init__(self, t: str, c: float, v: str = "") -> None:
-            self.type = t
-            self.confidence = c
-            self.value = v
-
-    spans = [_S("EMAIL", 0.9, "jane@example.com")]
+    spans = [ValueSpanStub("EMAIL", 0.9, "jane@example.com")]
     event = pipeline_to_event(
         request_id="r1",
         text_chars=42,
