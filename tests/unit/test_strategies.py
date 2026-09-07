@@ -63,7 +63,9 @@ async def test_regex_strategy_runs_detector() -> None:
 
 @pytest.mark.asyncio
 async def test_auto_deid_emits_placeholders_when_relex_true() -> None:
-    class _Stub:
+    class RelexStub:
+        """Detector stub for the relex-true branch of autoDeID."""
+
         name = "stub"
 
         async def detect(self, text, entity_types):
@@ -72,7 +74,7 @@ async def test_auto_deid_emits_placeholders_when_relex_true() -> None:
         async def warmup(self):
             return None
 
-    s = Deid(_Stub())
+    s = Deid(RelexStub())
     result = await s.run("Alice!", [], {"relex": True})
     assert "[PERSON_0000]" in result.text
     assert "Alice" in result.relex_map
@@ -80,7 +82,9 @@ async def test_auto_deid_emits_placeholders_when_relex_true() -> None:
 
 @pytest.mark.asyncio
 async def test_auto_deid_emits_format_when_relex_false() -> None:
-    class _Stub:
+    class FormatStub:
+        """Detector stub for the relex-false branch of autoDeID."""
+
         name = "stub"
 
         async def detect(self, text, entity_types):
@@ -89,7 +93,7 @@ async def test_auto_deid_emits_format_when_relex_false() -> None:
         async def warmup(self):
             return None
 
-    s = Deid(_Stub())
+    s = Deid(FormatStub())
     result = await s.run("Alice!", [], {"format": "<NAME>"})
     assert "<NAME>" in result.text
     assert result.relex_map == {}
@@ -97,7 +101,9 @@ async def test_auto_deid_emits_format_when_relex_false() -> None:
 
 @pytest.mark.asyncio
 async def test_auto_deid_selects_policy_detector_by_name() -> None:
-    class _Stub:
+    class PolicyStub:
+        """Detector stub registered in a detectors map for policy selection."""
+
         name = "stub"
 
         async def detect(self, text, entity_types):
@@ -106,18 +112,22 @@ async def test_auto_deid_selects_policy_detector_by_name() -> None:
         async def warmup(self):
             return None
 
-    class _Other(_Stub):
+    class OtherPolicyStub(PolicyStub):
+        """Second detector registered under a different name for the policy selection test."""
+
         name = "other"
 
-    other = _Other()
-    s = Deid(_Stub(), detectors={"stub": _Stub(), "other": other})
+    other = OtherPolicyStub()
+    s = Deid(PolicyStub(), detectors={"stub": PolicyStub(), "other": other})
     result = await s.run("Alice!", [], {"detector": "other", "relex": True})
     assert "[PERSON_0000]" in result.text
 
 
 @pytest.mark.asyncio
 async def test_auto_deid_rejects_unknown_policy_detector() -> None:
-    class _Stub:
+    class UnknownPolicyStub:
+        """Detector registered under 'stub'; the test requests detector='nope'."""
+
         name = "stub"
 
         async def detect(self, text, entity_types):
@@ -126,14 +136,16 @@ async def test_auto_deid_rejects_unknown_policy_detector() -> None:
         async def warmup(self):
             return None
 
-    s = Deid(_Stub(), detectors={"stub": _Stub()})
+    s = Deid(UnknownPolicyStub(), detectors={"stub": UnknownPolicyStub()})
     with pytest.raises(ValueError, match=r"unknown detector 'nope'"):
         await s.run("Alice!", [], {"detector": "nope"})
 
 
 @pytest.mark.asyncio
 async def test_auto_deid_rejects_multi_pass_above_cap() -> None:
-    class _Stub:
+    class PassesStub:
+        """Detector used to verify multi-pass validation against the max_passes cap."""
+
         name = "stub"
 
         async def detect(self, text, entity_types):
@@ -142,6 +154,6 @@ async def test_auto_deid_rejects_multi_pass_above_cap() -> None:
         async def warmup(self):
             return None
 
-    s = Deid(_Stub(), max_passes=3)
+    s = Deid(PassesStub(), max_passes=3)
     with pytest.raises(ValueError, match=r"max_passes \(3\)"):
         await s.run("Alice!", [], {"multi_pass": 9})
