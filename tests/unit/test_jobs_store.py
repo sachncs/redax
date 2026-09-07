@@ -106,3 +106,41 @@ async def test_job_without_owner_never_touches_counter(
 def test_ttl_defaults_to_86400() -> None:
     store = JobStore("redis://localhost:6379/0")
     assert store.ttl_seconds == 86_400
+
+
+async def test_set_record_with_none_result_writes_empty_field(
+    store: JobStore, redis_client: FakeRedis
+) -> None:
+    from app.jobs.store import JobRecord
+
+    record = JobRecord(id="abc", status="queued", result=None, error=None, owner="k1")
+    await store.set_record(record)
+    stored = redis_client.records["redax:job:abc"]
+    assert stored["result"] == ""
+
+
+async def test_set_record_with_falsy_but_non_none_result_writes_value(
+    store: JobStore, redis_client: FakeRedis
+) -> None:
+    import json as _json
+
+    from app.jobs.store import JobRecord
+
+    record = JobRecord(id="abc", status="queued", result={"x": 0}, error=None, owner="k1")
+    await store.set_record(record)
+    stored = redis_client.records["redax:job:abc"]
+    assert _json.loads(stored["result"]) == {"x": 0}
+
+
+async def test_get_returns_none_result_when_field_is_empty(
+    store: JobStore, redis_client: FakeRedis
+) -> None:
+    from app.jobs.store import JobRecord
+
+    record = JobRecord(id="abc", status="queued", result=None, error=None, owner="k1")
+    await store.set_record(record)
+    fetched = await store.get("abc")
+    assert fetched is not None
+    assert fetched.result is None
+    assert fetched.error is None
+    assert fetched.status == "queued"
