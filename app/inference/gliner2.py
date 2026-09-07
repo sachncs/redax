@@ -94,9 +94,17 @@ class GLiNER2Detector:
 
     @property
     def is_loaded(self) -> bool:
+        """Return True once the underlying GLiNER2 model has been loaded."""
         return self.model is not None
 
     async def load(self) -> None:
+        """Load the GLiNER2 model from the local cache on a worker thread.
+
+        Idempotent: a second call when the model is already loaded is a
+        no-op. ``HF_HOME`` is pinned to ``self.model_cache`` and
+        ``local_files_only`` is honoured so the detector never reaches
+        the network.
+        """
         if self.model is not None:
             return
         os.environ.setdefault("HF_HOME", str(self.model_cache))
@@ -105,6 +113,7 @@ class GLiNER2Detector:
             self.semaphore = asyncio.Semaphore(self.concurrency)
 
         def load_blocking() -> object:
+            """Synchronously load the GLiNER2 model; runs in a worker thread."""
             from gliner2 import GLiNER2
 
             return GLiNER2.from_pretrained(
@@ -118,6 +127,19 @@ class GLiNER2Detector:
         self.model = await asyncio.to_thread(load_blocking)
 
     async def detect(self, text: str, entity_types: list[str]) -> list[Span]:
+        """Run zero-shot NER on ``text`` and return the detected spans.
+
+        Raises:
+            RuntimeError: If :meth:`load` has not been called yet.
+
+        Args:
+            text: The input text.
+            entity_types: List of zero-shot labels; an empty list
+                uses :func:`default_labels`.
+
+        Returns:
+            The detected spans, sorted by start offset.
+        """
         if not self.is_loaded:
             raise RuntimeError(
                 "GLiNER2 model is not loaded; call load() in the app lifespan "
@@ -135,11 +157,13 @@ class GLiNER2Detector:
         return normalize_gliner2_result(text, result)
 
     async def warmup(self) -> None:
+        """Load the model and run one detection so the first request is not slow."""
         await self.load()
         await self.detect("warmup", [self.name])
 
 
 def default_labels() -> list[str]:
+    """Return the default zero-shot labels for the GLiNER2 PII model."""
     return [
         "person",
         "full_name",
