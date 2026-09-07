@@ -1,4 +1,4 @@
-.PHONY: help dev test lint typecheck download-models bench eval build-server build-wasm build-all clean install
+.PHONY: help dev test lint typecheck download-models bench eval build-server build-wasm build-all clean install verify verify-determinism
 
 PYTHON ?= python3.11
 HOST ?= 0.0.0.0
@@ -23,6 +23,12 @@ lint: ## Run ruff
 
 typecheck: ## Run mypy
 	$(PYTHON) -m mypy app/
+
+verify-determinism: ## Property test: same input -> identical redacted output, repeatedly
+	$(PYTHON) -m pytest tests/unit/test_determinism.py -v
+
+verify: test lint typecheck verify-determinism ## Full reproducibility gate: tests, lint, typecheck, determinism
+	@echo "verify: all checks passed"
 
 download-models: ## Download + sha256-verify pinned model snapshots (fail-loud on mismatch)
 	$(PYTHON) scripts/download_models.py
