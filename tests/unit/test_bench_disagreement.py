@@ -14,7 +14,7 @@ from app.bench.disagreement import (
 )
 
 
-def _worked_example_ratings() -> list[Rating]:
+def worked_example_ratings() -> list[Rating]:
     """Encode Table 11 of Appendix H: 10 units rated by 4 users.
 
     Labels per unit (1=redact, 0=keep): user1..user4.
@@ -41,11 +41,11 @@ def _worked_example_ratings() -> list[Rating]:
 
 
 def test_pairwise_disagreement_global_value_matches_worked_example() -> None:
-    assert pairwise_disagreement(_worked_example_ratings()) == pytest.approx(0.333, abs=1e-3)
+    assert pairwise_disagreement(worked_example_ratings()) == pytest.approx(0.333, abs=1e-3)
 
 
 def test_per_unit_type_disagreement_matches_table_12() -> None:
-    per = per_unit_type_disagreement(_worked_example_ratings())
+    per = per_unit_type_disagreement(worked_example_ratings())
     assert per["red"]["disagreement"] == pytest.approx(0.333, abs=1e-3)
     assert per["yellow"]["disagreement"] == pytest.approx(0.667, abs=1e-3)
     assert per["gap_a"]["disagreement"] == pytest.approx(0.0, abs=1e-3)
@@ -53,18 +53,18 @@ def test_per_unit_type_disagreement_matches_table_12() -> None:
 
 
 def test_global_krippendorff_alpha_matches_worked_example() -> None:
-    assert krippendorff_alpha(_worked_example_ratings()) == pytest.approx(0.286, abs=1e-3)
+    assert krippendorff_alpha(worked_example_ratings()) == pytest.approx(0.286, abs=1e-3)
 
 
 def test_per_unit_type_alpha_matches_table_14_for_red_and_yellow() -> None:
-    alphas = per_unit_type_alpha(_worked_example_ratings())
+    alphas = per_unit_type_alpha(worked_example_ratings())
     assert alphas["red"] == pytest.approx(0.222, abs=1e-2)
     assert alphas["yellow"] == pytest.approx(-0.222, abs=1e-2)
 
 
 def test_per_unit_type_alpha_combined_gap_matches_table_14() -> None:
     """Paper Table 14 reports a single 'Gap' kind that pools g_a and g_b."""
-    ratings = [r for r in _worked_example_ratings() if r.kind in {"gap_a", "gap_b"}]
+    ratings = [r for r in worked_example_ratings() if r.kind in {"gap_a", "gap_b"}]
     for r in ratings:
         ratings_with_combined_kind = [
             Rating(
@@ -91,7 +91,7 @@ def test_krippendorff_alpha_is_one_when_perfect_agreement() -> None:
 
 
 def test_disagreement_report_aggregates_counters() -> None:
-    ratings = _worked_example_ratings()
+    ratings = worked_example_ratings()
     report = disagreement_report(ratings)
     assert report.n_qualifying_units == 10
     assert report.n_redact_votes == 14
