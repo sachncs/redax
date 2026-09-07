@@ -6,7 +6,9 @@ from app.inference.detector import Detector, Span
 from app.inference.registry import DetectorRegistry
 
 
-class _StubDetector:
+class StubDetector:
+    """Test detector that always returns a single PERSON span."""
+
     name = "stub"
 
     async def detect(self, text: str, entity_types: list[str]) -> list[Span]:
@@ -16,13 +18,15 @@ class _StubDetector:
         return None
 
 
-class _OtherStub(_StubDetector):
+class OtherStub(StubDetector):
+    """Second test detector sharing the same protocol, registered under a different name."""
+
     name = "other"
 
 
 def test_registry_maps_by_name() -> None:
-    first = _StubDetector()
-    second = _OtherStub()
+    first = StubDetector()
+    second = OtherStub()
     registry = DetectorRegistry([first, second])
     assert registry["stub"] is first
     assert registry["other"] is second
@@ -31,17 +35,17 @@ def test_registry_maps_by_name() -> None:
 
 
 def test_resolve_returns_instance() -> None:
-    detector = _StubDetector()
+    detector = StubDetector()
     assert DetectorRegistry([detector]).resolve("stub") is detector
 
 
 def test_resolve_unknown_raises() -> None:
-    registry = DetectorRegistry([_StubDetector()])
+    registry = DetectorRegistry([StubDetector()])
     with pytest.raises(ValueError, match=r"unknown detector 'nope'"):
         registry.resolve("nope")
 
 
 def test_handles_protocol_instances() -> None:
-    assert isinstance(_StubDetector(), Detector)
-    registry = DetectorRegistry([_StubDetector()])
+    assert isinstance(StubDetector(), Detector)
+    registry = DetectorRegistry([StubDetector()])
     registry.resolve("stub")  # no qualification needed at runtime
