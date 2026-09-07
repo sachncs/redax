@@ -166,11 +166,11 @@ class Entry:
     spans: list[tuple[int, int, str]]
 
 
-def _normalize(text: str) -> str:
+def normalize_text(text: str) -> str:
     return text.replace("\r\n", "\n").strip()
 
 
-def _load_ai4privacy(target_per_category: dict[str, int], seed: int) -> dict[str, list[Entry]]:
+def load_ai4privacy(target_per_category: dict[str, int], seed: int) -> dict[str, list[Entry]]:
     import datasets
 
     buckets: dict[str, list[Entry]] = defaultdict(list)
@@ -186,7 +186,7 @@ def _load_ai4privacy(target_per_category: dict[str, int], seed: int) -> dict[str
             continue
         if not example.get("privacy_mask"):
             continue
-        text = _normalize(example["source_text"])
+        text = normalize_text(example["source_text"])
         if not text:
             continue
         labels = {m["label"] for m in example["privacy_mask"]}
@@ -216,7 +216,7 @@ def _load_ai4privacy(target_per_category: dict[str, int], seed: int) -> dict[str
 SYNTHETIC_TEMPLATES: dict[str, list[tuple[str, list[tuple[int, int, str, str]]]]] = {}
 
 
-def _synth_code(n: int) -> list[Entry]:
+def synth_code_entries(n: int) -> list[Entry]:
     snippets = [
         (
             "API_KEY = 'ak_FAKE_PLACEHOLDER_DO_NOT_USE'\nheaders = {'Authorization': f'Bearer {API_KEY}'}",
@@ -258,7 +258,7 @@ def _synth_code(n: int) -> list[Entry]:
     return out
 
 
-def _synth_files(n: int) -> list[Entry]:
+def synth_files_entries(n: int) -> list[Entry]:
     rows = [
         (
             "user_id,email,phone,ssn,iban\n1,jane@example.com,+1-415-555-0199,000-00-0000,GB00FAKE00000000000000",
@@ -305,7 +305,7 @@ def _synth_files(n: int) -> list[Entry]:
     return out
 
 
-def _synth_logs(n: int) -> list[Entry]:
+def synth_logs_entries(n: int) -> list[Entry]:
     lines = [
         "2025-09-06T12:34:56Z INFO auth user=jane@example.com from 192.168.1.42 session=abc123 OK",
         "2025-09-06T12:35:01Z ERROR payment card=0000-0000-0000-0000 cvv=000 amount=$42.00 declined",
@@ -342,7 +342,7 @@ def _synth_logs(n: int) -> list[Entry]:
     return out
 
 
-def _synth_terminal(n: int) -> list[Entry]:
+def synth_terminal_entries(n: int) -> list[Entry]:
     sessions = [
         "$ ssh admin@db.internal\nadmin@db.internal password:\nLast login: Fri Sep 6 from 10.0.0.7",
         "$ export TOKEN=$(curl -s -u api:secret https://internal.example.com/token)\n$ echo $TOKEN\ntok_FAKE_PLACEHOLDER_DO_NOT_USE",
@@ -377,7 +377,7 @@ def _synth_terminal(n: int) -> list[Entry]:
     return out
 
 
-def _synth_government(n: int) -> list[Entry]:
+def synth_government_entries(n: int) -> list[Entry]:
     samples = [
         "Driver's License #: D_FAKE_PLACEHOLDER (State of California). Issued 03/14/2022. Name: Jane Q. Public. Address: 123 Main St, Sacramento, CA 95814.",
         "Passport No. FAKE-PASSPORT-NUMBER (United States of America). Date of Birth: 1985-03-15. Place of Birth: Boston, MA.",
@@ -412,7 +412,7 @@ def _synth_government(n: int) -> list[Entry]:
     return out
 
 
-def _synth_legal(n: int) -> list[Entry]:
+def synth_legal_entries(n: int) -> list[Entry]:
     samples = [
         "Case No. FAKE-CASE-NUMBER. In the Superior Court of California, County of San Francisco. Smith v. Jones Industries. Counsel for Plaintiff: Jane Doe, Esq. (SBN 245678).",
         "Settlement Agreement. This Agreement is entered into between Acme Corp and Beta Holdings. Effective Date: 09/01/2026. Governing Law: Delaware.",
@@ -450,16 +450,16 @@ def _synth_legal(n: int) -> list[Entry]:
 
 
 SYNTH_FUNCS = {
-    "code": _synth_code,
-    "files": _synth_files,
-    "logs": _synth_logs,
-    "terminal": _synth_terminal,
-    "government": _synth_government,
-    "legal": _synth_legal,
+    "code": synth_code_entries,
+    "files": synth_files_entries,
+    "logs": synth_logs_entries,
+    "terminal": synth_terminal_entries,
+    "government": synth_government_entries,
+    "legal": synth_legal_entries,
 }
 
 
-def _write(out_dir: Path, ai4p_buckets: dict[str, list[Entry]]) -> dict[str, int]:
+def write_ai4p_buckets(out_dir: Path, ai4p_buckets: dict[str, list[Entry]]) -> dict[str, int]:
     out_dir.mkdir(parents=True, exist_ok=True)
     docs_path = out_dir / "documents.jsonl"
     anns_path = out_dir / "annotations.jsonl"
@@ -578,12 +578,12 @@ def main() -> int:
     target = {c: args.min_per_category for c in unstructured_cats}
 
     print(f"Streaming {SOURCE_DATASET}...", file=sys.stderr)
-    buckets = _load_ai4privacy(target, args.seed)
+    buckets = load_ai4privacy(target, args.seed)
     for category, entries in buckets.items():
         if len(entries) > args.max_per_category:
             buckets[category] = entries[: args.max_per_category]
 
-    counts = _write(args.out, buckets)
+    counts = write_ai4p_buckets(args.out, buckets)
     print(f"Wrote {args.out}/documents.jsonl and annotations.jsonl", file=sys.stderr)
     for c in sorted(counts):
         print(f"  {c:12s}: {counts[c]}", file=sys.stderr)
