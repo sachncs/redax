@@ -1,0 +1,45 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
+
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+.coverage.*
+.tox/
+
+.venv/
+venv/
+env/
+
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Models and large artifacts
+/models/
+/app/models_cache/
+/models_cache/
+*.onnx
+*.safetensors
+*.bin
+*.pt
+
+# Build outputs
+/wasm/pkg/
+/wasm/target/
+/examples/wasm-demo/pkg/
+
+# Audit and logs
+*.log
+audit.jsonl

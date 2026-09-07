@@ -1,0 +1,5 @@
+# sha256 digests of pinned model snapshots.
+# Format: <sha256> <repo_id> <revision>
+# Regenerate with: python scripts/download_models.py --record
+4be4139db04aea39c21395ce8eeb0210ae4849fe226af2ef31a42698fb832323 OpenMed/OpenMed-PII-SuperClinical-Large-434M-v1 df7af994d39d358e52f929ff1b3a40d894adf022
+6c8acb9f91f7de13bec075211229981df09aa2a265f0d2bd6dc6a313cebdfeca fastino/gliner2-privacy-filter-PII-multi c153999da5f4c509df4322b0c6a1baf3d2c284d7

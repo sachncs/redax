@@ -1,0 +1,6 @@
+{"doc_id": "vehicle_record", "predictions": [{"start": 10, "end": 27}, {"start": 27, "end": 28}, {"start": 29, "end": 48}, {"start": 56, "end": 62}]}
+{"doc_id": "email_alice", "predictions": [{"start": 12, "end": 29}]}
+{"doc_id": "email_john", "predictions": [{"start": 12, "end": 23}]}
+{"doc_id": "note_over_redact", "predictions": [{"start": 10, "end": 20}, {"start": 33, "end": 53}]}
+{"doc_id": "multiline_invoice", "predictions": [{"start": 15, "end": 16}, {"start": 17, "end": 37}]}
+{"doc_id": "email_phone", "predictions": [{"start": 11, "end": 24}]}

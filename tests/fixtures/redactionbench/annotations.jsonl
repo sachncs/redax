@@ -1,0 +1,6 @@
+{"doc_id": "vehicle_record", "spans": [{"start": 9, "end": 10, "category": "contextual"}, {"start": 10, "end": 27, "category": "mandatory"}, {"start": 27, "end": 28, "category": "contextual"}, {"start": 29, "end": 48, "category": "contextual"}, {"start": 56, "end": 62, "category": "mandatory"}]}
+{"doc_id": "email_alice", "spans": [{"start": 12, "end": 29, "category": "mandatory"}]}
+{"doc_id": "email_john", "spans": [{"start": 12, "end": 23, "category": "contextual"}]}
+{"doc_id": "note_over_redact", "spans": [{"start": 10, "end": 20, "category": "contextual"}, {"start": 33, "end": 53, "category": "contextual"}]}
+{"doc_id": "multiline_invoice", "spans": [{"start": 15, "end": 37, "category": "contextual"}]}
+{"doc_id": "email_phone", "spans": [{"start": 11, "end": 24, "category": "mandatory"}]}

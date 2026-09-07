@@ -1,0 +1,40 @@
+services:
+  redax:
+    build: .
+    image: redax/redax:0.1.0
+    container_name: redax
+    ports:
+      - "8000:8000"
+    environment:
+      REDAX_LOG_LEVEL: INFO
+      REDAX_REDIS_URL: redis://redis:6379/0
+      REDAX_MODEL_CACHE: /models
+      REDAX_AUDIT_PATH: /var/lib/redax/audit.jsonl
+      REDAX_POLICIES_DIR: /policies
+      REDAX_HASH_SALT: change-me
+      REDAX_API_KEYS: dev-key
+    volumes:
+      - redax-models:/models
+      - redax-audit:/var/lib/redax
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: redax-redis
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    volumes:
+      - redax-redis:/data
+    restart: unless-stopped
+
+volumes:
+  redax-models:
+  redax-audit:
+  redax-redis:

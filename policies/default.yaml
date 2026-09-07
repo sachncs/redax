@@ -1,0 +1,49 @@
+# policies/default.yaml
+# Loaded by app.redaction.policies.load_policy() once M4 lands; for now
+# this file exists so the operator can reference it and the policies
+# endpoint (M4 #41) can list it.
+name: default
+version: 1.0.0
+description: Balanced redaction. Detects people, contact info, IDs, financial, addresses, dates.
+
+fields:
+  free_text:
+    strategy: autoDeID
+    relex: true
+    multi_pass: 2
+    entity_types:
+      - person
+      - full_name
+      - first_name
+      - last_name
+      - email
+      - phone_number
+      - address
+      - city
+      - state_or_region
+      - postal_code
+      - country
+      - national_id_number
+      - passport_number
+      - drivers_license_number
+      - bank_account
+      - account_number
+      - iban
+      - card_number
+      - username
+      - ip_address
+      - date_of_birth
+      - sensitive_date
+  structured_ids:
+    strategy: regex
+    format: "[ID]"
+    entity_types:
+      - SSN_US
+      - CREDIT_CARD
+  payment_cards:
+    strategy: regex
+    format: "[CC-{last4}]"
+    entity_types:
+      - CREDIT_CARD
+  gender:
+    strategy: passThrough

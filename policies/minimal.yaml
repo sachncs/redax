@@ -1,0 +1,23 @@
+# policies/minimal.yaml
+# Only structured IDs (SSN, credit card, IBAN). Useful when free text
+# doesn't need redaction but you still need to scrub the obvious stuff.
+name: minimal
+version: 1.0.0
+description: Scrub only structured identifiers. Free text untouched.
+
+fields:
+  ssn:
+    strategy: regex
+    format: "[SSN]"
+    entity_types:
+      - SSN_US
+  credit_cards:
+    strategy: regex
+    format: "[CC-{last4}]"
+    entity_types:
+      - CREDIT_CARD
+  ibans:
+    strategy: regex
+    format: "[IBAN]"
+    entity_types:
+      - IBAN

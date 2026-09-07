@@ -1,0 +1,14 @@
+{
+  "name": "redax-wasm",
+  "version": "0.1.0",
+  "description": "Browser-side redaction powered by the same GLiNER2 ONNX model as the server.",
+  "type": "module",
+  "main": "pkg/redax.js",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@huggingface/transformers": "^3.0.0"
+  }
+}
