@@ -34,7 +34,7 @@ from app.bench.corpus import load_corpus
 from app.bench.rscore import rscore
 
 
-def _build_detector(name: str) -> Any:
+def build_eval_detector(name: str) -> Any:
     if name == "regex":
         from app.inference.regex import RegexDetector
 
@@ -54,12 +54,12 @@ def _build_detector(name: str) -> Any:
     raise SystemExit(f"unknown detector: {name}")
 
 
-async def _run_detector(detector: Any, text: str) -> list[LabelledSpan]:
+async def run_eval_detector(detector: Any, text: str) -> list[LabelledSpan]:
     spans = await detector.detect(text, [])
     return [LabelledSpan(start=s.start, end=s.end, category=SpanCategory.MANDATORY) for s in spans]
 
 
-def _serialise_report(report: Any) -> dict[str, Any]:
+def serialise_eval_report(report: Any) -> dict[str, Any]:
     per_document: dict[str, dict[str, Any]] = {}
     for doc_id, rdoc in report.per_document.items():
         per_document[doc_id] = {
@@ -79,7 +79,7 @@ def _serialise_report(report: Any) -> dict[str, Any]:
     }
 
 
-async def _collect(
+async def collect_eval_results(
     detector: Any,
     documents: list,
     annotations_by_id: dict[str, Any],
@@ -103,7 +103,7 @@ async def _collect(
         if ann is None:
             continue
         t0 = time.perf_counter()
-        predictions = await _run_detector(detector, doc.text)
+        predictions = await run_eval_detector(detector, doc.text)
         latencies_ms.append(1000.0 * (time.perf_counter() - t0))
         rss_samples.append(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
         inputs.append((doc.id, doc.text, list(ann.spans), predictions))
@@ -122,20 +122,20 @@ async def _collect(
     return report, metrics
 
 
-def _summarise_corpus(
+def summarise_eval_corpus(
     report: Any, metrics: dict[str, float], detector: str, corpus_name: str
 ) -> dict[str, Any]:
     return {
         "detector": detector,
         "corpus": corpus_name,
         "metrics": metrics,
-        "report": _serialise_report(report),
+        "report": serialise_eval_report(report),
     }
 
 
-async def _run_one(detector_name: str, corpora: list[Path]) -> list[dict[str, Any]]:
+async def run_eval_one_detector(detector_name: str, corpora: list[Path]) -> list[dict[str, Any]]:
     print(f"\n=== detector={detector_name} ===", file=sys.stderr)
-    detector = _build_detector(detector_name)
+    detector = build_eval_detector(detector_name)
     out: list[dict[str, Any]] = []
     for corpus_dir in corpora:
         documents = load_corpus(corpus_dir / "documents.jsonl")
@@ -145,8 +145,8 @@ async def _run_one(detector_name: str, corpora: list[Path]) -> list[dict[str, An
                 corpus_dir / "annotations.jsonl", {d.id: d.text for d in documents}
             )
         }
-        report, metrics = await _collect(detector, documents, annotations_by_id)
-        out.append(_summarise_corpus(report, metrics, detector_name, corpus_dir.name))
+        report, metrics = await collect_eval_results(detector, documents, annotations_by_id)
+        out.append(summarise_eval_corpus(report, metrics, detector_name, corpus_dir.name))
         print(
             f"  {corpus_dir.name:30s}  mean_R={report.corpus_mean:.4f}  "
             f"p50={metrics['p50_latency_ms']:.1f}ms  "
@@ -165,7 +165,7 @@ def main() -> int:
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
     for detector_name in args.detector:
-        per_detector = asyncio.run(_run_one(detector_name, args.corpus))
+        per_detector = asyncio.run(run_eval_one_detector(detector_name, args.corpus))
         out_path = args.out_dir / f"{detector_name}.json"
         out_path.write_text(json.dumps(per_detector, indent=2, sort_keys=True), encoding="utf-8")
         print(f"  wrote {out_path}", file=sys.stderr)
