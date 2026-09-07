@@ -19,6 +19,16 @@ from app.redaction.strategy import Strategy
 
 @dataclass
 class RedactionResult:
+    """The output of one :meth:`Redactor.redact` call.
+
+    Attributes:
+        text: The redacted text (every detected span replaced).
+        spans: The detected Spans, in document order. Coordinates
+            reference the *original* input text, not the redacted one.
+        relex_map: Map from original entity text to its placeholder,
+            populated by strategies that opt into relexicalization.
+    """
+
     text: str
     spans: list[Span] = field(default_factory=list)
     relex_map: dict[str, str] = field(default_factory=dict)
@@ -49,11 +59,33 @@ class Redactor:
         policy: dict[str, Any] | None = None,
         entity_types: list[str] | None = None,
     ) -> RedactionResult:
+        """Run detection + substitution, either single-shot or per-policy.
+
+        Args:
+            text: The input text to redact.
+            policy: Optional policy mapping. When present, each field
+                runs its declared strategy in order. When ``None``, a
+                single-shot detect + substitute is performed.
+            entity_types: Optional list of entity types to filter on
+                (only consulted by the single-shot path).
+
+        Returns:
+            The :class:`RedactionResult` for this call.
+        """
         if policy is None:
             return await self.plain(text, entity_types)
         return await self.policy(text, policy)
 
     async def plain(self, text: str, entity_types: list[str] | None) -> RedactionResult:
+        """Single-shot detect + substitute with the default replacement string.
+
+        Args:
+            text: The input text to redact.
+            entity_types: Optional list of entity types to filter on.
+
+        Returns:
+            The :class:`RedactionResult` with one substitution per span.
+        """
         labels = entity_types or []
         with INFERENCE_LATENCY.labels(detector=self.detector.name).time():
             raw_spans = await self.detector.detect(text, labels)
@@ -66,6 +98,21 @@ class Redactor:
         )
 
     async def policy(self, text: str, policy: dict[str, Any]) -> RedactionResult:
+        """Run each field in ``policy`` through its declared strategy in order.
+
+        The text returned by each strategy feeds the next one; the
+        inverse position remap is composed so every reported span
+        references the original input coordinates.
+
+        Args:
+            text: The input text to redact.
+            policy: A policy mapping with a ``fields`` dict of
+                ``field_name -> {strategy, ...}``.
+
+        Returns:
+            The :class:`RedactionResult` aggregating every field's spans
+            and relex map.
+        """
         result_text = text
         result_spans: list[Span] = []
         relex_map: dict[str, str] = {}
