@@ -13,10 +13,13 @@ from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
+from app.audit.backend import Event, span_summary
 from app.auth import require_api_key
 from app.errors import internal_error, payload_too_large
 from app.logging import get_logger
 from app.observability import REQUEST_LATENCY, REQUESTS
+from app.ratelimit import rate_limit
+from app.state import State, get_state
 
 
 class StreamRequest(BaseModel):
@@ -54,11 +57,9 @@ def register(app: FastAPI) -> None:
     async def redact_stream(
         request: Request,
         body: StreamRequest,
+        state: Annotated[State, Depends(get_state)],
         api_key: Annotated[str, Depends(require_api_key)],
     ) -> StreamingResponse | JSONResponse:
-        from app.audit.backend import Event, span_summary
-        from app.state import state
-
         endpoint = "POST /v1/redact/stream"
         method = "POST"
         request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
@@ -72,9 +73,8 @@ def register(app: FastAPI) -> None:
         if len(body.text) > max_chars:
             REQUESTS.labels(endpoint=endpoint, method=method, status="413").inc()
             return payload_too_large(request, f"text exceeds {max_chars} chars")
-        from app.ratelimit import rate_limit
 
-        await rate_limit(api_key)
+        await rate_limit(api_key, state)
         timeout_seconds = getattr(settings, "request_timeout_seconds", 30.0)
         chunk_bytes = getattr(settings, "stream_chunk_bytes", 4096)
         default_chunk_chars = getattr(settings, "stream_chunk_chars", 2000)

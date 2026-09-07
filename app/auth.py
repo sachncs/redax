@@ -6,8 +6,11 @@ from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException
 
+from app.state import State, get_state
+
 
 def require_api_key(
+    state: Annotated[State, Depends(get_state)],
     x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
 ) -> str:
     """Validate the X-API-Key header against ``REDAX_API_KEYS``.
@@ -16,11 +19,12 @@ def require_api_key(
     handler) when the header is missing or invalid. Disabled (returns a
     sentinel ``"anonymous"``) when ``REDAX_API_KEYS`` is empty.
 
-    ``state`` is resolved at call time (matching every handler
-    module) so rebinding ``app.state.state`` in tests is observed
-    here too.
+    State is resolved through FastAPI dependency injection so the typed
+    container flows in via ``app.state.state`` rather than a module
+    global.
 
     Args:
+        state: The per-app ``State`` injected by FastAPI.
         x_api_key: The ``X-API-Key`` header value, populated by FastAPI.
 
     Returns:
@@ -30,8 +34,6 @@ def require_api_key(
     Raises:
         HTTPException: 401 if the header is missing or invalid.
     """
-    from app.state import state
-
     settings = state.settings
     if settings is None:
         return "anonymous"

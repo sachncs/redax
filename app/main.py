@@ -2,7 +2,7 @@
 
 Defines the application lifespan that wires the detector registry,
 redactor, optional pipeline, audit backend, and Redis job store into
-``app.state``. Also exposes ``run()`` for ``python -m app.main``.
+``app.state.state``. Also exposes ``run()`` for ``python -m app.main``.
 """
 
 from __future__ import annotations
@@ -37,31 +37,28 @@ from app.redaction.redactor import Redactor
 from app.redaction.stages.gate import Gate
 from app.redaction.stages.model import ModelStage
 from app.redaction.strategy import Deid, Hash, Mask, Regex, Skip, Strategy
-from app.state import state
+from app.state import State
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Initialise and tear down long-lived resources for the FastAPI app.
+async def build_state(settings: Settings) -> State:
+    """Construct a fully-populated ``State`` for the running app.
+
+    Wires the regex detector, GLiNER2 detector, redactor, optional
+    pipeline, audit backend, and Redis job store. Failures during
+    detector loading propagate (the app refuses to start); Redis being
+    unavailable is logged and downgraded to ``job_store=None`` so the
+    HTTP surface still serves traffic.
 
     Args:
-        app: The FastAPI instance being brought up.
+        settings: The validated pydantic-settings ``Settings``.
 
-    Yields:
-        ``None`` once every resource is wired into ``state``.
+    Returns:
+        A ``State`` with every long-lived resource populated.
     """
-    settings = Settings()
-    settings.verify()
-    configure_logging(settings.log_level)
-    configure_tracing(settings.service_name, settings.otlp_endpoint)
     log = get_logger("redax.lifespan")
-
-    state.settings = settings
-    state.ready = False
 
     regex = RegexDetector()
     await regex.warmup()
-    state.regex_detector = regex
 
     detectors: list[Any] = [regex]
     if settings.detector == "gliner2":
@@ -92,7 +89,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         active = regex
 
     registry = DetectorRegistry(detectors)
-    state.detector = active
 
     strategies: dict[str, Strategy] = {
         "passThrough": Skip(),
@@ -101,7 +97,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         "regex": Regex(detector=regex),
         "autoDeID": Deid(active, detectors=registry, max_passes=settings.multi_pass_max),
     }
-    state.redactor = Redactor(
+    redactor = Redactor(
         detector=active,
         strategies=strategies,
         replacement="[REDACTED]",
@@ -118,15 +114,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 cooldown_s=settings.pipeline_breaker_cooldown_s,
             ),
         )
-    state.pipeline = pipeline
 
     store = JobStore(settings.redis_url, ttl_seconds=settings.job_ttl_seconds)
     try:
         await store.start()
-        state.job_store = store
+        job_store: JobStore | None = store
     except Exception as exc:
         log.warning("redax.redis_unavailable", error=str(exc))
-        state.job_store = None
+        job_store = None
 
     audit = FileAudit(
         settings.audit_path,
@@ -136,12 +131,67 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         retention_seconds=settings.audit_retention_seconds,
     )
     await audit.start()
-    state.audit = audit
+
+    return State(
+        ready=False,
+        detector=active,
+        regex_detector=regex,
+        redactor=redactor,
+        audit=audit,
+        settings=settings,
+        job_store=job_store,
+        pipeline=pipeline,
+    )
+
+
+async def teardown_state(state: State) -> None:
+    """Stop and release every long-lived resource on ``state``.
+
+    Idempotent: each handler tolerates being called once on a partially
+    populated state (e.g. Redis never came up). Errors during shutdown
+    are logged but never re-raised so the lifespan finaliser always
+    completes and the process can exit cleanly.
+
+    Args:
+        state: The ``State`` whose resources should be released.
+    """
+    log = get_logger("redax.lifespan")
+    try:
+        if state.audit is not None:
+            await state.audit.stop()
+    except Exception as exc:
+        log.warning("redax.audit_stop_failed", error=exc.__class__.__name__)
+    try:
+        if state.job_store is not None:
+            await state.job_store.stop()
+    except Exception as exc:
+        log.warning("redax.job_store_stop_failed", error=exc.__class__.__name__)
+    state.ready = False
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Initialise and tear down long-lived resources for the FastAPI app.
+
+    Args:
+        app: The FastAPI instance being brought up.
+
+    Yields:
+        ``None`` once every resource is wired into ``app.state.state``.
+    """
+    settings = Settings()
+    settings.verify()
+    configure_logging(settings.log_level)
+    configure_tracing(settings.service_name, settings.otlp_endpoint)
+    log = get_logger("redax.lifespan")
+
+    state = await build_state(settings)
+    app.state.state = state
 
     log.info(
         "redax.startup",
         log_level=settings.log_level,
-        detector=active.name,
+        detector=state.detector.name if state.detector is not None else "",
         model=settings.model_name,
         revision=settings.model_revision,
         redis=state.job_store is not None,
@@ -151,11 +201,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
     finally:
         log.info("redax.shutdown")
-        if state.audit is not None:
-            await state.audit.stop()
-        if state.job_store is not None:
-            await state.job_store.stop()
-        state.ready = False
+        await teardown_state(state)
 
 
 app = FastAPI(

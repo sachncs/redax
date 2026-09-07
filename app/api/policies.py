@@ -10,12 +10,13 @@ from __future__ import annotations
 import time
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, FastAPI, Request
+from fastapi import APIRouter, Depends, FastAPI
 
 from app.auth import require_api_key
 from app.logging import get_logger
 from app.observability import REQUEST_LATENCY, REQUESTS
 from app.redaction.policies import list_policies
+from app.state import State, get_state
 
 
 def register(app: FastAPI) -> None:
@@ -23,14 +24,13 @@ def register(app: FastAPI) -> None:
 
     @router.get("/v1/policies")
     def policies(
-        request: Request, api_key: Annotated[str, Depends(require_api_key)]
+        state: Annotated[State, Depends(get_state)],
+        api_key: Annotated[str, Depends(require_api_key)],
     ) -> dict[str, Any]:
         start = time.perf_counter()
         endpoint = "GET /v1/policies"
         method = "GET"
         try:
-            from app.state import state
-
             settings = state.settings
             policies_dir = getattr(settings, "policies_dir", "./policies")
             loaded = list_policies(policies_dir)

@@ -17,11 +17,14 @@ from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from app.audit.backend import Event, span_summary
 from app.auth import require_api_key
 from app.errors import internal_error, job_limit, payload_too_large, problem_response, queue_full
 from app.jobs.store import JobStore
 from app.logging import get_logger
-from app.observability import QUEUE_DEPTH, REQUESTS, queue_depth
+from app.observability import ERRORS, QUEUE_DEPTH, REQUESTS, queue_depth
+from app.ratelimit import rate_limit
+from app.state import State, get_state
 
 JOB_FAILED = "job failed"
 
@@ -40,23 +43,21 @@ def register(app: FastAPI) -> None:
         body: JobSubmit,
         background_tasks: BackgroundTasks,
         request: Request,
+        state: Annotated[State, Depends(get_state)],
         api_key: Annotated[str, Depends(require_api_key)],
     ) -> dict[str, Any] | JSONResponse:
-        from app.state import state
-
         endpoint = "POST /v1/jobs"
         method = "POST"
         request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
-        from app.ratelimit import rate_limit
 
-        await rate_limit(api_key)
+        await rate_limit(api_key, state)
         try:
             settings = state.settings
             max_chars = getattr(settings, "max_text_chars", 100_000)
             if len(body.text) > max_chars:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="413").inc()
                 return payload_too_large(request, f"text exceeds {max_chars} chars")
-            store: JobStore | None = getattr(state, "job_store", None)
+            store: JobStore | None = state.job_store
             if store is None:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
                 return internal_error(request, "job store not initialized")
@@ -70,7 +71,9 @@ def register(app: FastAPI) -> None:
                 return job_limit(request)
             record = await store.create(owner=api_key)
             QUEUE_DEPTH.inc()
-            background_tasks.add_task(run_job, record.id, body.model_dump(), store, request_id)
+            background_tasks.add_task(
+                run_job, record.id, body.model_dump(), store, request_id, state
+            )
             REQUESTS.labels(endpoint=endpoint, method=method, status="202").inc()
             return {"id": record.id, "status": record.status}
         except (OSError, RuntimeError, ValueError, KeyError) as exc:
@@ -82,13 +85,12 @@ def register(app: FastAPI) -> None:
     async def get_job(
         job_id: str,
         request: Request,
+        state: Annotated[State, Depends(get_state)],
         api_key: Annotated[str, Depends(require_api_key)],
     ) -> dict[str, Any] | JSONResponse:
-        from app.state import state
-
         endpoint = "GET /v1/jobs/{id}"
         method = "GET"
-        store: JobStore | None = getattr(state, "job_store", None)
+        store: JobStore | None = state.job_store
         if store is None:
             REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
             return internal_error(request, "job store not initialized")
@@ -113,12 +115,19 @@ def register(app: FastAPI) -> None:
     app.include_router(router)
 
 
-async def run_job(job_id: str, payload: dict[str, Any], store: JobStore, request_id: str) -> None:
-    from app.audit.backend import Event, span_summary
-    from app.logging import get_logger
-    from app.observability import ERRORS
-    from app.state import state
+async def run_job(
+    job_id: str,
+    payload: dict[str, Any],
+    store: JobStore,
+    request_id: str,
+    state: State,
+) -> None:
+    """Background-task worker that re-runs the redactor and writes back.
 
+    The state is captured at submit time and passed in because the
+    background task runs after the originating request has returned;
+    there is no live request to read ``request.app.state`` from.
+    """
     logger = get_logger("redax.jobs")
     try:
         await store.set_status(job_id, "running")
@@ -178,8 +187,6 @@ async def run_job(job_id: str, payload: dict[str, Any], store: JobStore, request
 
 
 async def record_failure(job_id: str, store: JobStore, logger: Any) -> None:
-    from app.observability import ERRORS
-
     try:
         await store.set_error(job_id, JOB_FAILED)
     except (OSError, TimeoutError, RuntimeError):

@@ -17,11 +17,14 @@ from fastapi import APIRouter, Depends, FastAPI, Header, Request
 from pydantic import BaseModel, Field
 
 from app.api.cache import redaction_cache_key, redaction_cache_payload
+from app.audit.backend import Event, span_summary
 from app.auth import require_api_key
 from app.errors import internal_error, payload_too_large, timeout_error
 from app.inference.detector import Span
 from app.logging import get_logger
 from app.observability import CACHE_HITS, REQUEST_LATENCY, REQUESTS
+from app.ratelimit import rate_limit
+from app.state import State, get_state
 
 
 class RedactRequest(BaseModel):
@@ -47,14 +50,11 @@ def register(app: FastAPI) -> None:
     async def redact(
         request: Request,
         body: RedactRequest,
+        state: Annotated[State, Depends(get_state)],
         api_key: Annotated[str, Depends(require_api_key)],
         x_idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
     ) -> Any:
-        from app.audit.backend import Event, span_summary
-        from app.ratelimit import rate_limit
-        from app.state import state
-
-        await rate_limit(api_key)
+        await rate_limit(api_key, state)
 
         start = time.perf_counter()
         endpoint = "POST /v1/redact"
@@ -69,7 +69,7 @@ def register(app: FastAPI) -> None:
                 return payload_too_large(request, f"text exceeds {max_chars} chars")
             redactor = state.redactor
             audit = state.audit
-            job_store = getattr(state, "job_store", None)
+            job_store = state.job_store
             if redactor is None:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
                 return internal_error(request, "redactor not initialized")
@@ -107,7 +107,7 @@ def register(app: FastAPI) -> None:
                 used_fallback = False
                 digest: str | None = None
 
-                pipeline = getattr(state, "pipeline", None)
+                pipeline = state.pipeline
                 response_body: dict[str, Any]
                 spans: list[Span]
                 if body.use_pipeline and pipeline is not None:

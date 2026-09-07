@@ -6,8 +6,10 @@ import time
 
 from fastapi import HTTPException
 
+from app.state import State
 
-async def rate_limit(api_key: str) -> str:
+
+async def rate_limit(api_key: str, state: State) -> str:
     """Enforce the per-API-key fixed-window rate limit.
 
     Returns the ``api_key`` when the request is allowed; raises 429 when
@@ -19,6 +21,9 @@ async def rate_limit(api_key: str) -> str:
     Args:
         api_key: The authenticated API key (or ``"anonymous"`` for
             unauthenticated probes; these are passed through).
+        state: The per-app ``State`` injected by the caller. Holds the
+            job store (and through it the Redis client) and the
+            settings instance.
 
     Returns:
         The ``api_key`` when the request is allowed.
@@ -27,8 +32,6 @@ async def rate_limit(api_key: str) -> str:
         HTTPException: 429 if the per-minute limit is exceeded, 503 if
             the limiter is misconfigured or Redis is unavailable.
     """
-    from app.state import state
-
     if api_key == "anonymous":
         return api_key
     settings = state.settings
@@ -64,6 +67,8 @@ def minute_bucket() -> int:
     """Return the current minute as an integer (seconds since epoch // 60).
 
     Used as the Redis bucket key suffix so each minute is its own
-    counter.
+    counter. The bucketing is monotonic: every call within the same
+    wall-clock minute returns the same value regardless of when in the
+    minute it fires.
     """
     return int(time.time() // 60)

@@ -1,4 +1,43 @@
-"""Shared application state populated by the FastAPI lifespan."""
+"""Typed container for long-lived resources wired during app startup.
+
+The dataclass ``State`` is a typed bag of process-wide handles (redactor,
+audit, settings, job store, pipeline, ...). One instance is created in
+``app/main.py``'s lifespan and attached to ``app.state.state`` so every
+route can reach it via ``request.app.state.state``. Tests inject a stub by
+replacing ``app.state.state``.
+
+The class is intentionally free of behavior: it does not own lifecycle,
+does not wire resources, and does not import heavy modules. Methods
+that mutate it (lifespan setup/teardown) live in ``app/main.py``.
+
+Attributes:
+    ready: ``True`` after lifespan startup completes; routes can reject
+        requests with 503 while this is ``False``.
+    detector: The primary encoder (GLiNER2 or OpenMed) used by the
+        legacy ``Redactor`` path and the multi-stage pipeline.
+    regex_detector: The deterministic regex detector used as the
+        Stage-1 high-precision anchor in the pipeline and as the
+        default fallback when no encoder is configured.
+    redactor: The legacy ``Redactor`` orchestrator; kept for the
+        default ``/v1/redact`` path when the pipeline is disabled.
+    audit: The ``Backend`` for the JSONL redaction log; every
+        successful ``/v1/redact`` records counts/durations only,
+        never input or output text.
+    settings: The validated pydantic-settings ``Settings`` instance.
+    shutdown_event: ``asyncio.Event`` set during lifespan teardown.
+    job_store: ``JobStore`` for the in-process job queue; ``None``
+        when Redis is unavailable.
+    redis: The async Redis client used by ``JobStore`` and the
+        rate limiter; ``None`` when Redis is unavailable.
+    extras: Extension point for downstream deployments to stash
+        arbitrary objects on the shared state.
+    request: The currently-active ``Request``; ``None`` outside a
+        request scope. Routes should prefer ``request.state`` for
+        per-request data.
+    pipeline: The multi-stage redaction ``Pipeline`` (regex gate +
+        model stage + consensus + circuit-broken fallback) used
+        when ``/v1/redact`` is called with ``use_pipeline=true``.
+"""
 
 from __future__ import annotations
 
@@ -13,40 +52,9 @@ if TYPE_CHECKING:
 
 @dataclass
 class State:
-    """Long-lived process state shared between the lifespan and the routes.
+    """Typed container for process-wide long-lived resources.
 
-    Populated once during ``app/main.py`` lifespan startup and read by
-    every API route. No route should mutate this object; if a route
-    needs to share transient state with another route, use the
-    request-scoped ``Request.state`` instead.
-
-    Attributes:
-        ready: ``True`` after lifespan startup completes; routes can
-            reject requests with 503 while this is ``False``.
-        detector: The primary encoder (GLiNER2 or OpenMed) used by the
-            legacy ``Redactor`` path and the multi-stage pipeline.
-        regex_detector: The deterministic regex detector used as the
-            Stage-1 high-precision anchor in the pipeline and as the
-            default fallback when no encoder is configured.
-        redactor: The legacy ``Redactor`` orchestrator; kept for the
-            default ``/v1/redact`` path when the pipeline is disabled.
-        audit: The ``Backend`` for the JSONL redaction log; every
-            successful ``/v1/redact`` records counts/durations only,
-            never input or output text.
-        settings: The validated pydantic-settings ``Settings`` instance.
-        shutdown_event: ``asyncio.Event`` set during lifespan teardown.
-        job_store: ``JobStore`` for the in-process job queue; ``None``
-            when Redis is unavailable.
-        redis: The async Redis client used by ``JobStore`` and the
-            rate limiter; ``None`` when Redis is unavailable.
-        extras: Extension point for downstream deployments to stash
-            arbitrary objects on the shared state.
-        request: The currently-active ``Request``; ``None`` outside a
-            request scope. Routes should prefer ``request.state`` for
-            per-request data.
-        pipeline: The multi-stage redaction ``Pipeline`` (regex gate +
-            model stage + consensus + circuit-broken fallback) used
-            when ``/v1/redact`` is called with ``use_pipeline=true``.
+    See module docstring for the full contract.
     """
 
     ready: bool = False
@@ -63,4 +71,18 @@ class State:
     pipeline: Pipeline | None = None
 
 
-state = State()
+def get_state(request: Request) -> State:
+    """FastAPI dependency that yields the per-app ``State``.
+
+    Use ``Depends(get_state)`` in route handlers so the typed container
+    is injected by FastAPI's DI rather than read from a module global.
+
+    Args:
+        request: The active Starlette request, supplied by FastAPI.
+
+    Returns:
+        The ``State`` attached to ``app.state.state`` during lifespan.
+    """
+    state_any: Any = request.app.state.state
+    assert isinstance(state_any, State)
+    return state_any
