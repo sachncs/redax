@@ -87,6 +87,11 @@ def inverse_position_remap(
     starts = [segment[0] for segment in segments]
 
     def remap(position: int) -> int:
+        """Map a position in the substituted text back to a position in the original.
+
+        Negative positions are clamped to ``0``; positions inside a
+        replaced range map to the start of the corresponding span.
+        """
         if position < 0:
             return 0
         index = bisect.bisect_right(starts, position) - 1
