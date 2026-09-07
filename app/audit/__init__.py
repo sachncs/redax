@@ -6,6 +6,6 @@ is added here when one actually ships.
 """
 
 from .backend import Backend, Event, event_to_dict, pipeline_to_event, span_summary
-from .local_file import FileAudit
+from .file import FileAudit
 
 __all__ = ["Backend", "Event", "FileAudit", "event_to_dict", "pipeline_to_event", "span_summary"]

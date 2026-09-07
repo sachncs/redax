@@ -19,8 +19,8 @@ from typing import Any
 from app.inference.detector import Span
 from app.redaction.circuit.breaker import Breaker
 from app.redaction.pipeline import Pipeline
-from app.redaction.stages.model_stage import ModelStage
-from app.redaction.stages.regex_gate import RegexGate
+from app.redaction.stages.gate import RegexGate
+from app.redaction.stages.model import ModelStage
 
 
 class _BenchModel:
@@ -43,7 +43,7 @@ class _OOMModel:
 
 
 def _build(detector: Any, threshold: int = 5, cooldown: float = 0.05) -> Pipeline:
-    from app.inference.regex_detector import RegexDetector
+    from app.inference.regex import RegexDetector
 
     return Pipeline(
         regex_gate=RegexGate(detector=RegexDetector()),

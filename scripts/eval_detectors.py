@@ -36,7 +36,7 @@ from app.bench.rscore import rscore
 
 def _build_detector(name: str) -> Any:
     if name == "regex":
-        from app.inference.regex_detector import RegexDetector
+        from app.inference.regex import RegexDetector
 
         return RegexDetector()
     if name == "gliner2":

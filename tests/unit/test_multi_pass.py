@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from app.inference.detector import Span
-from app.inference.multi_pass import multi_pass_detect
+from app.inference.multipass import multi_pass_detect
 
 
 class _VariableDetector:

@@ -19,7 +19,7 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-from app.inference.regex_detector import RegexDetector
+from app.inference.regex import RegexDetector
 
 
 def load_fixture(path: Path) -> list[dict]:

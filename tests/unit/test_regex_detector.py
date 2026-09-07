@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.inference.regex_detector import RegexDetector, luhn_ok
+from app.inference.regex import RegexDetector, luhn_ok
 
 
 @pytest.mark.asyncio

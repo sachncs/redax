@@ -7,12 +7,12 @@ from fastapi.testclient import TestClient
 from app.api.redact import register
 from app.audit.backend import Backend, Event
 from app.inference.detector import Span
-from app.inference.regex_detector import RegexDetector
+from app.inference.regex import RegexDetector
 from app.redaction.circuit.breaker import Breaker
 from app.redaction.pipeline import Pipeline
 from app.redaction.redactor import Redactor
-from app.redaction.stages.model_stage import ModelStage
-from app.redaction.stages.regex_gate import RegexGate
+from app.redaction.stages.gate import RegexGate
+from app.redaction.stages.model import ModelStage
 from app.redaction.strategy import Deid, Mask, Regex, Skip
 from app.state import ModelState
 

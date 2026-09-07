@@ -10,8 +10,8 @@ from app.inference.detector import Span
 from app.redaction.circuit.breaker import Breaker, OpenError
 from app.redaction.stages.consensus import fuse
 from app.redaction.stages.fallback import from_regex_only
-from app.redaction.stages.model_stage import ModelStage
-from app.redaction.stages.regex_gate import RegexGate
+from app.redaction.stages.gate import RegexGate
+from app.redaction.stages.model import ModelStage
 
 log = logging.getLogger(__name__)
 

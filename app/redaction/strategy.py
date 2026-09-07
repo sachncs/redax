@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
 
 from app.inference.detector import Detector, Span
-from app.inference.regex_detector import RegexDetector
+from app.inference.regex import RegexDetector
 
 
 @dataclass
@@ -146,7 +146,7 @@ class Deid:
         self.max_passes = max_passes
 
     async def run(self, text: str, spans: list[Span], config: dict[str, Any]) -> StrategyResult:
-        from app.inference.multi_pass import multi_pass_detect
+        from app.inference.multipass import multi_pass_detect
         from app.redaction.apply import apply_spans
 
         chosen = self.detector

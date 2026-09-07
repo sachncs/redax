@@ -13,7 +13,7 @@ import statistics
 import sys
 import time
 
-from app.inference.regex_detector import RegexDetector
+from app.inference.regex import RegexDetector
 
 SAMPLE = (
     "Reach Dr. Adam Wilson at adam@example.com or +1 415-555-2671. "

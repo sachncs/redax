@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from app.audit.backend import Backend, Event
-from app.audit.local_file import FileAudit
+from app.audit.file import FileAudit
 
 
 @pytest.mark.asyncio
@@ -53,7 +53,7 @@ def test_local_file_satisfies_protocol() -> None:
 
 
 def test_rotate_if_needed_moves_full_log_and_shifts_backups(tmp_path: Path) -> None:
-    from app.audit.local_file import rotate_if_needed
+    from app.audit.file import rotate_if_needed
 
     path = tmp_path / "audit.jsonl"
     path.write_text("line1\n" * 1000)
@@ -69,7 +69,7 @@ def test_rotate_if_needed_moves_full_log_and_shifts_backups(tmp_path: Path) -> N
 
 
 def test_rotate_without_backups_truncates(tmp_path: Path) -> None:
-    from app.audit.local_file import rotate_if_needed
+    from app.audit.file import rotate_if_needed
 
     path = tmp_path / "audit.jsonl"
     path.write_text("line1\n" * 1000)
@@ -80,17 +80,17 @@ def test_rotate_without_backups_truncates(tmp_path: Path) -> None:
 
 
 def test_append_line_rotates_then_writes(tmp_path: Path, monkeypatch) -> None:
-    from app.audit.local_file import append_line
+    from app.audit.file import append_line
 
     spy = []
-    monkeypatch.setattr("app.audit.local_file.rotate_if_needed", lambda *a: spy.append(a))
+    monkeypatch.setattr("app.audit.file.rotate_if_needed", lambda *a: spy.append(a))
     path = tmp_path / "audit.jsonl"
     append_line(path, "abc\n", fsync=False, max_bytes=100, rotation_backups=2)
     assert spy and path.read_text() == "abc\n"
 
 
 def test_prune_old_events_drops_expired_and_keeps_recent(tmp_path: Path) -> None:
-    from app.audit.local_file import prune_old_events
+    from app.audit.file import prune_old_events
 
     path = tmp_path / "audit.jsonl"
     old = datetime.now(UTC) - timedelta(days=30)
@@ -110,7 +110,7 @@ def test_prune_old_events_drops_expired_and_keeps_recent(tmp_path: Path) -> None
 
 
 def test_prune_is_a_noop_when_nothing_expired(tmp_path: Path) -> None:
-    from app.audit.local_file import prune_old_events
+    from app.audit.file import prune_old_events
 
     path = tmp_path / "audit.jsonl"
     new = datetime.now(UTC).isoformat()

@@ -39,7 +39,7 @@ class RegexGate:
     @classmethod
     def default(cls) -> RegexGate:
         """Build a RegexGate around the process-wide ``RegexDetector``."""
-        from app.inference.regex_detector import RegexDetector
+        from app.inference.regex import RegexDetector
 
         return cls(detector=RegexDetector())
 

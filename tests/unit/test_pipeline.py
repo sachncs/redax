@@ -6,10 +6,10 @@ from typing import Any
 import pytest
 
 from app.inference.detector import Span
-from app.inference.regex_detector import RegexDetector
+from app.inference.regex import RegexDetector
 from app.redaction.pipeline import Pipeline
-from app.redaction.stages.model_stage import ModelStage
-from app.redaction.stages.regex_gate import RegexGate
+from app.redaction.stages.gate import RegexGate
+from app.redaction.stages.model import ModelStage
 
 
 class _FakeModel:

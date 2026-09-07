@@ -21,11 +21,11 @@ from app.api import (
     register_redact,
     register_stream,
 )
-from app.audit.local_file import FileAudit
+from app.audit.file import FileAudit
 from app.config import Settings
 from app.errors import install_error_handlers
 from app.inference.gliner2 import GLiNER2Detector
-from app.inference.regex_detector import RegexDetector
+from app.inference.regex import RegexDetector
 from app.inference.registry import DetectorRegistry
 from app.jobs.store import JobStore
 from app.logging import configure_logging, get_logger
@@ -34,8 +34,8 @@ from app.observability import configure_tracing
 from app.redaction.circuit.breaker import Breaker
 from app.redaction.pipeline import Pipeline
 from app.redaction.redactor import Redactor
-from app.redaction.stages.model_stage import ModelStage
-from app.redaction.stages.regex_gate import RegexGate
+from app.redaction.stages.gate import RegexGate
+from app.redaction.stages.model import ModelStage
 from app.redaction.strategy import Deid, Hash, Mask, Regex, Skip, Strategy
 from app.state import model_state
 
