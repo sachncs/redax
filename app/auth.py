@@ -16,8 +16,8 @@ def require_api_key(
     handler) when the header is missing or invalid. Disabled (returns a
     sentinel ``"anonymous"``) when ``REDAX_API_KEYS`` is empty.
 
-    ``model_state`` is resolved at call time (matching every handler
-    module) so rebinding ``app.state.model_state`` in tests is observed
+    ``state`` is resolved at call time (matching every handler
+    module) so rebinding ``app.state.state`` in tests is observed
     here too.
 
     Args:
@@ -30,9 +30,9 @@ def require_api_key(
     Raises:
         HTTPException: 401 if the header is missing or invalid.
     """
-    from app.state import model_state
+    from app.state import state
 
-    settings = model_state.settings
+    settings = state.settings
     if settings is None:
         return "anonymous"
     valid = settings.api_key_set()

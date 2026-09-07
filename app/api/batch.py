@@ -45,7 +45,7 @@ def register(app: FastAPI) -> None:
         api_key: Annotated[str, Depends(require_api_key)],
     ) -> BatchResponse | JSONResponse:
         from app.audit.backend import Event, span_summary
-        from app.state import model_state
+        from app.state import state
 
         start = time.perf_counter()
         endpoint = "POST /v1/redact/batch"
@@ -55,9 +55,9 @@ def register(app: FastAPI) -> None:
 
         await rate_limit(api_key)
         try:
-            settings = model_state.settings
-            redactor = model_state.redactor
-            audit = model_state.audit
+            settings = state.settings
+            redactor = state.redactor
+            audit = state.audit
             if redactor is None:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
                 return internal_error(request, "redactor not initialized")

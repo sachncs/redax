@@ -13,7 +13,7 @@ from app.api import (
 )
 from app.auth import require_api_key
 from app.errors import install_error_handlers
-from app.state import model_state
+from app.state import state
 
 
 class StubResult:
@@ -47,8 +47,8 @@ class StubSettings:
 
 
 def stub_state(monkeypatch: pytest.MonkeyPatch, *, api_keys: set[str]) -> None:
-    monkeypatch.setattr(model_state, "settings", StubSettings(api_keys))
-    monkeypatch.setattr(model_state, "redactor", StubRedactor())
+    monkeypatch.setattr(state, "settings", StubSettings(api_keys))
+    monkeypatch.setattr(state, "redactor", StubRedactor())
 
 
 def make_app() -> FastAPI:
@@ -87,7 +87,7 @@ def test_require_api_key_disabled_passthrough(monkeypatch: pytest.MonkeyPatch) -
 
 
 def test_require_api_key_no_settings_passthrough(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(model_state, "settings", None)
+    monkeypatch.setattr(state, "settings", None)
     assert require_api_key() == "anonymous"
 
 
@@ -135,7 +135,7 @@ def test_policies_accepts_valid_key(monkeypatch: pytest.MonkeyPatch, tmp_path) -
     (tmp_path / "default.yaml").write_text(
         '{"name": "default", "version": "1.0.0", "description": "d", "fields": {}}'
     )
-    monkeypatch.setattr(model_state.settings, "policies_dir", str(tmp_path))
+    monkeypatch.setattr(state.settings, "policies_dir", str(tmp_path))
     app = make_app()
     with TestClient(app) as client:
         resp = client.get("/v1/policies", headers={"X-API-Key": "test-key"})

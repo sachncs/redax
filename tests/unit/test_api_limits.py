@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from app.api import register_batch, register_jobs, register_stream
 from app.errors import install_error_handlers
-from app.state import model_state
+from app.state import state
 
 
 class Result:
@@ -71,9 +71,9 @@ def patch_state(
     client: FakeClient | None,
     settings: StubSettings,
 ) -> None:
-    monkeypatch.setattr(model_state, "redactor", redactor)
-    monkeypatch.setattr(model_state, "job_store", FakeStore(client) if client else None)
-    monkeypatch.setattr(model_state, "settings", settings)
+    monkeypatch.setattr(state, "redactor", redactor)
+    monkeypatch.setattr(state, "job_store", FakeStore(client) if client else None)
+    monkeypatch.setattr(state, "settings", settings)
 
 
 def build_app() -> FastAPI:

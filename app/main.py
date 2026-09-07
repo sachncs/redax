@@ -37,7 +37,7 @@ from app.redaction.redactor import Redactor
 from app.redaction.stages.gate import Gate
 from app.redaction.stages.model import ModelStage
 from app.redaction.strategy import Deid, Hash, Mask, Regex, Skip, Strategy
-from app.state import model_state
+from app.state import state
 
 
 @asynccontextmanager
@@ -48,7 +48,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app: The FastAPI instance being brought up.
 
     Yields:
-        ``None`` once every resource is wired into ``model_state``.
+        ``None`` once every resource is wired into ``state``.
     """
     settings = Settings()
     settings.verify()
@@ -56,12 +56,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     configure_tracing(settings.service_name, settings.otlp_endpoint)
     log = get_logger("redax.lifespan")
 
-    model_state.settings = settings
-    model_state.ready = False
+    state.settings = settings
+    state.ready = False
 
     regex = RegexDetector()
     await regex.warmup()
-    model_state.regex_detector = regex
+    state.regex_detector = regex
 
     detectors: list[Any] = [regex]
     if settings.detector == "gliner2":
@@ -92,7 +92,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         active = regex
 
     registry = DetectorRegistry(detectors)
-    model_state.detector = active
+    state.detector = active
 
     strategies: dict[str, Strategy] = {
         "passThrough": Skip(),
@@ -101,7 +101,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         "regex": Regex(detector=regex),
         "autoDeID": Deid(active, detectors=registry, max_passes=settings.multi_pass_max),
     }
-    model_state.redactor = Redactor(
+    state.redactor = Redactor(
         detector=active,
         strategies=strategies,
         replacement="[REDACTED]",
@@ -118,15 +118,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 cooldown_s=settings.pipeline_breaker_cooldown_s,
             ),
         )
-    model_state.pipeline = pipeline
+    state.pipeline = pipeline
 
     store = JobStore(settings.redis_url, ttl_seconds=settings.job_ttl_seconds)
     try:
         await store.start()
-        model_state.job_store = store
+        state.job_store = store
     except Exception as exc:
         log.warning("redax.redis_unavailable", error=str(exc))
-        model_state.job_store = None
+        state.job_store = None
 
     audit = FileAudit(
         settings.audit_path,
@@ -136,7 +136,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         retention_seconds=settings.audit_retention_seconds,
     )
     await audit.start()
-    model_state.audit = audit
+    state.audit = audit
 
     log.info(
         "redax.startup",
@@ -144,18 +144,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         detector=active.name,
         model=settings.model_name,
         revision=settings.model_revision,
-        redis=model_state.job_store is not None,
+        redis=state.job_store is not None,
     )
-    model_state.ready = True
+    state.ready = True
     try:
         yield
     finally:
         log.info("redax.shutdown")
-        if model_state.audit is not None:
-            await model_state.audit.stop()
-        if model_state.job_store is not None:
-            await model_state.job_store.stop()
-        model_state.ready = False
+        if state.audit is not None:
+            await state.audit.stop()
+        if state.job_store is not None:
+            await state.job_store.stop()
+        state.ready = False
 
 
 app = FastAPI(

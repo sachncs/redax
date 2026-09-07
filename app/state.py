@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class ModelState:
+class State:
     """Long-lived process state shared between the lifespan and the routes.
 
     Populated once during ``app/main.py`` lifespan startup and read by
@@ -63,4 +63,4 @@ class ModelState:
     pipeline: Pipeline | None = None
 
 
-model_state = ModelState()
+state = State()

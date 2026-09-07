@@ -13,7 +13,7 @@ from app.inference.detector import Span
 from app.jobs.store import JobStore
 from app.redaction.redactor import Redactor
 from app.redaction.strategy import Deid, Mask, Regex, Skip
-from app.state import ModelState
+from app.state import State
 
 
 class MemoryAudit(Backend):
@@ -94,7 +94,7 @@ class InMemoryJobStore(JobStore):
 
 @pytest.fixture
 def app_with_state(monkeypatch):
-    test_state = ModelState()
+    test_state = State()
     test_state.settings = type(
         "S",
         (),
@@ -112,7 +112,7 @@ def app_with_state(monkeypatch):
     test_state.job_store = InMemoryJobStore()
     test_state.audit = MemoryAudit()
     test_state.ready = True
-    monkeypatch.setattr("app.state.model_state", test_state)
+    monkeypatch.setattr("app.state.state", test_state)
     app = FastAPI()
     register_batch(app)
     register_stream(app)
@@ -193,13 +193,13 @@ def test_job_lifecycle(app_with_state):
 
 @pytest.fixture
 def app_with_no_redactor(monkeypatch):
-    test_state = ModelState()
+    test_state = State()
     test_state.settings = type(
         "S", (), {"max_text_chars": 1000, "api_key_set": lambda self: set()}
     )()
     test_state.job_store = InMemoryJobStore()
     test_state.ready = True
-    monkeypatch.setattr("app.state.model_state", test_state)
+    monkeypatch.setattr("app.state.state", test_state)
     app = FastAPI()
     register_jobs(app)
     return app
@@ -212,9 +212,9 @@ def test_batch_records_audited_entity_summary(app_with_state):
             json={"items": [{"text": "hi a@b.com"}, {"text": "nothing"}]},
         )
     assert resp.status_code == 200
-    from app.state import model_state
+    from app.state import state
 
-    audit = model_state.audit
+    audit = state.audit
     assert len(audit.records) == 1
     rec = audit.records[0]
     assert rec.text_chars == len("hi a@b.com") + len("nothing")
@@ -227,9 +227,9 @@ def test_stream_records_audited_entity_summary(app_with_state):
         assert resp.status_code == 200
         for _ in resp.iter_lines():
             pass
-    from app.state import model_state
+    from app.state import state
 
-    audit = model_state.audit
+    audit = state.audit
     assert len(audit.records) == 1
     assert audit.records[0].text_chars == 5000
     assert audit.records[0].entities_detected == []
@@ -250,7 +250,7 @@ class SlowDetector(_StubDetector):
 
 @pytest.fixture
 def app_with_slow_redactor(monkeypatch):
-    test_state = ModelState()
+    test_state = State()
     test_state.settings = type(
         "S", (), {"max_text_chars": 100_000, "api_key_set": lambda self: set()}
     )()
@@ -258,7 +258,7 @@ def app_with_slow_redactor(monkeypatch):
     test_state.job_store = InMemoryJobStore()
     test_state.audit = MemoryAudit()
     test_state.ready = True
-    monkeypatch.setattr("app.state.model_state", test_state)
+    monkeypatch.setattr("app.state.state", test_state)
     app = FastAPI()
     register_jobs(app)
     return app
@@ -302,9 +302,9 @@ def test_job_records_audited_entity_summary(app_with_state):
                 break
             time.sleep(0.05)
     assert body["status"] == "done"
-    from app.state import model_state
+    from app.state import state
 
-    audit = model_state.audit
+    audit = state.audit
     assert len(audit.records) == 1
     rec = audit.records[0]
     assert rec.text_chars == len("hi a@b.com")
@@ -342,7 +342,7 @@ def test_failed_job_does_not_leak_internal_error(app_with_no_redactor):
 
 @pytest.fixture
 def app_with_max_inflight(monkeypatch):
-    test_state = ModelState()
+    test_state = State()
     test_state.settings = type(
         "S",
         (),
@@ -356,7 +356,7 @@ def app_with_max_inflight(monkeypatch):
     test_state.job_store = InMemoryJobStore()
     test_state.audit = MemoryAudit()
     test_state.ready = True
-    monkeypatch.setattr("app.state.model_state", test_state)
+    monkeypatch.setattr("app.state.state", test_state)
     app = FastAPI()
     register_jobs(app)
     return app
@@ -378,7 +378,7 @@ def test_job_submission_rejected_when_inflight_full(app_with_max_inflight):
 
 @pytest.fixture
 def app_with_per_key_quota(monkeypatch):
-    test_state = ModelState()
+    test_state = State()
     test_state.settings = type(
         "S",
         (),
@@ -390,7 +390,7 @@ def app_with_per_key_quota(monkeypatch):
     )()
     test_state.job_store = InMemoryJobStore()
     test_state.ready = True
-    monkeypatch.setattr("app.state.model_state", test_state)
+    monkeypatch.setattr("app.state.state", test_state)
     app = FastAPI()
     register_jobs(app)
     return app
@@ -399,9 +399,9 @@ def app_with_per_key_quota(monkeypatch):
 def test_job_submission_rejected_over_per_key_quota(app_with_per_key_quota):
     import asyncio
 
-    from app.state import model_state
+    from app.state import state
 
-    store = model_state.job_store
+    store = state.job_store
     asyncio.run(store.create(owner="k1"))
     asyncio.run(store.create(owner="k1"))
     with TestClient(app_with_per_key_quota) as client:
@@ -413,7 +413,7 @@ def test_job_submission_rejected_over_per_key_quota(app_with_per_key_quota):
 
 @pytest.fixture
 def app_with_short_job_timeout(monkeypatch):
-    test_state = ModelState()
+    test_state = State()
     test_state.settings = type(
         "S",
         (),
@@ -427,7 +427,7 @@ def app_with_short_job_timeout(monkeypatch):
     test_state.job_store = InMemoryJobStore()
     test_state.audit = MemoryAudit()
     test_state.ready = True
-    monkeypatch.setattr("app.state.model_state", test_state)
+    monkeypatch.setattr("app.state.state", test_state)
     app = FastAPI()
     register_jobs(app)
     return app

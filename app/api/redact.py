@@ -52,7 +52,7 @@ def register(app: FastAPI) -> None:
     ) -> Any:
         from app.audit.backend import Event, span_summary
         from app.ratelimit import rate_limit
-        from app.state import model_state
+        from app.state import state
 
         await rate_limit(api_key)
 
@@ -62,14 +62,14 @@ def register(app: FastAPI) -> None:
         request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
 
         try:
-            settings = model_state.settings
+            settings = state.settings
             max_chars = getattr(settings, "max_text_chars", 100_000)
             if len(body.text) > max_chars:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="413").inc()
                 return payload_too_large(request, f"text exceeds {max_chars} chars")
-            redactor = model_state.redactor
-            audit = model_state.audit
-            job_store = getattr(model_state, "job_store", None)
+            redactor = state.redactor
+            audit = state.audit
+            job_store = getattr(state, "job_store", None)
             if redactor is None:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
                 return internal_error(request, "redactor not initialized")
@@ -107,7 +107,7 @@ def register(app: FastAPI) -> None:
                 used_fallback = False
                 digest: str | None = None
 
-                pipeline = getattr(model_state, "pipeline", None)
+                pipeline = getattr(state, "pipeline", None)
                 response_body: dict[str, Any]
                 spans: list[Span]
                 if body.use_pipeline and pipeline is not None:
@@ -173,9 +173,7 @@ def register(app: FastAPI) -> None:
                         inference_ms=inference_ms,
                     )
                     if used_pipeline:
-                        audit_kwargs["model_hash"] = (
-                            model_state.detector.name if model_state.detector else ""
-                        )
+                        audit_kwargs["model_hash"] = state.detector.name if state.detector else ""
                     await audit.record(Event(**audit_kwargs))
 
                 REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()

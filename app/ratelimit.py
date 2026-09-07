@@ -27,17 +27,17 @@ async def rate_limit(api_key: str) -> str:
         HTTPException: 429 if the per-minute limit is exceeded, 503 if
             the limiter is misconfigured or Redis is unavailable.
     """
-    from app.state import model_state
+    from app.state import state
 
     if api_key == "anonymous":
         return api_key
-    settings = model_state.settings
+    settings = state.settings
     if settings is None:
         raise HTTPException(status_code=503, detail="Rate limiting unavailable")
     limit = getattr(settings, "rate_limit_per_minute", 0)
     if limit <= 0:
         return api_key
-    job_store = model_state.job_store
+    job_store = state.job_store
     if job_store is None:
         raise HTTPException(status_code=503, detail="Rate limiting unavailable")
     bucket = f"redax:rl:{api_key}:{minute_bucket()}"

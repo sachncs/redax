@@ -1,7 +1,7 @@
 """Health, readiness, and Prometheus scrape endpoints.
 
 Exposes ``GET /healthz`` (liveness), ``GET /readyz`` (readiness, gated on
-``model_state.ready`` and a non-null redactor), and ``GET /metrics``
+``state.ready`` and a non-null redactor), and ``GET /metrics``
 (Prometheus exposition). None of these endpoints appear in the OpenAPI
 schema and they are not API-key-gated.
 """
@@ -25,7 +25,7 @@ def register(app: FastAPI) -> None:
         app: The FastAPI application to mutate.
     """
     from app.observability import REGISTRY
-    from app.state import model_state
+    from app.state import state
 
     @app.get("/healthz", include_in_schema=False)
     def healthz(request: Request) -> dict[str, str]:
@@ -51,7 +51,7 @@ def register(app: FastAPI) -> None:
 
     @app.get("/readyz", include_in_schema=False, response_model=None)
     def readyz(request: Request) -> dict[str, str] | JSONResponse:
-        """Readiness probe; 200 once ``model_state.ready`` and the redactor are set.
+        """Readiness probe; 200 once ``state.ready`` and the redactor are set.
 
         Args:
             request: The active Starlette request, used for problem
@@ -64,7 +64,7 @@ def register(app: FastAPI) -> None:
         endpoint = "GET /readyz"
         method = "GET"
         try:
-            if model_state.ready and getattr(model_state, "redactor", None) is not None:
+            if state.ready and getattr(state, "redactor", None) is not None:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
                 return {"status": "ready"}
             REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()

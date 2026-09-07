@@ -42,7 +42,7 @@ def register(app: FastAPI) -> None:
         request: Request,
         api_key: Annotated[str, Depends(require_api_key)],
     ) -> dict[str, Any] | JSONResponse:
-        from app.state import model_state
+        from app.state import state
 
         endpoint = "POST /v1/jobs"
         method = "POST"
@@ -51,12 +51,12 @@ def register(app: FastAPI) -> None:
 
         await rate_limit(api_key)
         try:
-            settings = model_state.settings
+            settings = state.settings
             max_chars = getattr(settings, "max_text_chars", 100_000)
             if len(body.text) > max_chars:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="413").inc()
                 return payload_too_large(request, f"text exceeds {max_chars} chars")
-            store: JobStore | None = getattr(model_state, "job_store", None)
+            store: JobStore | None = getattr(state, "job_store", None)
             if store is None:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
                 return internal_error(request, "job store not initialized")
@@ -84,11 +84,11 @@ def register(app: FastAPI) -> None:
         request: Request,
         api_key: Annotated[str, Depends(require_api_key)],
     ) -> dict[str, Any] | JSONResponse:
-        from app.state import model_state
+        from app.state import state
 
         endpoint = "GET /v1/jobs/{id}"
         method = "GET"
-        store: JobStore | None = getattr(model_state, "job_store", None)
+        store: JobStore | None = getattr(state, "job_store", None)
         if store is None:
             REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
             return internal_error(request, "job store not initialized")
@@ -117,7 +117,7 @@ async def run_job(job_id: str, payload: dict[str, Any], store: JobStore, request
     from app.audit.backend import Event, span_summary
     from app.logging import get_logger
     from app.observability import ERRORS
-    from app.state import model_state
+    from app.state import state
 
     logger = get_logger("redax.jobs")
     try:
@@ -128,7 +128,7 @@ async def run_job(job_id: str, payload: dict[str, Any], store: JobStore, request
         QUEUE_DEPTH.dec()
         return
     start = time.perf_counter()
-    redactor = model_state.redactor
+    redactor = state.redactor
     if redactor is None:
         ERRORS.labels(type="job_redactor_unavailable").inc()
         await record_failure(job_id, store, logger)
@@ -136,7 +136,7 @@ async def run_job(job_id: str, payload: dict[str, Any], store: JobStore, request
         QUEUE_DEPTH.dec()
         return
     try:
-        timeout_seconds = getattr(model_state.settings, "request_timeout_seconds", 30.0)
+        timeout_seconds = getattr(state.settings, "request_timeout_seconds", 30.0)
         async with asyncio.timeout(timeout_seconds):
             result = await redactor.redact(
                 payload["text"],
@@ -153,7 +153,7 @@ async def run_job(job_id: str, payload: dict[str, Any], store: JobStore, request
                 "inference_ms": inference_ms,
             },
         )
-        audit = model_state.audit
+        audit = state.audit
         if audit is not None:
             await audit.record(
                 Event(

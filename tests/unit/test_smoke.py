@@ -45,10 +45,10 @@ def test_readyz_returns_503_problem_until_ready(monkeypatch) -> None:
     from fastapi.testclient import TestClient
 
     from app.api.health import register
-    from app.state import model_state
+    from app.state import state
 
-    monkeypatch.setattr(model_state, "ready", False)
-    monkeypatch.setattr(model_state, "redactor", None)
+    monkeypatch.setattr(state, "ready", False)
+    monkeypatch.setattr(state, "redactor", None)
     app = FastAPI()
     register(app)
     with TestClient(app) as client:
@@ -63,10 +63,10 @@ def test_readyz_200_when_ready(monkeypatch) -> None:
     from fastapi.testclient import TestClient
 
     from app.api.health import register
-    from app.state import model_state
+    from app.state import state
 
-    monkeypatch.setattr(model_state, "ready", True)
-    monkeypatch.setattr(model_state, "redactor", object())
+    monkeypatch.setattr(state, "ready", True)
+    monkeypatch.setattr(state, "redactor", object())
     app = FastAPI()
     register(app)
     with TestClient(app) as client:
@@ -80,10 +80,10 @@ def test_health_metrics_instrumented(monkeypatch) -> None:
     from fastapi.testclient import TestClient
 
     from app.api.health import register
-    from app.state import model_state
+    from app.state import state
 
-    monkeypatch.setattr(model_state, "ready", True)
-    monkeypatch.setattr(model_state, "redactor", object())
+    monkeypatch.setattr(state, "ready", True)
+    monkeypatch.setattr(state, "redactor", object())
     app = FastAPI()
     register(app)
     with TestClient(app) as client:

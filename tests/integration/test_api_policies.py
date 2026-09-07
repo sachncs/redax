@@ -7,16 +7,16 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api.policies import register
-from app.state import ModelState
+from app.state import State
 
 
 @pytest.fixture
 def app_with_policies(monkeypatch, policies_path: Path):
-    test_state = ModelState()
+    test_state = State()
     test_state.settings = type(
         "S", (), {"policies_dir": str(policies_path), "api_key_set": lambda self: set()}
     )()
-    monkeypatch.setattr("app.state.model_state", test_state)
+    monkeypatch.setattr("app.state.state", test_state)
     app = FastAPI()
     register(app)
     return app

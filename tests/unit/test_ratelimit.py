@@ -5,7 +5,7 @@ from fastapi import HTTPException
 
 import app.ratelimit as ratelimit_mod
 from app.ratelimit import minute_bucket, rate_limit
-from app.state import model_state
+from app.state import state
 
 
 class FakeClient:
@@ -43,8 +43,8 @@ def patch_state(
     store: FakeStore | None,
     settings: FakeSettings | None,
 ) -> None:
-    monkeypatch.setattr(model_state, "job_store", store)
-    monkeypatch.setattr(model_state, "settings", settings)
+    monkeypatch.setattr(state, "job_store", store)
+    monkeypatch.setattr(state, "settings", settings)
 
 
 @pytest.mark.asyncio

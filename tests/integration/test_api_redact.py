@@ -14,7 +14,7 @@ from app.redaction.redactor import Redactor
 from app.redaction.stages.gate import Gate
 from app.redaction.stages.model import ModelStage
 from app.redaction.strategy import Deid, Mask, Regex, Skip
-from app.state import ModelState
+from app.state import State
 
 
 class _StubDetector:
@@ -50,7 +50,7 @@ class _MemoryAudit(Backend):
 
 @pytest.fixture
 def app_with_redactor(monkeypatch):
-    test_state = ModelState()
+    test_state = State()
     test_state.settings = type(
         "S", (), {"max_text_chars": 1000, "hash_salt": "x", "api_key_set": lambda self: set()}
     )()
@@ -67,7 +67,7 @@ def app_with_redactor(monkeypatch):
     test_state.job_store = None  # disable cache/idempotency
     test_state.ready = True
 
-    monkeypatch.setattr("app.state.model_state", test_state)
+    monkeypatch.setattr("app.state.state", test_state)
     app = FastAPI()
     register(app)
     return app
@@ -102,7 +102,7 @@ def test_redact_over_max_text_returns_413(app_with_redactor):
 
 
 def test_redact_records_audit_event(monkeypatch):
-    test_state = ModelState()
+    test_state = State()
     test_state.settings = type(
         "S",
         (),
@@ -125,7 +125,7 @@ def test_redact_records_audit_event(monkeypatch):
     )
     test_state.job_store = None
     test_state.ready = True
-    monkeypatch.setattr("app.state.model_state", test_state)
+    monkeypatch.setattr("app.state.state", test_state)
 
     from app.api.redact import register as register_redact
 
@@ -159,7 +159,7 @@ class _StubModelDetector:
 
 
 def test_redact_pipeline_path_returns_used_pipeline_flag(monkeypatch):
-    test_state = ModelState()
+    test_state = State()
     test_state.settings = type(
         "S",
         (),
@@ -188,7 +188,7 @@ def test_redact_pipeline_path_returns_used_pipeline_flag(monkeypatch):
     test_state.audit = _MemoryAudit()
     test_state.job_store = None
     test_state.ready = True
-    monkeypatch.setattr("app.state.model_state", test_state)
+    monkeypatch.setattr("app.state.state", test_state)
 
     app = FastAPI()
     register(app)
@@ -208,7 +208,7 @@ def test_redact_pipeline_path_returns_used_pipeline_flag(monkeypatch):
 
 
 def test_redact_without_use_pipeline_uses_legacy_redactor(monkeypatch):
-    test_state = ModelState()
+    test_state = State()
     test_state.settings = type(
         "S",
         (),
@@ -237,7 +237,7 @@ def test_redact_without_use_pipeline_uses_legacy_redactor(monkeypatch):
     test_state.audit = _MemoryAudit()
     test_state.job_store = None
     test_state.ready = True
-    monkeypatch.setattr("app.state.model_state", test_state)
+    monkeypatch.setattr("app.state.state", test_state)
 
     app = FastAPI()
     register(app)

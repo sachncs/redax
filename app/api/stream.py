@@ -57,14 +57,14 @@ def register(app: FastAPI) -> None:
         api_key: Annotated[str, Depends(require_api_key)],
     ) -> StreamingResponse | JSONResponse:
         from app.audit.backend import Event, span_summary
-        from app.state import model_state
+        from app.state import state
 
         endpoint = "POST /v1/redact/stream"
         method = "POST"
         request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
-        settings = model_state.settings
-        redactor = model_state.redactor
-        audit = model_state.audit
+        settings = state.settings
+        redactor = state.redactor
+        audit = state.audit
         if redactor is None:
             REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
             return internal_error(request, "redactor not initialized")

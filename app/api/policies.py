@@ -29,9 +29,9 @@ def register(app: FastAPI) -> None:
         endpoint = "GET /v1/policies"
         method = "GET"
         try:
-            from app.state import model_state
+            from app.state import state
 
-            settings = model_state.settings
+            settings = state.settings
             policies_dir = getattr(settings, "policies_dir", "./policies")
             loaded = list_policies(policies_dir)
             REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
