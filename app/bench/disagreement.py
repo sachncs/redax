@@ -235,6 +235,7 @@ def spearman_rank(xs: list[float], ys: list[float]) -> tuple[float, float]:
         raise ValueError("spearman requires at least 3 observations")
 
     def ranks(values: list[float]) -> list[float]:
+        """Return the average rank of each element of ``values`` (1-based)."""
         indexed = sorted(enumerate(values), key=lambda p: p[1])
         out = [0.0] * len(values)
         i = 0

@@ -60,6 +60,7 @@ def selected_contextual_spans(
     pred_ends = sorted(p.end for p in pred_merged)
 
     def yellow_at_pos(pos: int) -> LabelledSpan | None:
+        """Return the CONTEXTUAL span covering ``pos`` if any."""
         for s in target_yellow:
             if s.start <= pos < s.end:
                 return s
@@ -161,6 +162,7 @@ def fused_entity_groups(
     }
 
     def link(a: LabelledSpan, b: LabelledSpan) -> None:
+        """Record that spans ``a`` and ``b`` are adjacent in the fused output."""
         ka = (a.start, a.end, a.category)
         kb = (b.start, b.end, b.category)
         if ka == kb:

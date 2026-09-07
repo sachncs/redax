@@ -80,6 +80,7 @@ class Document:
 
     @property
     def structure(self) -> Structure:
+        """Return the Structure enum mapped from this Document's category."""
         return structure_of(self.category)
 
 
