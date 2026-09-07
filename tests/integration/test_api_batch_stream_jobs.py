@@ -30,7 +30,9 @@ class MemoryAudit(Backend):
         self.records.append(event)
 
 
-class _StubDetector:
+class StubDetector:
+    """Stub that returns the email-looking word surrounding any '@' in the text."""
+
     name = "stub"
 
     async def detect(self, text: str, entity_types: list[str]) -> list[Span]:
@@ -101,12 +103,12 @@ def app_with_state():
         {"max_text_chars": 100_000, "api_key_set": lambda self: set()},
     )()
     test_state.redactor = Redactor(
-        detector=_StubDetector(),
+        detector=StubDetector(),
         strategies={
             "passThrough": Skip(),
             "mask": Mask(),
             "regex": Regex(),
-            "autoDeID": Deid(_StubDetector()),
+            "autoDeID": Deid(StubDetector()),
         },
     )
     test_state.job_store = InMemoryJobStore()
@@ -143,7 +145,8 @@ def test_stream_emits_events(app_with_state):
     assert any("[DONE]" in c for c in chunks)
 
 
-def _stream_latency_count() -> float:
+def stream_latency_count() -> float:
+    """Read the current value of the redax_request_duration_seconds_count histogram for the stream endpoint."""
     from app.observability import REQUEST_LATENCY
 
     for metric in REQUEST_LATENCY.collect():
@@ -158,7 +161,7 @@ def _stream_latency_count() -> float:
 
 
 def test_stream_records_end_to_end_request_latency(app_with_state):
-    before = _stream_latency_count()
+    before = stream_latency_count()
     with TestClient(app_with_state) as client:
         resp = client.post(
             "/v1/redact/stream",
@@ -167,7 +170,7 @@ def test_stream_records_end_to_end_request_latency(app_with_state):
         assert resp.status_code == 200
         for _ in resp.iter_lines():
             pass
-    after = _stream_latency_count()
+    after = stream_latency_count()
     assert before >= 0.0
     assert after >= before + 1.0
 
@@ -231,7 +234,7 @@ def test_stream_records_audited_entity_summary(app_with_state):
     assert audit.records[0].entities_detected == []
 
 
-class SlowDetector(_StubDetector):
+class SlowDetector(StubDetector):
     seen: ClassVar[list[float]] = []
 
     async def detect(self, text: str, entity_types: list[str]) -> list[Span]:
