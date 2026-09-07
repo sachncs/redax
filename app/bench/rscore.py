@@ -71,6 +71,7 @@ def false_positive_runs(
         return []
 
     def overlaps(a: int, b: int, runs: list[tuple[int, int]]) -> bool:
+        """Return True if any half-open run in ``runs`` overlaps `[a, b)`."""
         return any(s < b and e > a for s, e in runs)
 
     fps: list[tuple[int, int]] = []
@@ -163,6 +164,7 @@ class RDocument:
     r_score: float = 0.0
 
     def has_mandatory(self) -> bool:
+        """Return True if the document has any MANDATORY span entities."""
         return bool(self.mandatory_entities)
 
 
@@ -175,6 +177,7 @@ class RScoreReport:
     per_category: dict[str, dict[str, float]] = field(default_factory=dict)
 
     def percentiles(self) -> dict[str, float]:
+        """Return aggregate p20 / p50 / mean over per-document R scores."""
         if not self.per_document:
             return {"p20": 0.0, "p50": 0.0, "mean": 0.0}
         scores = sorted(d.r_score for d in self.per_document.values())
@@ -186,6 +189,15 @@ class RScoreReport:
 
 
 def percentile(sorted_scores: list[float], pct: float) -> float:
+    """Linear-interpolated percentile of a pre-sorted score list.
+
+    Args:
+        sorted_scores: Scores in ascending order.
+        pct: Percentile in [0, 100].
+
+    Returns:
+        The interpolated percentile value, or 0.0 for an empty list.
+    """
     if not sorted_scores:
         return 0.0
     if len(sorted_scores) == 1:
@@ -282,6 +294,7 @@ def score_document(
     gaps_ge3 = [g for g in gaps if (g[1] - g[0]) >= GAP_THRESHOLD]
 
     def covers_gap(fp: tuple[int, int]) -> bool:
+        """Return True if a false-positive half-open run covers any large gap."""
         return any(fp[0] <= g[0] and fp[1] >= g[1] for g in gaps_ge3)
 
     fp_scores = [
