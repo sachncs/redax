@@ -62,6 +62,13 @@ def register_request_context(app: FastAPI) -> None:
     async def request_context(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
+        """Bind a per-request id, echo it on the response, and emit one access log line.
+
+        The X-Request-ID header is reused if the client sent one; otherwise
+        a server-side hex id is generated. The id is bound into the
+        structlog context for the lifetime of the request so every
+        structured log line carries it.
+        """
         request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
         structlog.contextvars.bind_contextvars(request_id=request_id)
         start = time.perf_counter()
