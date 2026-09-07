@@ -86,6 +86,7 @@ class Settings(BaseSettings):
     otlp_endpoint: str | None = None
 
     def api_key_set(self) -> set[str]:
+        """Parse ``api_keys`` (comma-separated) into a deduped set of trimmed keys."""
         return {k.strip() for k in self.api_keys.split(",") if k.strip()}
 
     def verify(self) -> None:
