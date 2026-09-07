@@ -55,15 +55,16 @@ async def test_drops_increment_audit_dropped_metric(tmp_path: Path) -> None:
     backend = FileAudit(str(path), backend_label="file")
     await backend.start()
     backend.queue = asyncio.Queue(maxsize=1)
-    before = _audit_dropped_count(REGISTRY, "file")
+    before = audit_dropped_count(REGISTRY, "file")
     for _ in range(5):
         await backend.record(Event(request_id="x", ts="t", policy_version="p", text_chars=0))
-    after = _audit_dropped_count(REGISTRY, "file")
+    after = audit_dropped_count(REGISTRY, "file")
     assert after >= before + 1
     await backend.stop()
 
 
-def _audit_dropped_count(registry, backend_label: str) -> float:
+def audit_dropped_count(registry, backend_label: str) -> float:
+    """Read the current value of the redax_audit_dropped_total counter for ``backend_label``."""
     from app.observability.metrics import AUDIT_DROPPED
 
     for metric in AUDIT_DROPPED.collect():
