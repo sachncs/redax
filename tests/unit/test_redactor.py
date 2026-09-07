@@ -7,7 +7,9 @@ from app.redaction.redactor import Redactor
 from app.redaction.strategy import Deid, Mask, Skip
 
 
-class _StubDetector:
+class StubDetector:
+    """Test detector that finds a PERSON span only in the literal text 'Alice!'."""
+
     name = "stub"
 
     async def detect(self, text: str, entity_types: list[str]) -> list[Span]:
@@ -19,7 +21,7 @@ class _StubDetector:
 
 @pytest.mark.asyncio
 async def test_redact_with_no_policy_uses_plain_path() -> None:
-    r = Redactor(detector=_StubDetector(), strategies={"mask": Mask()})
+    r = Redactor(detector=StubDetector(), strategies={"mask": Mask()})
     out = await r.redact("Alice!")
     assert out.text == "[REDACTED]!"
 
@@ -27,10 +29,10 @@ async def test_redact_with_no_policy_uses_plain_path() -> None:
 @pytest.mark.asyncio
 async def test_redact_with_policy_runs_strategies_in_order() -> None:
     r = Redactor(
-        detector=_StubDetector(),
+        detector=StubDetector(),
         strategies={
             "passThrough": Skip(),
-            "autoDeID": Deid(_StubDetector()),
+            "autoDeID": Deid(StubDetector()),
         },
     )
     policy = {
@@ -45,7 +47,7 @@ async def test_redact_with_policy_runs_strategies_in_order() -> None:
 
 @pytest.mark.asyncio
 async def test_redact_with_policy_unknown_strategy_is_skipped() -> None:
-    r = Redactor(detector=_StubDetector(), strategies={"mask": Mask()})
+    r = Redactor(detector=StubDetector(), strategies={"mask": Mask()})
     policy = {"fields": {"x": {"strategy": "doesNotExist"}}}
     out = await r.redact("Alice!", policy=policy)
     assert out.text == "Alice!"
@@ -53,14 +55,16 @@ async def test_redact_with_policy_unknown_strategy_is_skipped() -> None:
 
 @pytest.mark.asyncio
 async def test_redact_with_empty_policy_returns_text() -> None:
-    r = Redactor(detector=_StubDetector(), strategies={"mask": Mask()})
+    r = Redactor(detector=StubDetector(), strategies={"mask": Mask()})
     out = await r.redact("Alice!", policy={})
     assert out.text == "Alice!"
 
 
 @pytest.mark.asyncio
 async def test_redact_with_policy_aggregates_relex_map() -> None:
-    class _MultiDetector:
+    class MultiDetector:
+        """Test detector that always returns PERSON + EMAIL spans."""
+
         name = "multi"
 
         async def detect(self, text, entity_types):
@@ -73,8 +77,8 @@ async def test_redact_with_policy_aggregates_relex_map() -> None:
             return None
 
     r = Redactor(
-        detector=_StubDetector(),
-        strategies={"autoDeID": Deid(_MultiDetector())},
+        detector=StubDetector(),
+        strategies={"autoDeID": Deid(MultiDetector())},
     )
     policy = {"fields": {"name_and_email": {"strategy": "autoDeID", "relex": True}}}
     out = await r.redact("Alice and a@b.c are friends", policy=policy)
@@ -84,7 +88,9 @@ async def test_redact_with_policy_aggregates_relex_map() -> None:
 
 @pytest.mark.asyncio
 async def test_policy_redact_remaps_span_coords_to_original_text() -> None:
-    class _TwoField:
+    class TwoFieldDetector:
+        """Test detector that finds FIRST and SECOND spans based on entity_types filters."""
+
         name = "two"
 
         async def detect(self, text, entity_types):
@@ -101,8 +107,8 @@ async def test_policy_redact_remaps_span_coords_to_original_text() -> None:
             return None
 
     r = Redactor(
-        detector=_TwoField(),
-        strategies={"autoDeID": Deid(_TwoField())},
+        detector=TwoFieldDetector(),
+        strategies={"autoDeID": Deid(TwoFieldDetector())},
     )
     policy = {
         "fields": {
