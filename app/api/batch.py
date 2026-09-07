@@ -26,19 +26,27 @@ from app.state import State, get_state
 
 
 class BatchItem(BaseModel):
+    """One document in a batch redaction request."""
+
     text: str = Field(min_length=1)
     entity_types: list[str] | None = None
 
 
 class BatchRequest(BaseModel):
+    """Top-level batch payload: 1..1000 BatchItem documents."""
+
     items: list[BatchItem] = Field(min_length=1, max_length=1000)
 
 
 class BatchResponse(BaseModel):
+    """Batch redaction response: one result dict per submitted item."""
+
     results: list[dict[str, Any]]
 
 
 def register(app: FastAPI) -> None:
+    """Mount the POST /v1/redact/batch route on ``app``."""
+
     router = APIRouter()
 
     @router.post("/v1/redact/batch", response_model=BatchResponse)
