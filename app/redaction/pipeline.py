@@ -1,10 +1,18 @@
+"""Multi-stage redaction pipeline.
+
+Combines a regex gate, an encoder-backed model stage wrapped in a
+circuit breaker, a consensus fusion step, and a fallback path. The
+class is constructed once in ``app/main.py`` lifespan and invoked per
+request via :meth:`Pipeline.__call__`.
+"""
+
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import time
-from collections.abc import Awaitable, Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from app.inference.detector import Span
 from app.redaction.circuit.breaker import Breaker, OpenError
@@ -29,7 +37,7 @@ class Outcome:
 
 @dataclass(frozen=True)
 class PipelineResult:
-    """Final pipeline output for one `/v1/redact` request."""
+    """Final pipeline output for one ``/v1/redact`` request."""
 
     text: str
     spans: tuple[Span, ...]
@@ -43,27 +51,17 @@ class PipelineResult:
 class Pipeline:
     """Multi-stage redaction pipeline.
 
-    Construct once in `app/main.py` lifespan, then call `__call__` per
-    request. `__call__` is the only public method aside from `stats`.
+    Construct once in ``app/main.py`` lifespan, then call the instance
+    per request. The public surface is :meth:`__call__` and
+    :meth:`stats`; per-stage methods exist so tests can exercise them
+    in isolation but they are not part of the stable API.
     """
 
     regex_gate: Gate
     model_stage: ModelStage
     model_breaker: Breaker
-    stages: list[PipelineStage] = field(default_factory=list)
-
-    def __post_init__(self) -> None:
-        if not self.stages:
-            self.stages = [
-                PipelineStage(name="regex_gate", fn=lambda t: self.regex_gate_stage(t)),
-                PipelineStage(name="model_stage", fn=lambda t: self.model_stage_stage(t, ())),
-                PipelineStage(name="consensus", fn=lambda t: self.consensus_stage(t)),
-                PipelineStage(name="fallback", fn=lambda t: self.fallback_stage(tuple(), False)),
-            ]
 
     async def __call__(self, text: str) -> PipelineResult:
-        import hashlib
-
         if not isinstance(text, str):
             raise TypeError("text must be str")
 
@@ -155,9 +153,3 @@ class Pipeline:
             "model_detector": self.model_stage.detector.name,
             "model_breaker": self.model_breaker.report(),
         }
-
-
-@dataclass(frozen=True)
-class PipelineStage:
-    name: str
-    fn: Callable[[str], Awaitable[Outcome] | Outcome]
