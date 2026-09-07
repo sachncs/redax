@@ -157,4 +157,37 @@ List the policies shipped in `policies/`.
 |---|---|
 | `GET /healthz` | Process liveness, always 200 |
 | `GET /readyz` | Redactor initialized; 200 or 503 `application/problem+json` |
+| `GET /v1/stats` | Operator introspection: detector names, audit backend, pipeline stats, breaker state. API-key-gated. |
 | `GET /metrics` | Prometheus exposition format |
+
+## GET /v1/stats
+
+Operator-facing snapshot of the live wiring. Requires `X-API-Key` when
+`REDAX_API_KEYS` is set. Always JSON, never a problem-details body.
+
+```json
+{
+  "ready": true,
+  "redactor": "[REDACTED]",
+  "detector": "gliner2",
+  "regex_detector": "regex",
+  "audit_backend": "FileAudit",
+  "redis_enabled": true,
+  "pipeline": {
+    "regex_detector": "regex",
+    "model_detector": "gliner2",
+    "model_breaker": {
+      "state": "closed",
+      "consecutive_failures": 0,
+      "opened_at": null,
+      "probes_in_flight": 0,
+      "total_calls": 42,
+      "total_failures": 0
+    }
+  }
+}
+```
+
+The endpoint is read-only and never mutates state. Use it from a
+dashboard or a synthetic-monitor script to alert on `model_breaker.state
+== "open"` or `redis_enabled == false`.

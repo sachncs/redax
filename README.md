@@ -45,6 +45,7 @@ def chat(user_message, system=None):
 | `POST /v1/redact/stream` | SSE/NDJSON streaming |
 | `POST /v1/jobs` + `GET /v1/jobs/{id}` | Async, large workloads |
 | `GET /v1/policies` | List built-in policies |
+| `GET /v1/stats` | Operator snapshot: detectors, pipeline, breaker state |
 | `GET /healthz` `/readyz` `/metrics` | Health, readiness, Prometheus |
 
 ## Documentation
