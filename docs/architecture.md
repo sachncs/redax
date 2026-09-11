@@ -56,9 +56,9 @@ all of them.
 | `app/observability/` | Prometheus + OpenTelemetry |
 | `app/api/` | HTTP route modules (one registration function each) |
 | `app/inference/detector.py` | `Span` dataclass + `Detector` Protocol |
-| `app/inference/regex_detector.py` | Regex rules + Luhn checksum |
+| `app/inference/regex.py` | Regex rules + Luhn checksum |
 | `app/inference/gliner2.py` | GLiNER2 zero-shot NER |
-| `app/inference/multi_pass.py` | Run detector N times, union results |
+| `app/inference/multipass.py` | Run detector N times, union results |
 | `app/redaction/redactor.py` | Orchestrator: detect + validate + dedupe + substitute |
 | `app/redaction/strategy.py` | 5 strategies implementing the `Strategy` Protocol |
 | `app/redaction/apply.py` | `apply_spans`, `dedupe_overlaps` |
