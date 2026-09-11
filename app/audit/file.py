@@ -13,14 +13,14 @@ startup.
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import json
 import os
 from datetime import UTC, datetime
 from pathlib import Path
 
 from app.audit.backend import Event, event_to_dict
-from app.observability import AUDIT_DROPPED
+from app.logging import get_logger
+from app.observability import AUDIT_DROPPED, AUDIT_UNINITIALISED, AUDIT_WRITE_FAILED
 
 
 class FileAudit:
@@ -95,6 +95,10 @@ class FileAudit:
             event: The audit event to persist.
         """
         if self.queue is None:
+            AUDIT_UNINITIALISED.labels(backend=self.backend_label).inc()
+            get_logger("redax.audit").warning(
+                "redax.audit_uninitialised", backend=self.backend_label
+            )
             return
         try:
             self.queue.put_nowait(event)
@@ -105,13 +109,14 @@ class FileAudit:
     async def drain(self) -> None:
         """Drain queued events to disk until a sentinel arrives."""
         assert self.queue is not None and self.loop is not None
+        log = get_logger("redax.audit")
         loop = self.loop
         while True:
             item = await self.queue.get()
             if item is SENTINEL:
                 return
             line = json.dumps(event_to_dict(with_timestamp(item))) + "\n"
-            with contextlib.suppress(Exception):
+            try:
                 await loop.run_in_executor(
                     None,
                     append_line,
@@ -121,6 +126,13 @@ class FileAudit:
                     self.max_bytes,
                     self.rotation_backups,
                 )
+            except (OSError, RuntimeError, ValueError) as exc:
+                log.warning(
+                    "redax.audit_write_failed",
+                    backend=self.backend_label,
+                    error=exc.__class__.__name__,
+                )
+                AUDIT_WRITE_FAILED.labels(backend=self.backend_label).inc()
 
 
 SENTINEL: Event = Event(request_id="", ts="", policy_version="", text_chars=0)
