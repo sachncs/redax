@@ -100,7 +100,7 @@ def app_with_state():
     test_state.settings = type(
         "S",
         (),
-        {"max_text_chars": 100_000, "api_key_set": lambda self: set()},
+        {"max_text_chars": 100_000, "api_key_set": lambda self: {"test-key"}},
     )()
     test_state.redactor = Redactor(
         detector=StubDetector(),
@@ -126,8 +126,7 @@ def test_batch_returns_results_for_each_item(app_with_state):
     with TestClient(app_with_state) as client:
         resp = client.post(
             "/v1/redact/batch",
-            json={"items": [{"text": "hi a@b.com"}, {"text": "nothing"}]},
-        )
+            json={"items": [{"text": "hi a@b.com"}, {"text": "nothing"}]}, headers={"X-API-Key": "test-key"})
     assert resp.status_code == 200
     body = resp.json()
     assert len(body["results"]) == 2
@@ -138,8 +137,7 @@ def test_stream_emits_events(app_with_state):
     with TestClient(app_with_state) as client:
         resp = client.post(
             "/v1/redact/stream",
-            json={"text": "x" * 5000, "chunk_chars": 1000},
-        )
+            json={"text": "x" * 5000, "chunk_chars": 1000}, headers={"X-API-Key": "test-key"})
         assert resp.status_code == 200
         chunks = list(resp.iter_lines())
     assert any("[DONE]" in c for c in chunks)
@@ -165,8 +163,7 @@ def test_stream_records_end_to_end_request_latency(app_with_state):
     with TestClient(app_with_state) as client:
         resp = client.post(
             "/v1/redact/stream",
-            json={"text": "x" * 5000, "chunk_chars": 1000},
-        )
+            json={"text": "x" * 5000, "chunk_chars": 1000}, headers={"X-API-Key": "test-key"})
         assert resp.status_code == 200
         for _ in resp.iter_lines():
             pass
@@ -177,7 +174,7 @@ def test_stream_records_end_to_end_request_latency(app_with_state):
 
 def test_job_lifecycle(app_with_state):
     with TestClient(app_with_state) as client:
-        sub = client.post("/v1/jobs", json={"text": "hi a@b.com"})
+        sub = client.post("/v1/jobs", json={"text": "hi a@b.com"}, headers={"X-API-Key": "test-key"})
         assert sub.status_code == 202
         job_id = sub.json()["id"]
         deadline = 5.0
@@ -185,11 +182,11 @@ def test_job_lifecycle(app_with_state):
 
         start = time.time()
         while time.time() - start < deadline:
-            r = client.get(f"/v1/jobs/{job_id}")
+            r = client.get(f"/v1/jobs/{job_id}", headers={"X-API-Key": "test-key"})
             if r.json()["status"] == "done":
                 break
             time.sleep(0.05)
-        body = client.get(f"/v1/jobs/{job_id}").json()
+        body = client.get(f"/v1/jobs/{job_id}", headers={"X-API-Key": "test-key"}).json()
     assert body["status"] == "done"
     assert body["result"]["text"] == "hi [REDACTED]"
 
@@ -198,7 +195,7 @@ def test_job_lifecycle(app_with_state):
 def app_with_no_redactor():
     test_state = State()
     test_state.settings = type(
-        "S", (), {"max_text_chars": 1000, "api_key_set": lambda self: set()}
+        "S", (), {"max_text_chars": 1000, "api_key_set": lambda self: {"test-key"}}
     )()
     test_state.job_store = InMemoryJobStore()
     test_state.ready = True
@@ -212,8 +209,7 @@ def test_batch_records_audited_entity_summary(app_with_state):
     with TestClient(app_with_state) as client:
         resp = client.post(
             "/v1/redact/batch",
-            json={"items": [{"text": "hi a@b.com"}, {"text": "nothing"}]},
-        )
+            json={"items": [{"text": "hi a@b.com"}, {"text": "nothing"}]}, headers={"X-API-Key": "test-key"})
     assert resp.status_code == 200
     audit = app_with_state.state.state.audit
     assert len(audit.records) == 1
@@ -224,7 +220,7 @@ def test_batch_records_audited_entity_summary(app_with_state):
 
 def test_stream_records_audited_entity_summary(app_with_state):
     with TestClient(app_with_state) as client:
-        resp = client.post("/v1/redact/stream", json={"text": "x" * 5000, "chunk_chars": 1000})
+        resp = client.post("/v1/redact/stream", json={"text": "x" * 5000, "chunk_chars": 1000}, headers={"X-API-Key": "test-key"})
         assert resp.status_code == 200
         for _ in resp.iter_lines():
             pass
@@ -251,7 +247,7 @@ class SlowDetector(StubDetector):
 def app_with_slow_redactor():
     test_state = State()
     test_state.settings = type(
-        "S", (), {"max_text_chars": 100_000, "api_key_set": lambda self: set()}
+        "S", (), {"max_text_chars": 100_000, "api_key_set": lambda self: {"test-key"}}
     )()
     test_state.redactor = Redactor(detector=SlowDetector(), strategies={})
     test_state.job_store = InMemoryJobStore()
@@ -268,7 +264,7 @@ def test_queue_depth_tracks_in_flight_job_and_returns_to_zero(app_with_slow_reda
 
     SlowDetector.seen.clear()
     with TestClient(app_with_slow_redactor) as client:
-        sub = client.post("/v1/jobs", json={"text": "hi a@b.com"})
+        sub = client.post("/v1/jobs", json={"text": "hi a@b.com"}, headers={"X-API-Key": "test-key"})
         assert sub.status_code == 202
         job_id = sub.json()["id"]
         deadline = 5.0
@@ -276,7 +272,7 @@ def test_queue_depth_tracks_in_flight_job_and_returns_to_zero(app_with_slow_reda
 
         start = time.time()
         while time.time() - start < deadline:
-            body = client.get(f"/v1/jobs/{job_id}").json()
+            body = client.get(f"/v1/jobs/{job_id}", headers={"X-API-Key": "test-key"}).json()
             if body["status"] == "done":
                 break
             time.sleep(0.05)
@@ -288,7 +284,7 @@ def test_queue_depth_tracks_in_flight_job_and_returns_to_zero(app_with_slow_reda
 
 def test_job_records_audited_entity_summary(app_with_state):
     with TestClient(app_with_state) as client:
-        sub = client.post("/v1/jobs", json={"text": "hi a@b.com"})
+        sub = client.post("/v1/jobs", json={"text": "hi a@b.com"}, headers={"X-API-Key": "test-key"})
         assert sub.status_code == 202
         job_id = sub.json()["id"]
         deadline = 5.0
@@ -296,7 +292,7 @@ def test_job_records_audited_entity_summary(app_with_state):
 
         start = time.time()
         while time.time() - start < deadline:
-            body = client.get(f"/v1/jobs/{job_id}").json()
+            body = client.get(f"/v1/jobs/{job_id}", headers={"X-API-Key": "test-key"}).json()
             if body["status"] == "done":
                 break
             time.sleep(0.05)
@@ -310,7 +306,7 @@ def test_job_records_audited_entity_summary(app_with_state):
 
 def test_job_not_found(app_with_state):
     with TestClient(app_with_state) as client:
-        r = client.get("/v1/jobs/does-not-exist")
+        r = client.get("/v1/jobs/does-not-exist", headers={"X-API-Key": "test-key"})
     assert r.status_code == 404
     assert r.headers["content-type"].startswith("application/problem+json")
     body = r.json()
@@ -320,7 +316,7 @@ def test_job_not_found(app_with_state):
 
 def test_failed_job_does_not_leak_internal_error(app_with_no_redactor):
     with TestClient(app_with_no_redactor) as client:
-        sub = client.post("/v1/jobs", json={"text": "hi a@b.com"})
+        sub = client.post("/v1/jobs", json={"text": "hi a@b.com"}, headers={"X-API-Key": "test-key"})
         assert sub.status_code == 202
         job_id = sub.json()["id"]
         deadline = 5.0
@@ -328,7 +324,7 @@ def test_failed_job_does_not_leak_internal_error(app_with_no_redactor):
 
         start = time.time()
         while time.time() - start < deadline:
-            r = client.get(f"/v1/jobs/{job_id}")
+            r = client.get(f"/v1/jobs/{job_id}", headers={"X-API-Key": "test-key"})
             body = r.json()
             if body["status"] == "failed":
                 break
@@ -345,7 +341,7 @@ def app_with_max_inflight():
         (),
         {
             "max_text_chars": 100_000,
-            "api_key_set": lambda self: set(),
+            "api_key_set": lambda self: {"test-key"},
             "max_inflight": 1,
         },
     )()
@@ -365,7 +361,7 @@ def test_job_submission_rejected_when_inflight_full(app_with_max_inflight):
     QUEUE_DEPTH.set(1.0)
     try:
         with TestClient(app_with_max_inflight) as client:
-            resp = client.post("/v1/jobs", json={"text": "more text"})
+            resp = client.post("/v1/jobs", json={"text": "more text"}, headers={"X-API-Key": "test-key"})
     finally:
         QUEUE_DEPTH.set(0.0)
     assert resp.status_code == 429
@@ -414,7 +410,7 @@ def app_with_short_job_timeout():
         (),
         {
             "max_text_chars": 100_000,
-            "api_key_set": lambda self: set(),
+            "api_key_set": lambda self: {"test-key"},
             "request_timeout_seconds": 0.05,
         },
     )()
@@ -443,7 +439,7 @@ def test_job_times_out_and_fails_with_job_timeout_error(app_with_short_job_timeo
 
     before = job_timeout_count()
     with TestClient(app_with_short_job_timeout) as client:
-        sub = client.post("/v1/jobs", json={"text": "hi a@b.com"})
+        sub = client.post("/v1/jobs", json={"text": "hi a@b.com"}, headers={"X-API-Key": "test-key"})
         assert sub.status_code == 202
         job_id = sub.json()["id"]
         deadline = 5.0
@@ -451,7 +447,7 @@ def test_job_times_out_and_fails_with_job_timeout_error(app_with_short_job_timeo
 
         start = time.time()
         while time.time() - start < deadline:
-            r = client.get(f"/v1/jobs/{job_id}")
+            r = client.get(f"/v1/jobs/{job_id}", headers={"X-API-Key": "test-key"})
             body = r.json()
             if body["status"] == "failed":
                 break

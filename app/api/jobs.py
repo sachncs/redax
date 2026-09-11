@@ -70,6 +70,18 @@ def register(app: FastAPI) -> None:
             if len(body.text) > max_chars:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="413").inc()
                 return payload_too_large(request, f"text exceeds {max_chars} chars")
+            if api_key == "anonymous":
+                REQUESTS.labels(endpoint=endpoint, method=method, status="401").inc()
+                return problem_response(
+                    request,
+                    type="https://redax.ai/errors/anonymous-jobs",
+                    title="Anonymous Jobs Disabled",
+                    status=401,
+                    detail=(
+                        "/v1/jobs requires authentication; configure REDAX_API_KEYS "
+                        "and pass the matching X-API-Key header."
+                    ),
+                )
             store: JobStore | None = state.job_store
             if store is None:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
