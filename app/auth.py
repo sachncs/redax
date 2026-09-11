@@ -45,4 +45,4 @@ def require_api_key(
     return x_api_key
 
 
-__all__ = ["Depends", "require_api_key"]
+__all__ = ["require_api_key"]
