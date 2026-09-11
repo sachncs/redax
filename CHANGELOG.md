@@ -10,6 +10,15 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 - **`LICENSE` file** at the repo root, Apache 2.0 boilerplate, copyright line `Copyright 2026 sachin <sachncs@gmail.com>`. The license is the same one declared in `pyproject.toml`; the file makes the license text shippable on the GHCR image and PyPI wheel.
 
+### Documentation
+
+- **M11 audit report — 107 findings.** The audit pass labelled
+  every issue [`audit/M11`](#) on GitHub (issues #1 through #108);
+  see `gh issue list --label audit/M11` or browse the issues
+  online via the GitHub UI sidebar. Each finding either closes
+  itself by the fix described in the issue body or is tracked as
+  a follow-up in the next milestone.
+
 ### Changed
 
 - **`README.md` rewritten** with a centered header + project tagline
