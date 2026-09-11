@@ -107,7 +107,6 @@ class GLiNER2Detector:
         """
         if self.model is not None:
             return
-        os.environ.setdefault("HF_HOME", str(self.model_cache))
         self.model_cache.mkdir(parents=True, exist_ok=True)
         if self.semaphore is None:
             self.semaphore = asyncio.Semaphore(self.concurrency)
