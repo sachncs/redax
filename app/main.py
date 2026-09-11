@@ -75,15 +75,17 @@ async def build_state(settings: Settings) -> State:
             await gliner2.load()
             await gliner2.warmup()
         except (OSError, RuntimeError, ValueError, TimeoutError) as exc:
-            log.error(
+            log.warning(
                 "redax.detector_load_failed",
                 model=settings.model_name,
                 revision=settings.model_revision,
                 error=exc.__class__.__name__,
             )
-            raise
-        detectors.append(gliner2)
-        active: Any = gliner2
+            gliner2 = None
+            active: Any = regex
+        else:
+            detectors.append(gliner2)
+            active = gliner2
     else:
         # REDAX_DETECTOR=regex is the only opt-in for the fallback path.
         active = regex
