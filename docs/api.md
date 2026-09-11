@@ -68,6 +68,14 @@ records `used_fallback=true` when the model stage's circuit breaker is
 open. `digest` is a SHA-256 of the input text for log correlation;
 the audit log records the hash but never the text itself.
 
+**Note on response shape asymmetry.** The legacy `Redactor` path
+populates `relex_map` from the matched strategy (e.g. the
+`autoDeID` strategy emits `[TYPE_NNNN]` placeholders, the `mask`
+strategy leaves it empty). The `use_pipeline=true` path always
+returns `relex_map = {}` because the multi-stage pipeline does not
+yet apply policy strategies; it is a span-fusion surface only.
+Callers that need relex should leave `use_pipeline` unset.
+
 **Errors**: 413 (oversize), 422 (validation), 429 (rate-limited), 503 (not ready), 504 (timeout).
 
 **Headers honored**: `X-API-Key`, `Idempotency-Key`.
