@@ -98,6 +98,27 @@ adheres to [Semantic Versioning](https://semver.org/).
   The pipeline ran the stages inline in `__call__`; the indirection
   through `self.stages` was never executed. The dead code is gone.
 
+### Removed (post-0.1.0 — M11 #142, #143, #144)
+
+- `Settings.relex_cache_size` (declared but never read).
+- `app.errors.bad_request`, `app.errors.unauthorized`,
+  `app.errors.rate_limited` legacy shims. Use `problem_response()`
+  with explicit `type=...` URLs.
+- `OPENMED_SHA256_MANIFEST_KEY` constant (`scripts/download_models.py`
+  now hashes the snapshot directory itself, not a stored manifest).
+- `JobStore.build_default_store` classmethod; use `JobStore(...)`
+  followed by `await store.start()`.
+- `Pipeline.consensus_stage` field (the consensus step now runs
+  inline in `Pipeline.__call__`).
+- `Gate.default` classmethod and the matching module-level
+  `DEFAULT_GATE` constant.
+- `fused_entity_groups(target_red=...)` parameter on
+  `app.bench.fusion.fuse` (always-on keyword removed for the
+  simpler `target_red` default).
+- `is_connector_marker` module-level function in `app.redaction.relex`
+  (now folded into `Deid`).
+- `RENAME_MAP.md` (rename history was already captured in git).
+
 ### Added (carried over from prior unreleased work)
 
 - `app/bench` package: RedactionBench R-Score metric and combinator
