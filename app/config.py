@@ -96,15 +96,20 @@ class Settings(BaseSettings):
         run silently. Covers the secrets guard and downgrade-sensitive
         settings.
         """
+        defaults = {"change-me", "dev-key"}
+        if self.hash_salt in defaults:
+            raise ValueError(
+                "REDAX_HASH_SALT must not use a default value; "
+                "the placeholder (change-me) seeds the hash strategy and "
+                "cache key and is unsafe regardless of REDAX_API_KEYS."
+            )
         keys = self.api_key_set()
-        if keys:
-            defaults = {"change-me", "dev-key"}
-            if self.hash_salt in defaults or (keys & defaults):
-                raise ValueError(
-                    "REDAX_HASH_SALT and REDAX_API_KEYS must be real secrets; "
-                    "the defaults (change-me/dev-key) are refused when "
-                    "authentication is enabled."
-                )
+        if keys and (keys & defaults):
+            raise ValueError(
+                "REDAX_API_KEYS must not use a default value; "
+                "the placeholders (change-me/dev-key) are refused when "
+                "authentication is enabled."
+            )
         if "REDAX_JWT_SECRET" in os.environ:
             raise ValueError(
                 "REDAX_JWT_SECRET no longer exists; remove it from the "
