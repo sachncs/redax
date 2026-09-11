@@ -116,7 +116,7 @@ def register(app: FastAPI) -> None:
                         _LOG_CACHE_SKIPPED("idempotency")
                     else:
                         idem_raw = await job_store.client.get(
-                            f"redax:idem:{x_idempotency_key}"
+                            f"{getattr(settings, "redis_namespace", "redax")}:idem:{x_idempotency_key}"
                         )
                         if idem_raw:
                             CACHE_HITS.labels(cache="idempotency").inc()
@@ -137,7 +137,9 @@ def register(app: FastAPI) -> None:
                 if job_store is None:
                     _LOG_CACHE_SKIPPED("response")
                 else:
-                    cache_raw = await job_store.client.get(f"redax:cache:{cache_key}")
+                    cache_raw = await job_store.client.get(
+                        f"{getattr(settings, "redis_namespace", "redax")}:cache:{cache_key}"
+                    )
                     if cache_raw:
                         CACHE_HITS.labels(cache="response").inc()
                         REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
@@ -189,12 +191,12 @@ def register(app: FastAPI) -> None:
                 ttl = getattr(settings, "cache_ttl_seconds", 3600)
                 if job_store is not None:
                     await job_store.client.set(
-                        f"redax:cache:{cache_key}", json.dumps(response_body), ex=ttl
+                        f"{getattr(settings, "redis_namespace", "redax")}:cache:{cache_key}", json.dumps(response_body), ex=ttl
                     )
                     if x_idempotency_key:
                         idem_ttl = getattr(settings, "idempotency_ttl_seconds", 86_400)
                         await job_store.client.set(
-                            f"redax:idem:{x_idempotency_key}",
+                            f"{getattr(settings, "redis_namespace", "redax")}:idem:{x_idempotency_key}",
                             json.dumps(response_body),
                             ex=idem_ttl,
                         )
