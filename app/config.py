@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
     env: Literal["dev", "prod"] = "prod"
+    redis_namespace: str = "redax"
 
     redis_url: str = "redis://localhost:6379/0"
     service_name: str = "redax"
@@ -88,6 +89,20 @@ class Settings(BaseSettings):
     def api_key_set(self) -> set[str]:
         """Parse ``api_keys`` (comma-separated) into a deduped set of trimmed keys."""
         return {k.strip() for k in self.api_keys.split(",") if k.strip()}
+
+    def redis_prefix(self) -> str:
+        """Return the Redis key prefix for this deployment.
+
+        Default ``"redax"`` matches the historical key layout
+        (``redax:cache:...``, ``redax:jobs:...``). Operators sharing
+        one Redis between deployments should set
+        ``REDAX_REDIS_NAMESPACE`` to a unique tag (e.g.
+        ``"redax-prod-acme"``); every cache, idempotency, rate-limit,
+        and job key is then namespaced as
+        ``{namespace}:cache:...`` so two deployments cannot collide.
+        """
+        ns = self.redis_namespace.strip() or "redax"
+        return ns
 
     def verify(self) -> None:
         """Fail loudly on configuration that would undermine safety.

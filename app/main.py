@@ -117,7 +117,11 @@ async def build_state(settings: Settings) -> State:
             ),
         )
 
-    store = JobStore(settings.redis_url, ttl_seconds=settings.job_ttl_seconds)
+    store = JobStore(
+    settings.redis_url,
+    ttl_seconds=settings.job_ttl_seconds,
+    namespace=settings.redis_namespace,
+)
     try:
         await store.start()
         job_store: JobStore | None = store

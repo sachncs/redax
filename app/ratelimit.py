@@ -62,7 +62,7 @@ async def rate_limit(api_key: str, state: State) -> str:
         if fail_open:
             return api_key
         raise RateLimitUnavailable()
-    bucket = f"redax:rl:{api_key}:{minute_bucket()}"
+    bucket = f"{getattr(settings, 'redis_namespace', 'redax')}:rl:{api_key}:{minute_bucket()}"
     client = job_store.client
     try:
         count = await client.incr(bucket)
