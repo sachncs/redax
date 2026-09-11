@@ -178,7 +178,7 @@ adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - The existing `/v1/redact` route now records audit events with
-  `model_hash` populated (when the pipeline ran the model stage),
+  `model_name` populated (when the pipeline ran the model stage),
   falls back to regex-only output if the model circuit is open,
   and always emits the per-type span summary without the original
   text.

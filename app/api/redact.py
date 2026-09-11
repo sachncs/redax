@@ -214,7 +214,7 @@ def register(app: FastAPI) -> None:
                         inference_ms=inference_ms,
                     )
                     if used_pipeline:
-                        audit_kwargs["model_hash"] = state.detector.name if state.detector else ""
+                        audit_kwargs["model_name"] = state.detector.name if state.detector else ""
                     await audit.record(Event(**audit_kwargs))
 
                 REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()

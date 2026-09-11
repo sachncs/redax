@@ -208,6 +208,6 @@ def with_timestamp(event: Event) -> Event:
         entities_detected=event.entities_detected,
         inference_ms=event.inference_ms,
         redactor_version=event.redactor_version,
-        model_hash=event.model_hash,
+        model_name=event.model_name,
         direction=event.direction,
     )
