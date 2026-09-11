@@ -6,13 +6,12 @@ import time
 
 from fastapi import HTTPException
 
-from app.errors import TRANSIENT_EXC
 from app.logging import get_logger
 from app.observability import RATE_LIMIT_UNAVAILABLE
 from app.state import State
 
 
-class RateLimitUnavailable(RuntimeError):
+class RateLimitUnavailable(RuntimeError):  # noqa: N818 (intentional name, tests reference it)
     """Raised when the rate limiter cannot reach Redis or its backing config is missing.
 
     The global error handler in :mod:`app.errors` translates this
@@ -50,7 +49,6 @@ async def rate_limit(api_key: str, state: State) -> str:
     if api_key == "anonymous":
         return api_key
     settings = state.settings
-    RATE_LIMIT_UNAVAILABLE  # ensure import; counter is incremented on Redis errors below
     if settings is None:
         raise RateLimitUnavailable()
     fail_open = bool(getattr(settings, "rate_limit_fail_open", False))

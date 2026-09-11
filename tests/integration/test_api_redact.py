@@ -273,8 +273,7 @@ def test_redact_without_policy_uses_default_policy(tmp_path):
     policies_dir = tmp_path / "policies"
     policies_dir.mkdir()
     (policies_dir / "default.yaml").write_text(
-        "name: default\nversion: 1.0.0\n"
-        "fields:\n  free_text:\n    strategy: passThrough\n"
+        "name: default\nversion: 1.0.0\nfields:\n  free_text:\n    strategy: passThrough\n"
     )
 
     state = State()

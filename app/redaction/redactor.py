@@ -32,8 +32,10 @@ def compose_remaps(
     Returns:
         A new callable that applies ``newer`` then ``older``.
     """
+
     def composed(p: int) -> int:
         return older(newer(p))
+
     return composed
 
 

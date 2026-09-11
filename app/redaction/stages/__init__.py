@@ -10,4 +10,4 @@ from app.redaction.stages.fallback import from_regex_only
 from app.redaction.stages.gate import Gate
 from app.redaction.stages.model import ModelStage
 
-__all__ = ["Gate", "ModelStage", "fuse", "from_regex_only"]
+__all__ = ["Gate", "ModelStage", "from_regex_only", "fuse"]

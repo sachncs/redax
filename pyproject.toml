@@ -71,6 +71,7 @@ ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["B", "N"]
+"scripts/*" = ["RUF001"]
 
 [tool.mypy]
 # The newest numpy ships PEP 695 stubs that require a 3.12 mypy target.

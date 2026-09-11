@@ -9,8 +9,6 @@ Run from the repo root:  python scripts/create_m11_issues.py
 
 from __future__ import annotations
 
-import json
-import shlex
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -54,13 +52,13 @@ FINDINGS: list[tuple[int, Finding]] = [
         Finding(
             "major",
             "Redactor.policy assigns a lambda to a public attribute",
-            "`app/redaction/redactor.py:150` carries `remap_to_original = lambda p, f=new_to_current, g=previous: g(f(p))  # noqa: E731`. AGENTS.md explicitly bans \"private helper methods on public classes — make them module-level functions instead.\"",
+            '`app/redaction/redactor.py:150` carries `remap_to_original = lambda p, f=new_to_current, g=previous: g(f(p))  # noqa: E731`. AGENTS.md explicitly bans "private helper methods on public classes — make them module-level functions instead."',
             "- **File:** `app/redaction/redactor.py`\n- **Lines:** `150`",
             "```python\nremap_to_original = lambda p, f=new_to_current, g=previous: g(f(p))  # noqa: E731\n```\nThe lambda is assigned to an instance attribute on `Redactor` (a public class) and exists only to capture two closure variables.",
             "Reading the redactor code requires understanding why `noqa: E731` is silenced and what the lambda captures. New contributors trip over the closure idiom. Tests can't easily swap the remap implementation.",
             "Lift to a module-level `compose_remaps(newer, older) -> Callable[[int], int]` and bind it from `Redactor.policy`. Add a unit test in `tests/unit/test_apply.py` for `compose_remaps`.",
             "- [ ] `Redactor.policy` no longer assigns a lambda.\n- [ ] `compose_remaps` is module-level and unit-tested.\n- [ ] `make verify` green.",
-            "- `app/redaction/redactor.py:121-151`\n- `AGENTS.md` (\"private helper methods on public classes\")",
+            '- `app/redaction/redactor.py:121-151`\n- `AGENTS.md` ("private helper methods on public classes")',
         ),
     ),
     (
@@ -68,11 +66,11 @@ FINDINGS: list[tuple[int, Finding]] = [
         Finding(
             "major",
             "Drop dead SyncDetector / AsyncDetector Protocols in ModelStage",
-            "`SyncDetector` and `AsyncDetector` Protocols are declared in `app/redaction/stages/model.py:19-44` but only one of each is wired into `ModelStage`. AGENTS.md: \"Prefer concrete classes over Protocol unless multiple implementations exist now or are genuinely planned.\"",
+            '`SyncDetector` and `AsyncDetector` Protocols are declared in `app/redaction/stages/model.py:19-44` but only one of each is wired into `ModelStage`. AGENTS.md: "Prefer concrete classes over Protocol unless multiple implementations exist now or are genuinely planned."',
             "- **File:** `app/redaction/stages/model.py`\n- **Lines:** `19-44`",
             "```python\nclass SyncDetector(Protocol):\n    name: str\n    def detect_sync(self, text: str, entity_types: list[str]) -> list[Span]: ...\n\nclass AsyncDetector(Protocol):\n    name: str\n    async def detect(self, text: str, entity_types: list[str]) -> list[Span]: ...\n```\nOnly `OpenMedPIIDetector` implements `detect_sync`; only `RegexDetector` implements async `detect`. The runtime branch is the only consumer.",
             "Per AGENTS.md, Protocols declared without a second implementation are speculative abstraction. They make the module longer and the call site harder to read.",
-            "Type the field as the concrete `Detector` from `app.inference.detector` (or `Any`) and keep the runtime `getattr(detector, \"detect_sync\", None)` fallback. Drop the Protocols.",
+            'Type the field as the concrete `Detector` from `app.inference.detector` (or `Any`) and keep the runtime `getattr(detector, "detect_sync", None)` fallback. Drop the Protocols.',
             "- [ ] `SyncDetector` and `AsyncDetector` deleted.\n- [ ] `ModelStage.detector` annotated as `Detector | Any`.\n- [ ] Existing tests still pass.",
             "- `app/redaction/stages/model.py:19-77`\n- `app/inference/detector.py:30-50` (existing `Detector` Protocol)",
         ),
@@ -99,7 +97,7 @@ FINDINGS: list[tuple[int, Finding]] = [
             "`ConsensusConfig` in `app/redaction/stages/consensus.py:11-23` is a dataclass with one field (`min_model_confidence: float = 0.5`). It is only consumed by `fuse()` itself.",
             "- **File:** `app/redaction/stages/consensus.py`\n- **Lines:** `11-23, 34`",
             "```python\n@dataclass(frozen=True)\nclass ConsensusConfig:\n    min_model_confidence: float = 0.5\n\nDEFAULT_CONSENSUS_CONFIG = ConsensusConfig()\n\ndef fuse(regex_spans, model_spans, config: ConsensusConfig = DEFAULT_CONSENSUS_CONFIG): ...\n```",
-            "A one-field dataclass with a module-level default is ceremony. Adding fields speculatively is the AGENTS.md \"just in case\" anti-pattern.",
+            'A one-field dataclass with a module-level default is ceremony. Adding fields speculatively is the AGENTS.md "just in case" anti-pattern.',
             "Inline `min_model_confidence: float = 0.5` as a kwarg on `fuse()`. Drop the dataclass and the module-level default.",
             "- [ ] `ConsensusConfig` and `DEFAULT_CONSENSUS_CONFIG` deleted.\n- [ ] `fuse(..., min_model_confidence: float = 0.5)`.\n- [ ] `tests/unit/test_pipeline_stages.py` updated.",
             "- `app/redaction/stages/consensus.py:11-66`",
@@ -110,11 +108,11 @@ FINDINGS: list[tuple[int, Finding]] = [
         Finding(
             "major",
             "Settings.default_policy is dead config",
-            "`app/config.py:50` declares `default_policy: str = \"default\"` but no production code reads it (only `tests/unit/test_smoke.py:16` asserts the default).",
+            '`app/config.py:50` declares `default_policy: str = "default"` but no production code reads it (only `tests/unit/test_smoke.py:16` asserts the default).',
             "- **File:** `app/config.py`\n- **Lines:** `50`",
-            "```python\ndefault_policy: str = \"default\"\n```\nGrep confirms zero read sites outside the smoke test.",
+            '```python\ndefault_policy: str = "default"\n```\nGrep confirms zero read sites outside the smoke test.',
             "Operators reading `Settings()` expect the field to mean something. Carrying a dead knob trains contributors to ignore settings, and the YAML in `policies/default.yaml` is never loaded as the default.",
-            "Either wire it: in `app/main.py` lifespan, look up `load_policy(settings.policies_dir / f\"{settings.default_policy}.yaml\")` and pass the resolved field map into a default `Redactor`. Or delete the field.",
+            'Either wire it: in `app/main.py` lifespan, look up `load_policy(settings.policies_dir / f"{settings.default_policy}.yaml")` and pass the resolved field map into a default `Redactor`. Or delete the field.',
             "- [ ] `default_policy` is either wired or removed.\n- [ ] `policies/default.yaml` is loaded as the default if wired.\n- [ ] `make verify` green.",
             "- `app/config.py:50`\n- `app/redaction/policies.py:23-40`\n- `policies/default.yaml`",
         ),
@@ -152,12 +150,12 @@ FINDINGS: list[tuple[int, Finding]] = [
         Finding(
             "nit",
             "app/auth.py __all__ re-exports Depends from stdlib",
-            "`app/auth.py:48` declares `__all__ = [\"Depends\", \"require_api_key\"]`. `Depends` is a FastAPI symbol; nobody imports it through `app.auth`.",
+            '`app/auth.py:48` declares `__all__ = ["Depends", "require_api_key"]`. `Depends` is a FastAPI symbol; nobody imports it through `app.auth`.',
             "- **File:** `app/auth.py`\n- **Lines:** `48`",
-            "```python\n__all__ = [\"Depends\", \"require_api_key\"]\n```",
+            '```python\n__all__ = ["Depends", "require_api_key"]\n```',
             "Pollutes the public namespace; star-imports pull a stdlib name.",
             "Drop `Depends` from `__all__`.",
-            "- [ ] `__all__ = [\"require_api_key\"]`.",
+            '- [ ] `__all__ = ["require_api_key"]`.',
             "- `app/auth.py:1-48`",
         ),
     ),
@@ -179,11 +177,11 @@ FINDINGS: list[tuple[int, Finding]] = [
         Finding(
             "major",
             "Duplicated request-id plumbing across every route handler",
-            "`app/api/redact.py:69`, `app/api/batch.py:63`, `app/api/stream.py:70`, `app/api/jobs.py:56` each run `request.headers.get(\"X-Request-ID\") or uuid.uuid4().hex` even though `app/middleware.py:72-79` already binds the id into structlog context.",
+            '`app/api/redact.py:69`, `app/api/batch.py:63`, `app/api/stream.py:70`, `app/api/jobs.py:56` each run `request.headers.get("X-Request-ID") or uuid.uuid4().hex` even though `app/middleware.py:72-79` already binds the id into structlog context.',
             "- **File:** `app/api/redact.py`, `app/api/batch.py`, `app/api/stream.py`, `app/api/jobs.py`\n- **Lines:** `redact.py:69`, `batch.py:63`, `stream.py:70`, `jobs.py:56`",
             "Same expression in four files; bypasses the structlog context that the middleware already populated.",
             "Two ways to read the same id; easy to drift (e.g. fallback uuid semantics).",
-            "Add a `Depends(get_request_id)` provider in `app/middleware.py` that reads `structlog.contextvars.get_contextvars()[\"request_id\"]` and injects into handlers.",
+            'Add a `Depends(get_request_id)` provider in `app/middleware.py` that reads `structlog.contextvars.get_contextvars()["request_id"]` and injects into handlers.',
             "- [ ] All four routes use the dependency.\n- [ ] Middleware remains the only place the fallback UUID is minted.\n- [ ] Existing tests pass.",
             "- `app/middleware.py:72-89`\n- `app/api/redact.py:69`, `batch.py:63`, `stream.py:70`, `jobs.py:56`",
         ),
@@ -248,7 +246,7 @@ FINDINGS: list[tuple[int, Finding]] = [
         Finding(
             "minor",
             "audit_event.model_hash writes the detector name, not a hash",
-            "`app/api/redact.py:183` sets `audit_kwargs[\"model_hash\"] = state.detector.name if state.detector else \"\"`. The detector `name` (e.g. `\"gliner2\"`) is not a SHA-256.",
+            '`app/api/redact.py:183` sets `audit_kwargs["model_hash"] = state.detector.name if state.detector else ""`. The detector `name` (e.g. `"gliner2"`) is not a SHA-256.',
             "- **File:** `app/api/redact.py`\n- **Lines:** `183`",
             "Audit records claim a `model_hash` but contain a label. Downstream auditors checking the pinned model can't reconstruct.",
             "Either rename the field to `model_name`, or compute the SHA-256 via `app/integrity.py:snapshot_digest(...)` on the model cache and persist that.",
@@ -293,7 +291,7 @@ FINDINGS: list[tuple[int, Finding]] = [
             "Only the penalty branch (`(0, 1-cov)`) is unit-tested.",
             "If `fuse` ever changes to drop yellow spans unconditionally when there are no regex hits, the bench R-Score would silently change without a unit test catching it.",
             "Add a `fuse` test asserting that all-empty-red + non-empty-yellow returns the yellow spans (not `(0,)`).",
-            "- [ ] New test in `tests/unit/test_pipeline_stages.py`.\n- [ ] Comment links to `docs/bench.md` \"contextual-optional\".",
+            '- [ ] New test in `tests/unit/test_pipeline_stages.py`.\n- [ ] Comment links to `docs/bench.md` "contextual-optional".',
             "- `app/redaction/stages/consensus.py:31-66`\n- `tests/unit/test_pipeline_stages.py`",
         ),
     ),
@@ -332,7 +330,7 @@ FINDINGS: list[tuple[int, Finding]] = [
             "- **File:** `app/audit/file.py`\n- **Lines:** `148-151`",
             "Operators who set `REDAX_AUDIT_ROTATION_BACKUPS=0` expect truncation.",
             "Add a test that builds a 1-MiB log, sets `max_bytes=1`, `rotation_backups=0`, and asserts the file is empty after one rotation tick.",
-            "- [ ] New test in `tests/unit/test_audit.py`.\n- [ ] Asserts `path.read_text() == \"\"`.",
+            '- [ ] New test in `tests/unit/test_audit.py`.\n- [ ] Asserts `path.read_text() == ""`.',
             "- `app/audit/file.py:139-156`\n- `tests/unit/test_audit.py`",
         ),
     ),
@@ -408,7 +406,7 @@ FINDINGS: list[tuple[int, Finding]] = [
             "with_seed_signature suffix derivation is untested",
             "`app/redaction/relex.py:89-93` `with_seed_signature(...)` is only hit when `relexicalize` is called with `seed`; no isolated test.",
             "- **File:** `app/redaction/relex.py`, `tests/unit/test_relex.py`\n- **Lines:** `relex.py:89-93`",
-            "The 4-char suffix is documented as \"visibly different\" but never asserted.",
+            'The 4-char suffix is documented as "visibly different" but never asserted.',
             "Add a test that seeds the same placeholder twice with different `seed` values and asserts the suffixes differ.",
             "- [ ] New test in `tests/unit/test_relex.py`.",
             "- `app/redaction/relex.py:89-93`",
@@ -484,7 +482,7 @@ FINDINGS: list[tuple[int, Finding]] = [
         Finding(
             "major",
             "docs/integration.md Python SDK example is fabricated",
-            "`docs/integration.md:7-19` shows `from redax import Redactor`, `Redactor(policy=\"default\")`, and `redactor.redact(user_message)` as sync. None of these match the real API: the package is `app.*`; `Redactor.__init__` takes `(detector, strategies, replacement)`; `redact` is `async def`.",
+            '`docs/integration.md:7-19` shows `from redax import Redactor`, `Redactor(policy="default")`, and `redactor.redact(user_message)` as sync. None of these match the real API: the package is `app.*`; `Redactor.__init__` takes `(detector, strategies, replacement)`; `redact` is `async def`.',
             "- **File:** `docs/integration.md`\n- **Lines:** `7-19`",
             "Users copying the snippet get an ImportError or a TypeError at the first call.",
             "Replace with a working example using `app.redaction.redactor.Redactor`, the real constructor, and `await redactor.redact(...)`.",
@@ -497,10 +495,10 @@ FINDINGS: list[tuple[int, Finding]] = [
         Finding(
             "major",
             "docs/policies.md Python example shows fabricated Redactor(policy=...) constructor",
-            "`docs/policies.md:80-85` shows `Redactor(policy=\"default\")` — the constructor takes `(detector, strategies, replacement)`, not a policy name.",
+            '`docs/policies.md:80-85` shows `Redactor(policy="default")` — the constructor takes `(detector, strategies, replacement)`, not a policy name.',
             "- **File:** `docs/policies.md`\n- **Lines:** `80-85`",
             "Same defect class as #179.",
-            "Replace with `Redactor(detector=..., strategies=..., replacement=...)` plus `await redactor.redact(text, policy=load_policy(\"policies/default.yaml\").fields)`.",
+            'Replace with `Redactor(detector=..., strategies=..., replacement=...)` plus `await redactor.redact(text, policy=load_policy("policies/default.yaml").fields)`.',
             "- [ ] Snippet runs.",
             "- `docs/policies.md:80-85`\n- `app/redaction/redactor.py:46-77`\n- `app/redaction/policies.py:23-40`",
         ),
@@ -510,7 +508,7 @@ FINDINGS: list[tuple[int, Finding]] = [
         Finding(
             "major",
             "Policy format strings do not support {last4} placeholder substitution",
-            "`policies/default.yaml:18-20` and friends use `[CC-{last4}]`, `[ID]`. `Mask.run` and `Regex.run` apply `format` as a literal — `{last4}` is never substituted. Reproduced:\n\n```\ninput:    \"My card is 4532 0151 1283 0366 thanks.\"\npolicy:   {\"fields\": {\"cc\": {\"strategy\": \"regex\", \"format\": \"[CC-{last4}]\", \"entity_types\": [\"CREDIT_CARD\"]}}}\noutput:   \"My card is [CC-{last4}] thanks.\"     # literal {last4}\n```",
+            '`policies/default.yaml:18-20` and friends use `[CC-{last4}]`, `[ID]`. `Mask.run` and `Regex.run` apply `format` as a literal — `{last4}` is never substituted. Reproduced:\n\n```\ninput:    "My card is 4532 0151 1283 0366 thanks."\npolicy:   {"fields": {"cc": {"strategy": "regex", "format": "[CC-{last4}]", "entity_types": ["CREDIT_CARD"]}}}\noutput:   "My card is [CC-{last4}] thanks."     # literal {last4}\n```',
             "- **File:** `policies/*.yaml`, `app/redaction/strategy.py`\n- **Lines:** `strategy.py:73, 147`",
             "Operators believe they get the last four digits; they don't.",
             "Either implement substitution in `Mask.run`/`Regex.run` (use a small template that knows the matched text) or rewrite the YAML to literal strings.",
@@ -539,7 +537,7 @@ FINDINGS: list[tuple[int, Finding]] = [
             "`README.md:348` links to `CONTRIBUTING.md`, line 353 to `CODE_OF_CONDUCT.md`, line 357 to `SECURITY.md`. None exist (verified via `ls`).",
             "- **File:** `README.md`\n- **Lines:** `348, 353, 357`",
             "Users following the link get a 404 from GitHub.",
-            "Either commit minimal versions of each (Apache-2.0 boilerplate + 5-line \"how to contribute / how to report\"), or remove the three sections from `README.md`.",
+            'Either commit minimal versions of each (Apache-2.0 boilerplate + 5-line "how to contribute / how to report"), or remove the three sections from `README.md`.',
             "- [ ] Either three files exist or the three sections are deleted.",
             "- `README.md:348-360`",
         ),
@@ -591,7 +589,7 @@ FINDINGS: list[tuple[int, Finding]] = [
             "`docs/bench.md` describes Algorithm-2 but never links to `app/bench/fusion.py` (the source).",
             "- **File:** `docs/bench.md`\n- **Lines:** `75-80`",
             "Trivial.",
-            "Add a \"Source\" section with relative link to `app/bench/fusion.py`.",
+            'Add a "Source" section with relative link to `app/bench/fusion.py`.',
             "- [ ] Link present.",
             "- `docs/bench.md`",
         ),
@@ -601,7 +599,7 @@ FINDINGS: list[tuple[int, Finding]] = [
         Finding(
             "major",
             ".github/workflows/ci.yml installs via pip install -e .[dev], not requirements.lock",
-            "`ci.yml:21` runs `pip install -e \".[dev]\"`. The Dockerfile installs from `requirements.lock` and `AGENTS.md` requires the lockfile. CI is free to pick a different resolver.",
+            '`ci.yml:21` runs `pip install -e ".[dev]"`. The Dockerfile installs from `requirements.lock` and `AGENTS.md` requires the lockfile. CI is free to pick a different resolver.',
             "- **File:** `.github/workflows/ci.yml`\n- **Lines:** `21`",
             "Bit-for-bit reproducibility claim from `Dockerfile:8` is broken in CI.",
             "Replace with `pip install -r requirements.lock && pip install -e . --no-deps`.",
@@ -640,7 +638,7 @@ FINDINGS: list[tuple[int, Finding]] = [
         Finding(
             "major",
             "Dockerfile pre-downloads OpenMed snapshot while REDAX_DETECTOR defaults to gliner2",
-            "`Dockerfile:32-35` runs `python scripts/download_models.py --model OpenMed/... --revision df7af994...` at build time. `Settings.detector` defaults to `Literal[\"gliner2\", \"regex\"]` (`app/config.py:43`) with default `\"gliner2\"`.",
+            '`Dockerfile:32-35` runs `python scripts/download_models.py --model OpenMed/... --revision df7af994...` at build time. `Settings.detector` defaults to `Literal["gliner2", "regex"]` (`app/config.py:43`) with default `"gliner2"`.',
             "- **File:** `Dockerfile`, `app/config.py`\n- **Lines:** `Dockerfile:32-35`; `config.py:43`",
             "Image ships the OpenMed snapshot but the default config uses GLiNER2. First request fails to load the GLiNER2 model.",
             "Either bundle the GLiNER2 snapshot in the Dockerfile, or change the default to `openmed`, or honor `REDAX_DETECTOR` at build time.",
@@ -653,7 +651,7 @@ FINDINGS: list[tuple[int, Finding]] = [
         Finding(
             "minor",
             "Makefile hard-pins python3.11",
-            "`Makefile:6` sets `PYTHON ?= python3.11`. `pyproject.toml:requires-python = \">=3.11\"` and `mypy` is configured for `python_version = \"3.12\"`. The verification host only has 3.12.",
+            '`Makefile:6` sets `PYTHON ?= python3.11`. `pyproject.toml:requires-python = ">=3.11"` and `mypy` is configured for `python_version = "3.12"`. The verification host only has 3.12.',
             "- **File:** `Makefile`\n- **Lines:** `6`",
             "Developers on 3.12-only machines can't run `make verify` without overriding.",
             "Either drop the pin (use `python3`), or document the requirement.",
@@ -678,7 +676,7 @@ FINDINGS: list[tuple[int, Finding]] = [
         194,
         Finding(
             "nit",
-            "docker-compose Redis runs with --save \"\" --appendonly no",
+            'docker-compose Redis runs with --save "" --appendonly no',
             "`docker-compose.yml:30` uses ephemeral Redis. Fine for dev, breaks for production.",
             "- **File:** `docker-compose.yml`\n- **Lines:** `30`",
             "Operators copy the compose file to production and lose rate-limit + job state on restart.",
@@ -692,10 +690,10 @@ FINDINGS: list[tuple[int, Finding]] = [
         Finding(
             "nit",
             "Dockerfile HEALTHCHECK uses python -c rather than exec form",
-            "`Dockerfile:51-53` runs `CMD python -c \"import httpx; httpx.get(...)\"`. Exec form would spawn one fewer shell.",
+            '`Dockerfile:51-53` runs `CMD python -c "import httpx; httpx.get(...)"`. Exec form would spawn one fewer shell.',
             "- **File:** `Dockerfile`\n- **Lines:** `51-53`",
             "Cosmetic.",
-            "Convert to exec form: `[\"CMD\", \"python\", \"-c\", \"...\"]`.",
+            'Convert to exec form: `["CMD", "python", "-c", "..."]`.',
             "- [ ] Exec form.",
             "- `Dockerfile:51-53`",
         ),
@@ -705,7 +703,7 @@ FINDINGS: list[tuple[int, Finding]] = [
         Finding(
             "major",
             "Rate limit fails closed when Redis is down",
-            "`app/ratelimit.py:18-20, 45, 62` returns 503 \"Rate limiting unavailable\" for any authenticated request when Redis is unreachable. This is documented as a fail-closed choice, but the README and docker-compose imply rate-limiting is just \"on.\"",
+            '`app/ratelimit.py:18-20, 45, 62` returns 503 "Rate limiting unavailable" for any authenticated request when Redis is unreachable. This is documented as a fail-closed choice, but the README and docker-compose imply rate-limiting is just "on."',
             "- **File:** `app/ratelimit.py`, `docs/deployment.md`\n- **Lines:** `ratelimit.py:39, 45, 62`",
             "A single transient Redis hiccup takes the API down for every authenticated request. Operators discover this only after the outage.",
             "Add `REDAX_RATE_LIMIT_FAIL_OPEN` (default `false`) and document in `docs/deployment.md`. When set, log a warning + increment `redax_rate_limit_unavailable_total` and let the request proceed.",
@@ -718,7 +716,7 @@ FINDINGS: list[tuple[int, Finding]] = [
         Finding(
             "major",
             "Anonymous key starves its own per-key quota",
-            "`app/auth.py:40-45` returns `\"anonymous\"` when `REDAX_API_KEYS` is empty. `app/api/jobs.py:73` checks `count_for_key(api_key)` against `max_jobs_per_key`. Every anonymous submission counts against the same `redax:jobs:anonymous` bucket.",
+            '`app/auth.py:40-45` returns `"anonymous"` when `REDAX_API_KEYS` is empty. `app/api/jobs.py:73` checks `count_for_key(api_key)` against `max_jobs_per_key`. Every anonymous submission counts against the same `redax:jobs:anonymous` bucket.',
             "- **File:** `app/api/jobs.py`, `app/jobs/store.py`\n- **Lines:** `jobs.py:73-76`; `store.py:109-115`",
             "With auth disabled, the quota is per-process (good) but the metric and audit trail collapse to a single bucket.",
             "Reject `/v1/jobs` with 401 when `REDAX_API_KEYS` is empty.",
@@ -783,7 +781,7 @@ FINDINGS: list[tuple[int, Finding]] = [
         Finding(
             "nit",
             "Rate-limit 503 returns a generic problem type",
-            "`app/ratelimit.py:39,45,62` raises `HTTPException(503, \"Rate limiting unavailable\")`. The generic handler renders this as `https://redax.ai/errors/http-503` rather than a rate-limit-specific problem type.",
+            '`app/ratelimit.py:39,45,62` raises `HTTPException(503, "Rate limiting unavailable")`. The generic handler renders this as `https://redax.ai/errors/http-503` rather than a rate-limit-specific problem type.',
             "- **File:** `app/ratelimit.py`, `app/errors.py`\n- **Lines:** `ratelimit.py:39, 45, 62`",
             "Operators monitoring `type` URLs can't distinguish rate-limit-unavailable from generic 503s.",
             "Add a `rate_limited_unavailable` helper in `app/errors.py` (parallel to `job_limit`); call it from `rate_limit`.",
@@ -926,7 +924,7 @@ FINDINGS: list[tuple[int, Finding]] = [
         Finding(
             "nit",
             "GLiNER2 detector mutates HF_HOME as a process-global",
-            "`app/inference/gliner2.py:110` runs `os.environ.setdefault(\"HF_HOME\", str(self.model_cache))`. The same value is also passed via `cache_dir=` on line 122, so the env-var write is redundant.",
+            '`app/inference/gliner2.py:110` runs `os.environ.setdefault("HF_HOME", str(self.model_cache))`. The same value is also passed via `cache_dir=` on line 122, so the env-var write is redundant.',
             "- **File:** `app/inference/gliner2.py`\n- **Lines:** `110`",
             "Two detectors with different caches race the env-var write.",
             "Drop the env-var setdefault; rely on `cache_dir=`.",
@@ -952,7 +950,7 @@ FINDINGS: list[tuple[int, Finding]] = [
         Finding(
             "minor",
             "CHANGELOG claim about hoisted imports is false",
-            "`CHANGELOG.md:13-52` says \"All lazy `from x import y` statements inside route handlers have been hoisted to module top.\" `app/ratelimit.py:57` still does `from app.logging import get_logger` inside the function body.",
+            '`CHANGELOG.md:13-52` says "All lazy `from x import y` statements inside route handlers have been hoisted to module top." `app/ratelimit.py:57` still does `from app.logging import get_logger` inside the function body.',
             "- **File:** `CHANGELOG.md`, `app/ratelimit.py`\n- **Lines:** `CHANGELOG.md:13-52`; `ratelimit.py:57`",
             "AGENTS.md bans function-level imports; the CHANGELOG entry is wrong.",
             "Either move the import to the top of `app/ratelimit.py` or amend the CHANGELOG entry.",
@@ -991,7 +989,7 @@ FINDINGS: list[tuple[int, Finding]] = [
         Finding(
             "major",
             "/v1/jobs returns 500 with misleading Internal Server Error when Redis is down",
-            "Verified live:\n```\nPOST /v1/jobs → 500\n{\"type\":\"https://redax.ai/errors/internal\",\"title\":\"Internal Server Error\",\"status\":500,\"detail\":\"job store not initialized\",\"instance\":\"/v1/jobs\"}\n```\n`app/api/jobs.py:67-68` calls `internal_error(request, \"job store not initialized\")` for a known-dependency-down condition.",
+            'Verified live:\n```\nPOST /v1/jobs → 500\n{"type":"https://redax.ai/errors/internal","title":"Internal Server Error","status":500,"detail":"job store not initialized","instance":"/v1/jobs"}\n```\n`app/api/jobs.py:67-68` calls `internal_error(request, "job store not initialized")` for a known-dependency-down condition.',
             "- **File:** `app/api/jobs.py`, `app/errors.py`\n- **Lines:** `jobs.py:66-68`",
             "Operators see a generic 500 with `Internal Server Error` for a known-and-recoverable condition.",
             "Add a typed `job_store_unavailable` helper in `app/errors.py` (parallel to `queue_full`); return 503 with `type=https://redax.ai/errors/job-store-unavailable`.",
@@ -1030,7 +1028,7 @@ FINDINGS: list[tuple[int, Finding]] = [
         Finding(
             "minor",
             "app/redaction/stages/__init__.py has only a docstring",
-            "`app/redaction/stages/__init__.py` is a one-line \"Pipeline stage modules.\" comment. No re-exports.",
+            '`app/redaction/stages/__init__.py` is a one-line "Pipeline stage modules." comment. No re-exports.',
             "- **File:** `app/redaction/stages/__init__.py`",
             "Inconsistent with `app/bench/__init__.py` and `app/audit/__init__.py`.",
             "Either re-export the stage classes (`Gate`, `ModelStage`, `ConsensusConfig`, `fuse`, `from_regex_only`) or document the namespace-only convention.",
