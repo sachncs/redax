@@ -1,5 +1,16 @@
 # Conventions for agents working on Redax
 
+## Issue templates
+
+- Use `.github/ISSUE_TEMPLATE/finding.md` for audit findings
+  ("bug", "enhancement", or audit-tagged `M11`, `M12`, ...).
+  The template pre-fills the Summary / Location / Why /
+  Proposed approach / Acceptance criteria sections so the agent
+  (or human) writing the issue produces a self-contained,
+  traceable record.
+- Bug reports that are not audit findings may also use
+  `.github/ISSUE_TEMPLATE/bug.md` (the default GitHub template).
+
 ## Code style
 
 - Python 3.11+. `from __future__ import annotations` not needed.
