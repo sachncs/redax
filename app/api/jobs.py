@@ -197,6 +197,8 @@ async def run_job(
         )
         audit = state.audit
         if audit is not None:
+            from app.observability.tracing import current_trace_id_hex
+
             await audit.record(
                 Event(
                     request_id=request_id,
@@ -205,6 +207,7 @@ async def run_job(
                     text_chars=len(payload["text"]),
                     entities_detected=span_summary(result.spans),
                     inference_ms=inference_ms,
+                    trace_id=current_trace_id_hex() or "",
                 )
             )
     except TimeoutError:

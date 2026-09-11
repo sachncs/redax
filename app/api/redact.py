@@ -220,6 +220,8 @@ def register(app: FastAPI) -> None:
                         if isinstance(policy, dict) and policy.get("version")
                         else "default"
                     )
+                    from app.observability.tracing import current_trace_id_hex
+
                     audit_kwargs: dict[str, Any] = dict(
                         request_id=request_id,
                         ts="",
@@ -227,6 +229,7 @@ def register(app: FastAPI) -> None:
                         text_chars=len(body.text),
                         entities_detected=span_summary(spans),
                         inference_ms=inference_ms,
+                        trace_id=current_trace_id_hex() or "",
                     )
                     if used_pipeline:
                         audit_kwargs["model_name"] = state.detector.name if state.detector else ""

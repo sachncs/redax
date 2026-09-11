@@ -209,5 +209,6 @@ def with_timestamp(event: Event) -> Event:
         inference_ms=event.inference_ms,
         redactor_version=event.redactor_version,
         model_name=event.model_name,
+        trace_id=event.trace_id,
         direction=event.direction,
     )

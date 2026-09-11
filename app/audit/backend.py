@@ -16,6 +16,8 @@ class Event:
 
     Attributes:
         request_id: The correlation id propagated by the request middleware.
+        trace_id: The OpenTelemetry trace id (32-char hex) when
+            tracing is enabled, else the empty string.
         ts: ISO-8601 timestamp; empty until the backend stamps it.
         policy_version: Logical version of the policy that was applied.
         text_chars: Length of the input text.
@@ -39,6 +41,7 @@ class Event:
     inference_ms: int = 0
     redactor_version: str = "0.1.0"
     model_name: str = ""
+    trace_id: str = ""
     direction: str = "egress"
 
 
@@ -138,4 +141,5 @@ def pipeline_to_event(
         inference_ms=inference_ms,
         redactor_version=redactor_version,
         model_name=model_checkpoint_hash,
+        trace_id="",
     )

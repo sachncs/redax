@@ -91,6 +91,8 @@ def register(app: FastAPI) -> None:
                 )
             inference_ms = int((time.perf_counter() - inference_start) * 1000)
             if audit is not None:
+                from app.observability.tracing import current_trace_id_hex
+
                 spans = [s for r in results for s in r.spans]
                 await audit.record(
                     Event(
@@ -100,6 +102,7 @@ def register(app: FastAPI) -> None:
                         text_chars=sum(len(item.text) for item in body.items),
                         entities_detected=span_summary(spans),
                         inference_ms=inference_ms,
+                        trace_id=current_trace_id_hex() or "",
                     )
                 )
             REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
