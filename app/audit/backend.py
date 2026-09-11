@@ -22,7 +22,11 @@ class Event:
         entities_detected: Per-type counts and mean confidences.
         inference_ms: Wall-clock inference time.
         redactor_version: The redax release that processed this request.
-        model_hash: The model checkpoint SHA-256, if a model was used.
+        model_name: Human-readable detector family name (e.g.
+            ``"gliner2"``, ``"regex"``); *not* a model checkpoint hash.
+            The checkpoint SHA-256 lives in ``MODEL_HASHES.txt`` and
+            on disk under the model cache; it is intentionally not
+            shipped in the per-event log.
         direction: ``"egress"`` for outbound redaction, ``"ingress"`` for
             restoration flows.
     """
@@ -34,7 +38,7 @@ class Event:
     entities_detected: list[dict[str, Any]] = field(default_factory=list)
     inference_ms: int = 0
     redactor_version: str = "0.1.0"
-    model_hash: str = ""
+    model_name: str = ""
     direction: str = "egress"
 
 
@@ -133,5 +137,5 @@ def pipeline_to_event(
         entities_detected=entities,
         inference_ms=inference_ms,
         redactor_version=redactor_version,
-        model_hash=model_checkpoint_hash,
+        model_name=model_checkpoint_hash,
     )
