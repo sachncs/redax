@@ -46,9 +46,16 @@ curl -X POST http://localhost:8000/v1/redact \
 Or via the SDK:
 
 ```python
-from redax import Redactor
+from app.redaction import Redactor, load_policy
+from app.inference.regex import RegexDetector
 
-r = Redactor(policy="default")  # looks up policies/default.yaml
+redactor = Redactor(
+    detector=RegexDetector(),
+    strategies={"mask": RegexDetector()},
+    replacement="[REDACTED]",
+)
+policy = load_policy("policies/default.yaml")
+result = await redactor.redact(text, policy=policy.fields)
 ```
 
 ## Writing a custom policy
