@@ -7,6 +7,7 @@ import time
 from fastapi import HTTPException
 
 from app.errors import TRANSIENT_EXC
+from app.observability import RATE_LIMIT_UNAVAILABLE
 from app.state import State
 
 
@@ -48,6 +49,7 @@ async def rate_limit(api_key: str, state: State) -> str:
     if api_key == "anonymous":
         return api_key
     settings = state.settings
+    RATE_LIMIT_UNAVAILABLE  # ensure import; counter is incremented on Redis errors below
     if settings is None:
         raise RateLimitUnavailable()
     fail_open = bool(getattr(settings, "rate_limit_fail_open", False))
@@ -75,6 +77,7 @@ async def rate_limit(api_key: str, state: State) -> str:
         get_logger("redax.ratelimit").warning(
             "redax.ratelimit_unavailable", error=exc.__class__.__name__
         )
+        RATE_LIMIT_UNAVAILABLE.inc()
         if fail_open:
             return api_key
         raise RateLimitUnavailable() from exc

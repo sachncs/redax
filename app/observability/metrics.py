@@ -70,6 +70,12 @@ AUDIT_WRITE_FAILED = Counter(
     registry=REGISTRY,
 )
 
+RATE_LIMIT_UNAVAILABLE = Counter(
+    "redax_rate_limit_unavailable_total",
+    "Rate-limit checks that failed closed because Redis was unreachable.",
+    registry=REGISTRY,
+)
+
 AUDIT_DROPPED = Counter(
     "redax_audit_dropped_total",
     "Audit events dropped because the in-process queue was full.",
