@@ -91,6 +91,19 @@ def queue_full(request: Request, detail: str = "Job queue is full") -> JSONRespo
     )
 
 
+def job_store_unavailable(
+    request: Request, detail: str = "Job store is not available"
+) -> JSONResponse:
+    """RFC 7807 503 problem when the Redis job store has not come up."""
+    return problem_response(
+        request,
+        type="https://redax.ai/errors/job-store-unavailable",
+        title="Job Store Unavailable",
+        status=503,
+        detail=detail,
+    )
+
+
 def job_limit(request: Request, detail: str = "Too many jobs for this API key") -> JSONResponse:
     """RFC 7807 429 problem when the per-API-key job quota is exceeded."""
     return problem_response(
