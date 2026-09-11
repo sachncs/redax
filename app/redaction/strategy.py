@@ -57,6 +57,30 @@ class Skip:
         return StrategyResult(text=text, spans=[], relex_map={})
 
 
+def _render_format(
+    fmt: str, *, span_text: str, span_type: str
+) -> str:
+    """Render a ``format`` string with ``{last4}`` and ``{text}`` placeholders.
+
+    Args:
+        fmt: The literal format string from policy.
+        span_text: The matched entity text.
+        span_type: The detected entity type.
+
+    Returns:
+        The format string with ``{last4}`` replaced by the last four
+        characters of the matched text (or fewer for very short
+        matches) and ``{text}`` replaced by the matched text itself.
+        Unknown placeholders are left literal so a typo doesn't
+        silently drop content.
+    """
+    return (
+        fmt.replace("{last4}", span_text[-4:])
+        .replace("{text}", span_text)
+        .replace("{type}", span_type)
+    )
+
+
 class Mask:
     """Replace every span with a configured format string."""
 
@@ -66,17 +90,23 @@ class Mask:
         """Replace every input span with the configured format string.
 
         The format is read from ``config["format"]`` and defaults to
-        ``"[REDACTED]"``.
+        ``"[REDACTED]"``. Recognised placeholders in the format
+        string are ``{text}`` (the matched entity), ``{last4}``
+        (its last four characters), and ``{type}`` (the entity type).
         """
         from app.redaction.apply import apply_spans
 
         fmt = config.get("format", "[REDACTED]")
-        masked = apply_spans(text, spans, [fmt] * len(spans))
+        replacements: list[str] = [
+            _render_format(fmt, span_text=text[s.start : s.end], span_type=s.type)
+            for s in spans
+        ]
+        masked = apply_spans(text, spans, replacements)
         return StrategyResult(
             text=masked,
             spans=spans,
             relex_map={},
-            substitutions=[(s, fmt) for s in spans],
+            substitutions=list(zip(spans, replacements, strict=True)),
         )
 
 
@@ -137,7 +167,9 @@ class Regex:
         """Run the regex detector over ``text`` and mask each hit.
 
         Entity-type filter and format string are read from
-        ``config["entity_types"]`` and ``config["format"]``.
+        ``config["entity_types"]`` and ``config["format"]``. The
+        format string supports ``{text}``, ``{last4}``, ``{type}``
+        placeholders (see :func:`_render_format`).
         """
         from app.redaction.apply import apply_spans
 
@@ -145,12 +177,16 @@ class Regex:
         entity_types = config.get("entity_types", [])
         detected = await detector.detect(text, entity_types)
         fmt = config.get("format", "[REDACTED]")
-        masked = apply_spans(text, detected, [fmt] * len(detected))
+        replacements: list[str] = [
+            _render_format(fmt, span_text=text[s.start : s.end], span_type=s.type)
+            for s in detected
+        ]
+        masked = apply_spans(text, detected, replacements)
         return StrategyResult(
             text=masked,
             spans=detected,
             relex_map={},
-            substitutions=[(s, fmt) for s in detected],
+            substitutions=list(zip(detected, replacements, strict=True)),
         )
 
 
