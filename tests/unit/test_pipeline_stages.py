@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from app.bench.annotation import LabelledSpan, SpanCategory
 from app.inference.detector import Span
-from app.redaction.stages.consensus import ConsensusConfig, fuse
+from app.redaction.stages.consensus import fuse
 
 
 def make_test_span(start: int, end: int, conf: float = 0.5, type: str = "PERSON") -> Span:
@@ -55,8 +55,8 @@ def test_consensus_dedupes_overlapping_model_spans() -> None:
 def test_consensus_custom_threshold() -> None:
     regex = ()
     model = (make_test_span(0, 5, conf=0.7),)
-    assert fuse(regex, model, ConsensusConfig(min_model_confidence=0.8)) == ()
-    assert fuse(regex, model, ConsensusConfig(min_model_confidence=0.5)) == model
+    assert fuse(regex, model, min_model_confidence=0.8) == ()
+    assert fuse(regex, model, min_model_confidence=0.5) == model
 
 
 def test_pipeline_inputs_compatible_with_redactionbench_annotations() -> None:

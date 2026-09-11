@@ -2,25 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 from app.inference.detector import Span
 from app.redaction.apply import dedupe_overlaps
-
-
-@dataclass(frozen=True)
-class ConsensusConfig:
-    """Configuration for the consensus-fusion stage.
-
-    Attributes:
-        min_model_confidence: Model spans below this confidence are
-            dropped from the fused output.
-    """
-
-    min_model_confidence: float = 0.5
-
-
-DEFAULT_CONSENSUS_CONFIG = ConsensusConfig()
 
 
 def overlaps(a: Span, b: Span) -> bool:
@@ -31,7 +14,7 @@ def overlaps(a: Span, b: Span) -> bool:
 def fuse(
     regex_spans: tuple[Span, ...],
     model_spans: tuple[Span, ...],
-    config: ConsensusConfig = DEFAULT_CONSENSUS_CONFIG,
+    min_model_confidence: float = 0.5,
 ) -> tuple[Span, ...]:
     """Combine regex and model spans into a single deduped, ordered list.
 
@@ -39,7 +22,7 @@ def fuse(
 
     1. Regex spans are always included (the safety net).
     2. A model span that overlaps a regex span is kept only when its
-       confidence is at least ``config.min_model_confidence``; otherwise
+       confidence is at least ``min_model_confidence``; otherwise
        the regex span wins.
     3. A model span that does not overlap any regex span is kept when
        its confidence is at least the threshold.
@@ -48,7 +31,7 @@ def fuse(
     Args:
         regex_spans: Spans from the deterministic regex detector.
         model_spans: Spans from the encoder model stage.
-        config: Threshold + reserved-for-future options.
+        min_model_confidence: Confidence floor for model spans.
 
     Returns:
         A tuple of deduped ``Span`` instances, ordered by start.
@@ -56,7 +39,7 @@ def fuse(
     kept: list[Span] = list(regex_spans)
 
     for span in model_spans:
-        if span.confidence < config.min_model_confidence:
+        if span.confidence < min_model_confidence:
             continue
         if any(overlaps(span, r) for r in regex_spans):
             continue
