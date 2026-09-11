@@ -6,6 +6,7 @@ from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException
 
+from app.ratelimit import rate_limit
 from app.state import State, get_state
 
 
@@ -45,4 +46,27 @@ def require_api_key(
     return x_api_key
 
 
-__all__ = ["require_api_key"]
+async def require_api_key_and_rate_limit(
+    state: Annotated[State, Depends(get_state)],
+    x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
+) -> str:
+    """Combined auth + rate-limit dependency for v1/* routes.
+
+    Validates the X-API-Key header and runs the per-minute rate limiter
+    in one call so each route only declares a single dependency
+    (``api_key: Annotated[str, Depends(require_api_key_and_rate_limit)]``)
+    instead of repeating the auth + rate-limit pair verbatim.
+
+    Args:
+        state: The per-app ``State`` injected by FastAPI.
+        x_api_key: The ``X-API-Key`` header value.
+
+    Returns:
+        The matched API key.
+    """
+    api_key = require_api_key(state, x_api_key)
+    await rate_limit(api_key, state)
+    return api_key
+
+
+__all__ = ["require_api_key", "require_api_key_and_rate_limit"]
