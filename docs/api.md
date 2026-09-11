@@ -5,7 +5,7 @@ All endpoints speak JSON. Errors come back as RFC 7807 `application/problem+json
 ## POST /v1/redact
 
 Redact a single text. Returns `{text, spans, relex_map, used_pipeline,
-used_fallback, text_hash}`. The shape is stable across the legacy
+used_fallback, digest}`. The shape is stable across the legacy
 `Redactor` path (default) and the new multi-stage pipeline path
 (`use_pipeline=true`).
 
@@ -42,7 +42,7 @@ used_fallback, text_hash}`. The shape is stable across the legacy
   "relex_map": {"alice@example.com": "[EMAIL_0001]"},
   "used_pipeline": false,
   "used_fallback": false,
-  "text_hash": null
+  "digest": null
 }
 ```
 
@@ -58,14 +58,14 @@ used_fallback, text_hash}`. The shape is stable across the legacy
   "relex_map": {},
   "used_pipeline": true,
   "used_fallback": false,
-  "text_hash": "e38dfce0ad75a983ef463bae56cb70f6a338b708e253c15104bd01e1649bea1a"
+  "digest": "e38dfce0ad75a983ef463bae56cb70f6a338b708e253c15104bd01e1649bea1a"
 }
 ```
 
 The pipeline response keeps the original text (no relexicalization at
 the route level — the existing redax redactor still owns relex) and
 records `used_fallback=true` when the model stage's circuit breaker is
-open. `text_hash` is a SHA-256 of the input text for log correlation;
+open. `digest` is a SHA-256 of the input text for log correlation;
 the audit log records the hash but never the text itself.
 
 **Errors**: 413 (oversize), 422 (validation), 429 (rate-limited), 503 (not ready), 504 (timeout).
