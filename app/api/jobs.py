@@ -74,7 +74,14 @@ def register(app: FastAPI) -> None:
             if await store.count_for_key(api_key) >= max_jobs_per_key:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="429").inc()
                 return job_limit(request)
-            record = await store.create(owner=api_key)
+            try:
+                record = await store.create(owner=api_key)
+            except (OSError, RuntimeError, ValueError, KeyError, TimeoutError) as exc:
+                get_logger("redax.api").error(
+                    "redax.job_create_failed", error=exc.__class__.__name__
+                )
+                REQUESTS.labels(endpoint=endpoint, method=method, status="500").inc()
+                return internal_error(request, "job counter write failed")
             QUEUE_DEPTH.inc()
             background_tasks.add_task(
                 run_job, record.id, body.model_dump(), store, request_id, state
