@@ -19,7 +19,13 @@ from pydantic import BaseModel, Field
 from app.api.cache import redaction_cache_key, redaction_cache_payload
 from app.audit.backend import Event, span_summary
 from app.auth import require_api_key
-from app.errors import TRANSIENT_EXC, internal_error, payload_too_large, timeout_error
+from app.errors import (
+    TRANSIENT_EXC,
+    internal_error,
+    payload_too_large,
+    problem_response,
+    timeout_error,
+)
 from app.inference.detector import Span
 from app.logging import get_logger
 from app.observability import CACHE_HITS, REQUEST_LATENCY, REQUESTS
@@ -85,6 +91,16 @@ def register(app: FastAPI) -> None:
             if len(body.text) > max_chars:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="413").inc()
                 return payload_too_large(request, f"text exceeds {max_chars} chars")
+            pipeline = state.pipeline
+            if body.use_pipeline and pipeline is None:
+                REQUESTS.labels(endpoint=endpoint, method=method, status="422").inc()
+                return problem_response(
+                    request,
+                    type="https://redax.ai/errors/pipeline-unavailable",
+                    title="Pipeline Unavailable",
+                    status=422,
+                    detail="use_pipeline=true requested but no pipeline is configured",
+                )
             redactor = state.redactor
             audit = state.audit
             job_store = state.job_store
@@ -135,7 +151,8 @@ def register(app: FastAPI) -> None:
                 pipeline = state.pipeline
                 response_body: dict[str, Any]
                 spans: list[Span]
-                if body.use_pipeline and pipeline is not None:
+                if body.use_pipeline:
+                    assert pipeline is not None  # checked above
                     pipeline_result = await pipeline(body.text)
                     spans = list(pipeline_result.spans)
                     inference_ms = int(pipeline_result.total_latency_ms)
