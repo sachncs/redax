@@ -144,3 +144,15 @@ async def test_get_returns_none_result_when_field_is_empty(
     assert fetched.result is None
     assert fetched.error is None
     assert fetched.status == "queued"
+
+
+async def test_release_owner_count_deletes_when_count_reaches_one(
+    store: JobStore, redis_client: FakeRedis
+) -> None:
+    """The count -> 0 branch must delete the counter key entirely."""
+    record = await store.create(owner="k1")
+    # Counter is at 1; set_result calls release_owner_count, which
+    # takes the int(raw) <= 1 path and deletes the key.
+    await store.set_result(record.id, {"text": "done"})
+    assert "redax:jobs:k1" not in redis_client.counter
+    assert await store.count_for_key("k1") == 0
