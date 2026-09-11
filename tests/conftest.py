@@ -9,9 +9,12 @@ from fastapi.testclient import TestClient
 
 @pytest.fixture
 def app_with_dummy_state():
-    """Yield a TestClient. Real wiring lands in later milestones; this
-    fixture exists so unit + integration tests can register their own
-    routes against a clean FastAPI app."""
+    """Yield a fresh FastAPI app for tests that want to register their own routes.
+
+    Tests that need the real lifespan (``app.main:app``) instead use
+    ``fastapi.testclient.TestClient(app)`` directly; this fixture is
+    only for tests that want a clean FastAPI instance without lifespan.
+    """
     from fastapi import FastAPI
 
     app = FastAPI(title="Redax test")
