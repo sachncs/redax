@@ -31,6 +31,11 @@ class OpenError(RuntimeError):
 T = TypeVar("T")
 
 
+def _is_exception(exc: BaseException) -> bool:
+    """Return ``True`` for any exception; default breaker transient predicate."""
+    return isinstance(exc, Exception)
+
+
 @dataclass(frozen=True)
 class Stats:
     """Snapshot of a Breaker's state for an introspection endpoint.
@@ -75,7 +80,7 @@ class Breaker:
         self.name = name
         self.threshold = threshold
         self.cooldown_s = cooldown_s
-        self.transient_predicate = transient_predicate or (lambda exc: isinstance(exc, Exception))
+        self.transient_predicate = transient_predicate or _is_exception
         self.lock = threading.Lock()
         self.state = "closed"
         self.consecutive_failures = 0
