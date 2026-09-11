@@ -1,9 +1,11 @@
-"""Per-request logging middleware.
+"""Per-request logging middleware and request-id dependency.
 
 Binds a request_id into the structlog context for the lifetime of the
 request, echoes it back via the ``X-Request-ID`` response header, emits
 one ``redax.access`` summary line, then clears the context so background
-tasks don't inherit a stale id.
+tasks don't inherit a stale id. Exposes a single ``get_request_id``
+dependency that route handlers can use to read the bound id without
+re-implementing the ``X-Request-ID or uuid`` fallback.
 """
 
 from __future__ import annotations
@@ -17,6 +19,25 @@ from fastapi import FastAPI, Request
 from fastapi.responses import Response
 
 from app.logging import get_logger
+
+
+def get_request_id(request: Request) -> str:
+    """Return the per-request id bound by ``register_request_context``.
+
+    Reads from the structlog context vars that the request middleware
+    populates; falls back to a generated UUID if the middleware was
+    never installed (tests that mount a bare FastAPI app).
+
+    Args:
+        request: The active Starlette request.
+
+    Returns:
+        The correlated request id (32-char hex).
+    """
+    bound = structlog.contextvars.get_contextvars().get("request_id")
+    if isinstance(bound, str) and bound:
+        return bound
+    return request.headers.get("X-Request-ID") or uuid.uuid4().hex
 
 
 def emit_access_line(

@@ -61,8 +61,9 @@ async def build_state(settings: Settings) -> State:
     await regex.warmup()
 
     detectors: list[Any] = [regex]
+    active: Any = regex
     if settings.detector == "gliner2":
-        gliner2 = GLiNER2Detector(
+        gliner2: GLiNER2Detector | None = GLiNER2Detector(
             model_name=settings.model_name,
             model_revision=settings.model_revision,
             model_cache=settings.model_cache,
@@ -72,6 +73,7 @@ async def build_state(settings: Settings) -> State:
             local_files_only=True,
         )
         try:
+            assert gliner2 is not None
             await gliner2.load()
             await gliner2.warmup()
         except (OSError, RuntimeError, ValueError, TimeoutError) as exc:
@@ -82,13 +84,11 @@ async def build_state(settings: Settings) -> State:
                 error=exc.__class__.__name__,
             )
             gliner2 = None
-            active: Any = regex
         else:
+            assert gliner2 is not None
             detectors.append(gliner2)
             active = gliner2
-    else:
-        # REDAX_DETECTOR=regex is the only opt-in for the fallback path.
-        active = regex
+    # else: REDAX_DETECTOR=regex is the only opt-in for the fallback path.
 
     registry = DetectorRegistry(detectors)
 
