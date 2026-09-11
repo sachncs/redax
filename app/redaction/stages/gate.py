@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from app.inference.detector import Detector
+from app.inference.detector import Detector, Span
 
 
 @dataclass
