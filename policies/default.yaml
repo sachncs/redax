@@ -1,7 +1,7 @@
 # policies/default.yaml
-# Loaded by app.redaction.policies.load_policy() once M4 lands; for now
-# this file exists so the operator can reference it and the policies
-# endpoint (M4 #41) can list it.
+# Loaded by `app.redaction.policies.load_policy()` at startup or on
+# demand; this file ships as the default policy referenced by
+# REDAX_DEFAULT_POLICY (the wiring is finalised in M11).
 name: default
 version: 1.0.0
 description: Balanced redaction. Detects people, contact info, IDs, financial, addresses, dates.
