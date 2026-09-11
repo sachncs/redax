@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 
 from app.audit.backend import Event, span_summary
 from app.auth import require_api_key
-from app.errors import internal_error, payload_too_large
+from app.errors import TRANSIENT_EXC, internal_error, payload_too_large
 from app.logging import get_logger
 from app.observability import REQUEST_LATENCY, REQUESTS
 from app.ratelimit import rate_limit
@@ -125,7 +125,7 @@ def register(app: FastAPI) -> None:
                         )
                     )
                 REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
-            except (OSError, RuntimeError, ValueError, TypeError, KeyError) as exc:
+            except TRANSIENT_EXC as exc:
                 yield f"data: {json.dumps({'error': 'internal error'})}\n\n"
                 REQUESTS.labels(endpoint=endpoint, method=method, status="500").inc()
                 get_logger("redax.api").error(

@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 
 from app.audit.backend import Event, span_summary
 from app.auth import require_api_key
-from app.errors import internal_error, job_limit, payload_too_large, problem_response, queue_full
+from app.errors import TRANSIENT_EXC, internal_error, job_limit, payload_too_large, problem_response, queue_full
 from app.jobs.store import JobStore
 from app.logging import get_logger
 from app.observability import ERRORS, QUEUE_DEPTH, REQUESTS, queue_depth
@@ -81,7 +81,7 @@ def register(app: FastAPI) -> None:
             )
             REQUESTS.labels(endpoint=endpoint, method=method, status="202").inc()
             return {"id": record.id, "status": record.status}
-        except (OSError, RuntimeError, ValueError, KeyError) as exc:
+        except TRANSIENT_EXC as exc:
             REQUESTS.labels(endpoint=endpoint, method=method, status="500").inc()
             get_logger("redax.api").error("redax.queue_failed", error=exc.__class__.__name__)
             return internal_error(request)
@@ -184,7 +184,7 @@ async def run_job(
         logger.error("redax.job_timeout", job_id=job_id)
         ERRORS.labels(type="job_timeout").inc()
         await record_failure(job_id, store, logger)
-    except (OSError, RuntimeError, ValueError, KeyError) as exc:
+    except TRANSIENT_EXC as exc:
         logger.error("redax.job_failed", job_id=job_id, error=exc)
         ERRORS.labels(type="job_failed").inc()
         await record_failure(job_id, store, logger)
