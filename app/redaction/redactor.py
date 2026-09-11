@@ -17,6 +17,26 @@ from app.redaction.offsets import validate_offsets
 from app.redaction.strategy import Strategy
 
 
+def compose_remaps(
+    newer: Callable[[int], int], older: Callable[[int], int]
+) -> Callable[[int], int]:
+    """Compose two inverse position remaps: ``p -> older(newer(p))``.
+
+    Used by :meth:`Redactor.policy` so the inverse map across successive
+    policy fields always references the original input coordinates.
+
+    Args:
+        newer: The remap produced by the most recent strategy.
+        older: The accumulated remap from earlier strategies.
+
+    Returns:
+        A new callable that applies ``newer`` then ``older``.
+    """
+    def composed(p: int) -> int:
+        return older(newer(p))
+    return composed
+
+
 @dataclass
 class RedactionResult:
     """The output of one :meth:`Redactor.redact` call.
@@ -147,7 +167,7 @@ class Redactor:
                     remap_to_original = new_to_current
                 else:
                     previous = remap_to_original
-                    remap_to_original = lambda p, f=new_to_current, g=previous: g(f(p))  # noqa: E731
+                    remap_to_original = compose_remaps(new_to_current, previous)
             result_text = strategy_result.text
             relex_map.update(strategy_result.relex_map)
             for span in strategy_result.spans:
