@@ -56,6 +56,20 @@ QUEUE_DEPTH = Gauge(
     registry=REGISTRY,
 )
 
+AUDIT_UNINITIALISED = Counter(
+    "redax_audit_uninitialised_total",
+    "Audit events dropped because the backend was never started.",
+    labelnames=("backend",),
+    registry=REGISTRY,
+)
+
+AUDIT_WRITE_FAILED = Counter(
+    "redax_audit_write_failed_total",
+    "Audit events that could not be written to disk.",
+    labelnames=("backend",),
+    registry=REGISTRY,
+)
+
 AUDIT_DROPPED = Counter(
     "redax_audit_dropped_total",
     "Audit events dropped because the in-process queue was full.",
