@@ -146,3 +146,18 @@ def test_relex_seed_produces_signed_placeholders_that_differ(layout, seed_alpha)
     with_other = relexicalize(text, spans, seed="beta")
     assert _SIGNED.fullmatch(next(iter(with_repr.relex_map.values())))
     assert with_repr.text != with_other.text
+
+
+def test_with_seed_signature_suffix_is_visible_in_placeholder() -> None:
+    """The 4-char hash suffix distinguishes same-text placeholders across seeds."""
+    import re
+
+    spans = [Span(0, 5, "PERSON", 1.0)]
+    a = relexicalize("Alice", spans, seed="alpha")
+    b = relexicalize("Alice", spans, seed="beta")
+    pattern = re.compile(r"\[PERSON_\d{4}\]-[0-9a-f]{4}")
+    placeholder_a = next(iter(a.relex_map.values()))
+    placeholder_b = next(iter(b.relex_map.values()))
+    assert pattern.fullmatch(placeholder_a)
+    assert pattern.fullmatch(placeholder_b)
+    assert placeholder_a != placeholder_b

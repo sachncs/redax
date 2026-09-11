@@ -263,3 +263,16 @@ def test_rate_limit_minute_bucket_strictly_increases_within_loop(monkeypatch) ->
     a = minute_bucket()
     b = minute_bucket()
     assert a == b
+
+
+def test_sha256_file_matches_hashlib_for_known_input(tmp_path) -> None:
+    """``app.integrity.sha256_file`` matches ``hashlib.sha256`` on a 1 MiB file."""
+    import hashlib
+
+    from app.integrity import sha256_file
+
+    payload = b"x" * (1 << 20) + b"y" * 7
+    path = tmp_path / "blob.bin"
+    path.write_bytes(payload)
+    expected = hashlib.sha256(payload).hexdigest()
+    assert sha256_file(path) == expected

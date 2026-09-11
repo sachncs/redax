@@ -116,3 +116,35 @@ def test_access_log_line_records_500_on_unhandled_exception(
     assert resp.status_code == 500
     assert captured["status"] == 500
     assert captured["path"] == "/boom"
+
+
+def test_emit_access_line_emits_expected_fields(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Direct unit test for :func:`app.middleware.emit_access_line`.
+
+    Asserts the structured log event carries the required keys even when
+    tracing is disabled (``trace_id`` falls back to ``""``).
+    """
+    from app import middleware as mw
+
+    captured: list[dict] = []
+
+    class Logger:
+        def info(self, event: str, **kwargs) -> None:
+            captured.append({"event": event, **kwargs})
+
+    monkeypatch.setattr(mw, "current_trace_id_hex", lambda: None)
+    monkeypatch.setattr(mw, "get_logger", lambda _name: Logger())
+    mw.emit_access_line(
+        method="POST",
+        path="/v1/redact",
+        status=200,
+        duration_ms=42,
+        request_id="abc",
+    )
+    assert captured and captured[0]["event"] == "redax.access"
+    assert captured[0]["method"] == "POST"
+    assert captured[0]["path"] == "/v1/redact"
+    assert captured[0]["status"] == 200
+    assert captured[0]["duration_ms"] == 42
+    assert captured[0]["request_id"] == "abc"
+    assert captured[0]["trace_id"] == ""
