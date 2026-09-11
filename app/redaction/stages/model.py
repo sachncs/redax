@@ -11,37 +11,9 @@ import asyncio
 import concurrent.futures
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Any
 
-from app.inference.detector import Span
-
-
-class SyncDetector(Protocol):
-    """Structural type for a sync-detector that the pipeline can call.
-
-    Attributes:
-        name: Human-readable detector name.
-    """
-
-    name: str
-
-    def detect_sync(self, text: str, entity_types: list[str]) -> list[Span]:
-        """Run detection synchronously and return the detected spans."""
-        ...
-
-
-class AsyncDetector(Protocol):
-    """Structural type for an async-only detector.
-
-    Attributes:
-        name: Human-readable detector name.
-    """
-
-    name: str
-
-    async def detect(self, text: str, entity_types: list[str]) -> list[Span]:
-        """Run detection asynchronously and return the detected spans."""
-        ...
+from app.inference.detector import Detector, Span
 
 
 @dataclass
@@ -55,7 +27,7 @@ class ModelStage:
             async-only and is wrapped by ``run_async`` as a fallback.
     """
 
-    detector: SyncDetector | AsyncDetector | Any
+    detector: Detector
 
     def detector_sync(self, text: str, entity_types: list[str]) -> list[Span]:
         """Synchronously invoke the wrapped detector and return its spans.
@@ -73,7 +45,7 @@ class ModelStage:
         sync_attr: Callable[..., Any] | None = getattr(self.detector, "detect_sync", None)
         if callable(sync_attr):
             return list(sync_attr(text, entity_types))
-        detect_attr: Callable[..., Any] = self.detector.detect  # type: ignore[union-attr]
+        detect_attr: Callable[..., Any] = self.detector.detect
         return run_async(detect_attr(text, entity_types))
 
     async def detect(self, text: str, entity_types: list[str]) -> list[Span]:
