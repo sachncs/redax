@@ -150,7 +150,6 @@ def register(app: FastAPI) -> None:
                         "spans": [s.__dict__ for s in result.spans],
                         "relex_map": result.relex_map,
                     }
-                    spans = list(result.spans)
 
                 ttl = getattr(settings, "cache_ttl_seconds", 3600)
                 if job_store is not None:
