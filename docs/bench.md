@@ -33,6 +33,10 @@ For each entity (a *mandatory* or *contextual* group of spans produced
 by Algorithm 1 + Algorithm 2) and each false-positive character run,
 R-Score accumulates `(n, d)` pairs:
 
+**Source**: [`app/bench/fusion.py`](../app/bench/fusion.py) implements
+both algorithms; the metric orchestrator is
+[`app/bench/rscore.py`](../app/bench/rscore.py).
+
 | Term | `(n, d)` | Notes |
 | --- | --- | --- |
 | Mandatory entity `r` | `(mean over s in r of |s ∩ P| / |s|, 1)` | covered in proportion |
