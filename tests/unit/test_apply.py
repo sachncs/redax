@@ -218,3 +218,18 @@ def test_apply_roundtrips_multibyte_and_emoji() -> None:
     assert out == "hé[P]w[E]ĉao"
     spans_alt = [Span(8, 13, "EMAIL", 1.0), Span(2, 7, "PERSON", 1.0)]
     assert apply_spans(text, spans_alt, ["[E]", "[P]"]) == out
+
+
+def test_compose_remaps_applies_newer_first_then_older() -> None:
+    """compose_remaps composes two inverse position remaps in the right order."""
+    from app.redaction.redactor import compose_remaps
+
+    def remap_a(p: int) -> int:
+        return p + 5
+
+    def remap_b(p: int) -> int:
+        return p + 10
+
+    composed = compose_remaps(remap_a, remap_b)
+    assert composed(5) == 20
+    assert composed(0) == 15
