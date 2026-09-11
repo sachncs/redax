@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field
 
 from app.audit.backend import Event, span_summary
 from app.auth import require_api_key
-from app.errors import internal_error, payload_too_large, timeout_error
+from app.errors import TRANSIENT_EXC, internal_error, payload_too_large, timeout_error
 from app.logging import get_logger
 from app.observability import REQUEST_LATENCY, REQUESTS
 from app.ratelimit import rate_limit
@@ -116,7 +116,7 @@ def register(app: FastAPI) -> None:
         except TimeoutError:
             REQUESTS.labels(endpoint=endpoint, method=method, status="504").inc()
             return timeout_error(request)
-        except (OSError, RuntimeError, ValueError, TypeError) as exc:
+        except TRANSIENT_EXC as exc:
             REQUESTS.labels(endpoint=endpoint, method=method, status="500").inc()
             get_logger("redax.api").error("redax.batch_failed", error=exc.__class__.__name__)
             return internal_error(request)
