@@ -88,7 +88,9 @@ def register_request_context(app: FastAPI) -> None:
         The X-Request-ID header is reused if the client sent one; otherwise
         a server-side hex id is generated. The id is bound into the
         structlog context for the lifetime of the request so every
-        structured log line carries it.
+        structured log line carries it. Security headers
+        (X-Content-Type-Options, X-Frame-Options, Referrer-Policy,
+        Strict-Transport-Security) are stamped on every response.
         """
         request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
         structlog.contextvars.bind_contextvars(request_id=request_id)
@@ -96,6 +98,15 @@ def register_request_context(app: FastAPI) -> None:
         status = 500
         try:
             response = await call_next(request)
+            response.headers.setdefault("X-Content-Type-Options", "nosniff")
+            response.headers.setdefault("X-Frame-Options", "DENY")
+            response.headers.setdefault(
+                "Referrer-Policy", "strict-origin-when-cross-origin"
+            )
+            response.headers.setdefault(
+                "Strict-Transport-Security",
+                "max-age=31536000; includeSubDomains",
+            )
             response.headers["X-Request-ID"] = request_id
             status = response.status_code
             return response

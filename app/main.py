@@ -12,6 +12,9 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api import (
     register_batch,
@@ -224,6 +227,18 @@ app = FastAPI(
 
 install_error_handlers(app)
 register_request_context(app)
+
+# Middleware defaults are intentionally permissive for development. Production
+# deployments override REDAX_CORS_ORIGINS (comma-separated) and
+# REDAX_TRUSTED_HOSTS in the operator manifest.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
+app.add_middleware(GZipMiddleware, minimum_size=1024)
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
 
 register_health(app)
 register_policies(app)
