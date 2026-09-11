@@ -122,6 +122,11 @@ async def build_state(settings: Settings) -> State:
     except Exception as exc:
         log.warning("redax.redis_unavailable", error=str(exc))
         job_store = None
+    if job_store is None:
+        log.warning(
+            "redax.cache_disabled",
+            note="idempotency and response caches skipped until Redis recovers",
+        )
 
     audit = FileAudit(
         settings.audit_path,

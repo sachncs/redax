@@ -47,6 +47,17 @@ class RedactResponse(BaseModel):
     digest: str | None = None
 
 
+_CACHE_SKIPPED_LOGGED: set[str] = set()
+
+
+def _LOG_CACHE_SKIPPED(name: str) -> None:
+    """Log once per process when a cache lookup is silently dropped."""
+    if name in _CACHE_SKIPPED_LOGGED:
+        return
+    _CACHE_SKIPPED_LOGGED.add(name)
+    get_logger("redax.api").warning("redax.cache_skipped", cache=name)
+
+
 def register(app: FastAPI) -> None:
     """Mount the POST /v1/redact route on ``app``."""
 
@@ -84,12 +95,17 @@ def register(app: FastAPI) -> None:
             timeout_seconds = getattr(settings, "request_timeout_seconds", 30.0)
             async with asyncio.timeout(timeout_seconds):
                 # Idempotency short-circuit
-                if x_idempotency_key and job_store is not None:
-                    idem_raw = await job_store.client.get(f"redax:idem:{x_idempotency_key}")
-                    if idem_raw:
-                        CACHE_HITS.labels(cache="idempotency").inc()
-                        REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
-                        return json.loads(idem_raw)
+                if x_idempotency_key:
+                    if job_store is None:
+                        _LOG_CACHE_SKIPPED("idempotency")
+                    else:
+                        idem_raw = await job_store.client.get(
+                            f"redax:idem:{x_idempotency_key}"
+                        )
+                        if idem_raw:
+                            CACHE_HITS.labels(cache="idempotency").inc()
+                            REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
+                            return json.loads(idem_raw)
 
                 # Response cache short-circuit
                 cache_shared = bool(getattr(settings, "cache_shared", False))
@@ -102,7 +118,9 @@ def register(app: FastAPI) -> None:
                         shared=cache_shared,
                     )
                 )
-                if job_store is not None:
+                if job_store is None:
+                    _LOG_CACHE_SKIPPED("response")
+                else:
                     cache_raw = await job_store.client.get(f"redax:cache:{cache_key}")
                     if cache_raw:
                         CACHE_HITS.labels(cache="response").inc()
