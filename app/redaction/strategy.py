@@ -57,9 +57,7 @@ class Skip:
         return StrategyResult(text=text, spans=[], relex_map={})
 
 
-def _render_format(
-    fmt: str, *, span_text: str, span_type: str
-) -> str:
+def _render_format(fmt: str, *, span_text: str, span_type: str) -> str:
     """Render a ``format`` string with ``{last4}`` and ``{text}`` placeholders.
 
     Args:
@@ -98,8 +96,7 @@ class Mask:
 
         fmt = config.get("format", "[REDACTED]")
         replacements: list[str] = [
-            _render_format(fmt, span_text=text[s.start : s.end], span_type=s.type)
-            for s in spans
+            _render_format(fmt, span_text=text[s.start : s.end], span_type=s.type) for s in spans
         ]
         masked = apply_spans(text, spans, replacements)
         return StrategyResult(
@@ -178,8 +175,7 @@ class Regex:
         detected = await detector.detect(text, entity_types)
         fmt = config.get("format", "[REDACTED]")
         replacements: list[str] = [
-            _render_format(fmt, span_text=text[s.start : s.end], span_type=s.type)
-            for s in detected
+            _render_format(fmt, span_text=text[s.start : s.end], span_type=s.type) for s in detected
         ]
         masked = apply_spans(text, detected, replacements)
         return StrategyResult(
