@@ -11,6 +11,7 @@ from .metrics import (
     REGISTRY,
     REQUEST_LATENCY,
     REQUESTS,
+    RequestMetric,
     queue_depth,
 )
 from .tracing import configure_tracing, current_trace_id_hex
@@ -28,6 +29,7 @@ __all__ = [
     "REGISTRY",
     "REQUESTS",
     "REQUEST_LATENCY",
+    "RequestMetric",
     "configure_tracing",
     "current_trace_id_hex",
     "queue_depth",
