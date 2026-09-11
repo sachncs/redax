@@ -44,6 +44,11 @@ COPY policies /policies
 #       --revision df7af994d39d358e52f929ff1b3a40d894adf022 --record
 COPY MODEL_HASHES.txt MODEL_HASHES.txt
 COPY scripts/download_models.py scripts/download_models.py
+# Models are downloaded as root here so the cache directory created
+# above can be chowned to the `redax` user before USER redax is set.
+# The produced files live under /models which is already owned by
+# redax:redax (see the mkdir/chown above); the build step itself runs
+# as root for one RUN instruction only.
 RUN python scripts/download_models.py \
         --model OpenMed/OpenMed-PII-SuperClinical-Large-434M-v1 \
         --revision df7af994d39d358e52f929ff1b3a40d894adf022
@@ -53,7 +58,6 @@ USER redax
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-    CMD python -c "import httpx; httpx.get('http://localhost:8000/healthz', timeout=2).raise_for_status()" \
-    || exit 1
+    CMD ["python", "-c", "import httpx; httpx.get('http://localhost:8000/healthz', timeout=2).raise_for_status()"]
 
 CMD ["python", "-m", "app.main"]
