@@ -7,6 +7,7 @@ import time
 from fastapi import HTTPException
 
 from app.errors import TRANSIENT_EXC
+from app.logging import get_logger
 from app.observability import RATE_LIMIT_UNAVAILABLE
 from app.state import State
 
@@ -72,8 +73,6 @@ async def rate_limit(api_key: str, state: State) -> str:
     except HTTPException:
         raise
     except (OSError, TimeoutError) as exc:
-        from app.logging import get_logger
-
         get_logger("redax.ratelimit").warning(
             "redax.ratelimit_unavailable", error=exc.__class__.__name__
         )
