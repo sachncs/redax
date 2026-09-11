@@ -1,6 +1,9 @@
-.PHONY: help dev test lint typecheck download-models bench eval build-server build-wasm build-all clean install verify verify-determinism
+.PHONY: help dev test lint typecheck download-models bench eval build-server build-wasm build-all clean install verify verify-determinism load
 
-PYTHON ?= python3.11
+# pyproject.toml requires-python >= 3.11; mypy runs against 3.12. Override
+# with `PYTHON=python3.11 make verify` if you must lock to a specific
+# interpreter.
+PYTHON ?= python3
 HOST ?= 0.0.0.0
 PORT ?= 8000
 
