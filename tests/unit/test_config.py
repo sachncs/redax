@@ -29,6 +29,7 @@ def test_defaults() -> None:
 
 def test_extra_env_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("REDAX_JWT_SECRET", "stale")
+    monkeypatch.setenv("REDAX_HASH_SALT", "a-strong-secret")
     s = Settings()
     with pytest.raises(ValueError, match="no longer exists"):
         s.verify()
@@ -37,7 +38,7 @@ def test_extra_env_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_validate_refuses_default_secrets_when_auth_enabled() -> None:
     s = Settings(api_keys="k1,k2")
     assert s.api_key_set() == {"k1", "k2"}
-    with pytest.raises(ValueError, match="real secrets"):
+    with pytest.raises(ValueError, match="REDAX_HASH_SALT"):
         s.verify()  # hash_salt still "change-me"
 
 
@@ -48,12 +49,18 @@ def test_validate_accepts_real_secrets() -> None:
 
 def test_validate_refuses_dev_key() -> None:
     s = Settings(api_keys="dev-key", hash_salt="a-strong-secret")
-    with pytest.raises(ValueError, match="real secrets"):
+    with pytest.raises(ValueError, match="REDAX_API_KEYS"):
+        s.verify()
+
+
+def test_validate_refuses_default_salt_even_without_auth() -> None:
+    s = Settings(api_keys="", hash_salt="change-me")
+    with pytest.raises(ValueError, match="REDAX_HASH_SALT"):
         s.verify()
 
 
 def test_validate_requires_model_revision() -> None:
-    s = Settings(model_revision="")
+    s = Settings(model_revision="", hash_salt="a-strong-secret")
     with pytest.raises(ValueError, match="MODEL_REVISION"):
         s.verify()
 
