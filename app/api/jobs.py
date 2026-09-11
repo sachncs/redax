@@ -19,7 +19,15 @@ from pydantic import BaseModel, Field
 
 from app.audit.backend import Event, span_summary
 from app.auth import require_api_key
-from app.errors import TRANSIENT_EXC, internal_error, job_limit, payload_too_large, problem_response, queue_full
+from app.errors import (
+    TRANSIENT_EXC,
+    internal_error,
+    job_limit,
+    job_store_unavailable,
+    payload_too_large,
+    problem_response,
+    queue_full,
+)
 from app.jobs.store import JobStore
 from app.logging import get_logger
 from app.observability import ERRORS, QUEUE_DEPTH, REQUESTS, queue_depth
@@ -65,7 +73,7 @@ def register(app: FastAPI) -> None:
             store: JobStore | None = state.job_store
             if store is None:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
-                return internal_error(request, "job store not initialized")
+                return job_store_unavailable(request, "job store not initialized")
             max_inflight = getattr(settings, "max_inflight", 32)
             if queue_depth() >= max_inflight:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="429").inc()
@@ -106,7 +114,7 @@ def register(app: FastAPI) -> None:
         store: JobStore | None = state.job_store
         if store is None:
             REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
-            return internal_error(request, "job store not initialized")
+            return job_store_unavailable(request, "job store not initialized")
         record = await store.get(job_id)
         if record is None:
             REQUESTS.labels(endpoint=endpoint, method=method, status="404").inc()
