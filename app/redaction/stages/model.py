@@ -68,11 +68,34 @@ class ModelStage:
         return list(await detector_detect(text, entity_types))
 
 
+_EXECUTOR: concurrent.futures.ThreadPoolExecutor | None = None
+
+
+def _get_executor() -> concurrent.futures.ThreadPoolExecutor:
+    """Return the module-level single-thread executor used by ``run_async``."""
+    global _EXECUTOR
+    if _EXECUTOR is None:
+        _EXECUTOR = concurrent.futures.ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="redax-model"
+        )
+    return _EXECUTOR
+
+
+def shutdown_executor() -> None:
+    """Shut down the module-level executor (call from lifespan teardown)."""
+    global _EXECUTOR
+    if _EXECUTOR is not None:
+        _EXECUTOR.shutdown(wait=True)
+        _EXECUTOR = None
+
+
 def run_async(coro: Any) -> list[Span]:
     """Run ``coro`` synchronously, off the event loop.
 
     Uses ``asyncio.run`` when no event loop is running, otherwise schedules
-    the coroutine on a single-thread executor and waits for the result.
+    the coroutine on the module-level single-thread executor and waits for
+    the result. The executor is reused across calls so the thread-pool
+    spawn cost is paid once per process.
 
     Args:
         coro: A coroutine returned from ``Detector.detect(...)``.
@@ -83,7 +106,7 @@ def run_async(coro: Any) -> list[Span]:
     try:
         loop = asyncio.get_event_loop()
         if loop.is_running():
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+            with _get_executor() as ex:
                 return list(ex.submit(asyncio.run, coro).result())
         return list(loop.run_until_complete(coro))
     except RuntimeError:
