@@ -28,7 +28,19 @@ TRANSIENT_EXC: tuple[type[BaseException], ...] = (
     TimeoutError,
 )
 
-__all__ = ["Problem", "TRANSIENT_EXC", "install_error_handlers", "problem_response"]
+__all__ = [
+    "Problem",
+    "TRANSIENT_EXC",
+    "install_error_handlers",
+    "job_store_unavailable",
+    "problem_response",
+    "rate_limit_unavailable",
+    "queue_full",
+    "job_limit",
+    "payload_too_large",
+    "internal_error",
+    "timeout_error",
+]
 
 
 @dataclass
@@ -115,6 +127,19 @@ def job_limit(request: Request, detail: str = "Too many jobs for this API key") 
     )
 
 
+def rate_limit_unavailable(
+    request: Request, detail: str = "Rate limiting is not available"
+) -> JSONResponse:
+    """RFC 7807 503 problem when the rate limiter cannot reach Redis."""
+    return problem_response(
+        request,
+        type="https://redax.ai/errors/rate-limit-unavailable",
+        title="Rate Limit Unavailable",
+        status=503,
+        detail=detail,
+    )
+
+
 def payload_too_large(request: Request, detail: str) -> JSONResponse:
     """RFC 7807 413 problem when ``text`` exceeds ``max_text_chars``."""
     return problem_response(
@@ -164,11 +189,13 @@ def flatten_validation_errors(exc: RequestValidationError) -> list[str]:
 def install_error_handlers(app: FastAPI) -> None:
     """Register all RFC 7807 exception handlers on ``app``.
 
-    Hooks the four error paths the API surface can produce:
+    Hooks the error paths the API surface can produce:
     ``StarletteHTTPException`` (any raised HTTP status), the pydantic
     ``RequestValidationError`` from request body validation, ``TimeoutError``
-    (asyncio.timeout expiry), and any uncaught ``Exception``.
+    (asyncio.timeout expiry), ``RateLimitUnavailable`` (typed
+    ``rate-limit-unavailable`` 503 problem), and any uncaught ``Exception``.
     """
+    from app.ratelimit import RateLimitUnavailable
 
     @app.exception_handler(StarletteHTTPException)
     async def http_exception(request: Request, exc: StarletteHTTPException) -> JSONResponse:
@@ -200,6 +227,14 @@ def install_error_handlers(app: FastAPI) -> None:
         """Render an asyncio.timeout expiry as an RFC 7807 504 problem."""
         get_logger("redax.errors").warning("redax.request_timeout", exc_info=exc)
         return timeout_error(request)
+
+    @app.exception_handler(RateLimitUnavailable)
+    async def rate_limit_unavailable_handler(
+        request: Request, exc: RateLimitUnavailable
+    ) -> JSONResponse:
+        """Render a rate-limit / Redis-down failure as a typed 503 problem."""
+        get_logger("redax.errors").warning("redax.rate_limit_unavailable", exc_info=exc)
+        return rate_limit_unavailable(request)
 
     @app.exception_handler(Exception)
     async def unhandled_error(request: Request, exc: Exception) -> JSONResponse:

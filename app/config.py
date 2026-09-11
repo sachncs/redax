@@ -61,6 +61,7 @@ class Settings(BaseSettings):
     api_keys: str = ""
 
     rate_limit_per_minute: int = Field(default=60, ge=0)
+    rate_limit_fail_open: bool = False
     idempotency_ttl_seconds: int = Field(default=86_400, ge=0)
     cache_ttl_seconds: int = Field(default=3_600, ge=0)
     cache_shared: bool = False

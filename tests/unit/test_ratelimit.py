@@ -52,19 +52,21 @@ async def test_anonymous_passthrough_without_state() -> None:
 
 @pytest.mark.asyncio
 async def test_missing_job_store_fails_closed_503() -> None:
+    from app.ratelimit import RateLimitUnavailable
+
     state = build_state(store=None, settings=FakeSettings(5))
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(RateLimitUnavailable):
         await rate_limit("key-1", state)
-    assert exc_info.value.status_code == 503
 
 
 @pytest.mark.asyncio
 async def test_missing_settings_fails_closed_503() -> None:
+    from app.ratelimit import RateLimitUnavailable
+
     store = FakeStore(FakeClient())
     state = build_state(store=store, settings=None)
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(RateLimitUnavailable):
         await rate_limit("key-1", state)
-    assert exc_info.value.status_code == 503
     assert store.client.incr_calls == []
 
 
@@ -101,12 +103,13 @@ async def test_over_limit_raises_429() -> None:
 
 @pytest.mark.asyncio
 async def test_redis_down_fails_closed_503() -> None:
+    from app.ratelimit import RateLimitUnavailable
+
     client = FakeClient(error=ConnectionRefusedError("redis down"))
     store = FakeStore(client)
     state = build_state(store=store, settings=FakeSettings(5))
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(RateLimitUnavailable):
         await rate_limit("key-1", state)
-    assert exc_info.value.status_code == 503
 
 
 @pytest.mark.asyncio
