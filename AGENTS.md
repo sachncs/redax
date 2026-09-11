@@ -1,5 +1,16 @@
 # Conventions for agents working on Redax
 
+## Milestone tag convention
+
+The commit log uses `M<n> #<id>: short summary` tags. The mapping from
+`M<n> #<id>` to a finding body lives in:
+
+- GitHub labels (`audit/M11`, `audit/M10`, ...) and issues for the
+  redax repo; or
+- `MILESTONES.md` at the repo root for the convention itself.
+
+See `MILESTONES.md` for the full decoding rule.
+
 ## Issue templates
 
 - Use `.github/ISSUE_TEMPLATE/finding.md` for audit findings
