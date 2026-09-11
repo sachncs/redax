@@ -131,3 +131,42 @@ async def test_policy_redact_remaps_span_coords_to_original_text() -> None:
     assert len(out.spans) == 2
     assert (out.spans[0].start, out.spans[0].end) == (0, 5)
     assert (out.spans[1].start, out.spans[1].end) == (6, 11)
+
+
+@pytest.mark.asyncio
+async def test_plain_substitutes_each_detected_span_with_replacement() -> None:
+    """The single-shot Redactor.plain() path returns one substitution per Span."""
+    from app.redaction.redactor import RedactionResult
+
+    r = Redactor(
+        detector=StubDetector(),
+        strategies={"mask": Mask()},
+        replacement="<X>",
+    )
+    out: RedactionResult = await r.plain("Alice!", entity_types=None)
+    assert out.text == "<X>!"
+    assert len(out.spans) == 1
+    assert out.spans[0].type == "PERSON"
+
+
+@pytest.mark.asyncio
+async def test_plain_filters_entity_types() -> None:
+    """``entity_types`` is forwarded to the detector in the plain path."""
+    captured: dict[str, list[str] | None] = {}
+
+    class CapturingDetector:
+        name = "capture"
+
+        async def detect(self, text: str, entity_types: list[str]) -> list[Span]:
+            captured["labels"] = entity_types
+            return []
+
+        async def warmup(self) -> None:
+            return None
+
+    r = Redactor(
+        detector=CapturingDetector(),
+        strategies={"mask": Mask()},
+    )
+    await r.plain("hello", entity_types=["EMAIL"])
+    assert captured["labels"] == ["EMAIL"]
