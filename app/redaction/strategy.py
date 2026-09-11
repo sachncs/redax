@@ -225,3 +225,46 @@ class Deid:
             relex_map=relex_map,
             substitutions=list(zip(detected, replacements, strict=True)),
         )
+
+
+class HipsStrategy:
+    """Run :func:`app.redaction.relex.relexicalize` to apply HIPS placeholders.
+
+    Detects PII via the bound detector, then delegates to the public
+    relexicalizer so the placeholders are deterministic and shareable
+    across requests via ``cross_request_cache``. Use as
+    ``strategy: hips`` in policy YAML.
+    """
+
+    name = "hips"
+
+    def __init__(
+        self,
+        detector: Detector,
+        cross_request_cache: dict[str, str] | None = None,
+    ) -> None:
+        self.detector = detector
+        self.cache = cross_request_cache or {}
+
+    async def run(self, text: str, spans: list[Span], config: dict[str, Any]) -> StrategyResult:
+        """Run the detector then the relexicalizer."""
+        from app.redaction.apply import apply_spans
+        from app.redaction.relex import relexicalize
+
+        entity_types = config.get("entity_types", [])
+        detected = await self.detector.detect(text, entity_types)
+        seed = config.get("relex_seed")
+        result = relexicalize(
+            text,
+            list(detected),
+            seed=seed,
+            cross_request_cache=self.cache,
+        )
+        return StrategyResult(
+            text=result.text,
+            spans=list(detected),
+            relex_map=result.relex_map,
+            substitutions=list(
+                zip(detected, [result.relex_map.get(text[s.start : s.end], "") for s in detected], strict=True)
+            ),
+        )
