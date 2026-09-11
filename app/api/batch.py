@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import asyncio
 import time
-import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, FastAPI, Request
@@ -20,6 +19,7 @@ from app.audit.backend import Event, span_summary
 from app.auth import require_api_key
 from app.errors import TRANSIENT_EXC, internal_error, payload_too_large, timeout_error
 from app.logging import get_logger
+from app.middleware import get_request_id
 from app.observability import REQUEST_LATENCY, REQUESTS
 from app.ratelimit import rate_limit
 from app.state import State, get_state
@@ -55,12 +55,12 @@ def register(app: FastAPI) -> None:
         body: BatchRequest,
         state: Annotated[State, Depends(get_state)],
         api_key: Annotated[str, Depends(require_api_key)],
+        request_id: Annotated[str, Depends(get_request_id)] = "",
     ) -> BatchResponse | JSONResponse:
         """Run every item in the batch concurrently under a single asyncio timeout."""
         start = time.perf_counter()
         endpoint = "POST /v1/redact/batch"
         method = "POST"
-        request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
 
         await rate_limit(api_key, state)
         try:

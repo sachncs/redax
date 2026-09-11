@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import asyncio
 import time
-import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, Request
@@ -30,6 +29,7 @@ from app.errors import (
 )
 from app.jobs.store import JobStore
 from app.logging import get_logger
+from app.middleware import get_request_id
 from app.observability import ERRORS, QUEUE_DEPTH, REQUESTS, queue_depth
 from app.ratelimit import rate_limit
 from app.state import State, get_state
@@ -57,11 +57,11 @@ def register(app: FastAPI) -> None:
         request: Request,
         state: Annotated[State, Depends(get_state)],
         api_key: Annotated[str, Depends(require_api_key)],
+        request_id: Annotated[str, Depends(get_request_id)] = "",
     ) -> dict[str, Any] | JSONResponse:
         """Admit a new redaction job; schedule the worker and return the job id."""
         endpoint = "POST /v1/jobs"
         method = "POST"
-        request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
 
         await rate_limit(api_key, state)
         try:

@@ -10,7 +10,6 @@ from __future__ import annotations
 import asyncio
 import json
 import time
-import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, FastAPI, Header, Request
@@ -26,6 +25,7 @@ from app.errors import (
     problem_response,
     timeout_error,
 )
+from app.middleware import get_request_id
 from app.inference.detector import Span
 from app.logging import get_logger
 from app.observability import CACHE_HITS, REQUEST_LATENCY, REQUESTS
@@ -76,6 +76,7 @@ def register(app: FastAPI) -> None:
         state: Annotated[State, Depends(get_state)],
         api_key: Annotated[str, Depends(require_api_key)],
         x_idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
+        request_id: Annotated[str, Depends(get_request_id)] = "",
     ) -> Any:
         """Single-document redaction entry point; honours the idempotency and response caches."""
         await rate_limit(api_key, state)
@@ -83,7 +84,6 @@ def register(app: FastAPI) -> None:
         start = time.perf_counter()
         endpoint = "POST /v1/redact"
         method = "POST"
-        request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
 
         try:
             settings = state.settings
