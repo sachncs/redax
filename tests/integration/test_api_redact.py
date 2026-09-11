@@ -259,3 +259,50 @@ def test_redact_without_use_pipeline_uses_legacy_redactor():
     assert body["used_pipeline"] is False
     assert "[REDACTED]" in body["text"]
     assert body["digest"] is None
+
+
+def test_redact_without_policy_uses_default_policy(tmp_path):
+    """REDAX_DEFAULT_POLICY is wired: a request without policy fields
+    reuses the configured default policy's fields map."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from app.api.redact import register
+    from app.state import State
+
+    policies_dir = tmp_path / "policies"
+    policies_dir.mkdir()
+    (policies_dir / "default.yaml").write_text(
+        "name: default\nversion: 1.0.0\n"
+        "fields:\n  free_text:\n    strategy: passThrough\n"
+    )
+
+    state = State()
+    state.settings = type(
+        "S",
+        (),
+        {
+            "max_text_chars": 100_000,
+            "api_key_set": lambda self: set(),
+            "default_policy": "default",
+            "policies_dir": str(policies_dir),
+            "hash_salt": "change-me",
+            "cache_shared": False,
+            "idempotency_ttl_seconds": 86_400,
+            "cache_ttl_seconds": 3600,
+        },
+    )()
+    state.redactor = Redactor(
+        detector=RedactStubDetector(),
+        strategies={"passThrough": Skip()},
+    )
+    state.audit = MemoryAuditBackend()
+    state.job_store = None
+    app = FastAPI()
+    app.state.state = state
+    register(app)
+    with TestClient(app) as client:
+        resp = client.post("/v1/redact", json={"text": "hello"})
+    assert resp.status_code == 200
+    # The default policy's passThrough strategy leaves the text untouched.
+    assert resp.json()["text"] == "hello"

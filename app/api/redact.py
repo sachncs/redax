@@ -91,6 +91,18 @@ def register(app: FastAPI) -> None:
             if len(body.text) > max_chars:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="413").inc()
                 return payload_too_large(request, f"text exceeds {max_chars} chars")
+            policy = body.policy
+            if policy is None:
+                default_name = getattr(settings, "default_policy", "") if settings else ""
+                policies_dir = getattr(settings, "policies_dir", "./policies") if settings else None
+                if default_name and policies_dir:
+                    from pathlib import Path
+
+                    from app.redaction.policies import load_policy
+
+                    policy_path = Path(policies_dir) / f"{default_name}.yaml"
+                    if policy_path.exists():
+                        policy = load_policy(policy_path).fields
             pipeline = state.pipeline
             if body.use_pipeline and pipeline is None:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="422").inc()
@@ -178,7 +190,7 @@ def register(app: FastAPI) -> None:
                     }
                 else:
                     result = await redactor.redact(
-                        body.text, policy=body.policy, entity_types=body.entity_types
+                        body.text, policy=policy, entity_types=body.entity_types
                     )
                     inference_ms = int((time.perf_counter() - inference_start) * 1000)
                     spans = list(result.spans)
@@ -204,7 +216,7 @@ def register(app: FastAPI) -> None:
                 if audit is not None:
                     version = (
                         "policy"
-                        if isinstance(body.policy, dict) and body.policy.get("version")
+                        if isinstance(policy, dict) and policy.get("version")
                         else "default"
                     )
                     audit_kwargs: dict[str, Any] = dict(
