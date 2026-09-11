@@ -19,7 +19,9 @@ redactor = Redactor(
 
 
 async def chat(user_message: str) -> str:
-    safe_input = (await redactor.redact(user_message, policy=load_policy("policies/default.yaml").fields)).text
+    safe_input = (
+        await redactor.redact(user_message, policy=load_policy("policies/default.yaml").fields)
+    ).text
     response = your_llm_call(safe_input)
     safe_output = (await redactor.redact(response.text)).text
     return safe_output

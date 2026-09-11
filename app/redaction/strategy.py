@@ -248,7 +248,6 @@ class HipsStrategy:
 
     async def run(self, text: str, spans: list[Span], config: dict[str, Any]) -> StrategyResult:
         """Run the detector then the relexicalizer."""
-        from app.redaction.apply import apply_spans
         from app.redaction.relex import relexicalize
 
         entity_types = config.get("entity_types", [])
@@ -265,6 +264,10 @@ class HipsStrategy:
             spans=list(detected),
             relex_map=result.relex_map,
             substitutions=list(
-                zip(detected, [result.relex_map.get(text[s.start : s.end], "") for s in detected], strict=True)
+                zip(
+                    detected,
+                    [result.relex_map.get(text[s.start : s.end], "") for s in detected],
+                    strict=True,
+                )
             ),
         )

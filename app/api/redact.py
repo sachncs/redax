@@ -25,9 +25,9 @@ from app.errors import (
     problem_response,
     timeout_error,
 )
-from app.middleware import get_request_id
 from app.inference.detector import Span
 from app.logging import get_logger
+from app.middleware import get_request_id
 from app.observability import CACHE_HITS, REQUEST_LATENCY, REQUESTS
 from app.ratelimit import rate_limit
 from app.state import State, get_state
@@ -56,7 +56,7 @@ class RedactResponse(BaseModel):
 _CACHE_SKIPPED_LOGGED: set[str] = set()
 
 
-def _LOG_CACHE_SKIPPED(name: str) -> None:
+def _log_cache_skipped(name: str) -> None:
     """Log once per process when a cache lookup is silently dropped."""
     if name in _CACHE_SKIPPED_LOGGED:
         return
@@ -125,11 +125,10 @@ def register(app: FastAPI) -> None:
                 # Idempotency short-circuit
                 if x_idempotency_key:
                     if job_store is None:
-                        _LOG_CACHE_SKIPPED("idempotency")
+                        _log_cache_skipped("idempotency")
                     else:
-                        idem_raw = await job_store.client.get(
-                            f"{getattr(settings, "redis_namespace", "redax")}:idem:{x_idempotency_key}"
-                        )
+                        ns = getattr(settings, "redis_namespace", "redax")
+                        idem_raw = await job_store.client.get(f"{ns}:idem:{x_idempotency_key}")
                         if idem_raw:
                             CACHE_HITS.labels(cache="idempotency").inc()
                             REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
@@ -147,11 +146,10 @@ def register(app: FastAPI) -> None:
                     )
                 )
                 if job_store is None:
-                    _LOG_CACHE_SKIPPED("response")
+                    _log_cache_skipped("response")
                 else:
-                    cache_raw = await job_store.client.get(
-                        f"{getattr(settings, "redis_namespace", "redax")}:cache:{cache_key}"
-                    )
+                    ns = getattr(settings, "redis_namespace", "redax")
+                    cache_raw = await job_store.client.get(f"{ns}:cache:{cache_key}")
                     if cache_raw:
                         CACHE_HITS.labels(cache="response").inc()
                         REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
@@ -202,13 +200,16 @@ def register(app: FastAPI) -> None:
 
                 ttl = getattr(settings, "cache_ttl_seconds", 3600)
                 if job_store is not None:
+                    ns = getattr(settings, "redis_namespace", "redax")
                     await job_store.client.set(
-                        f"{getattr(settings, "redis_namespace", "redax")}:cache:{cache_key}", json.dumps(response_body), ex=ttl
+                        f"{ns}:cache:{cache_key}",
+                        json.dumps(response_body),
+                        ex=ttl,
                     )
                     if x_idempotency_key:
                         idem_ttl = getattr(settings, "idempotency_ttl_seconds", 86_400)
                         await job_store.client.set(
-                            f"{getattr(settings, "redis_namespace", "redax")}:idem:{x_idempotency_key}",
+                            f"{ns}:idem:{x_idempotency_key}",
                             json.dumps(response_body),
                             ex=idem_ttl,
                         )
