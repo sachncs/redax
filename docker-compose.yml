@@ -16,6 +16,13 @@ services:
     volumes:
       - redax-models:/models
       - redax-audit:/var/lib/redax
+      - ./policies:/policies:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/readyz', timeout=2).raise_for_status()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     depends_on:
       redis:
         condition: service_healthy
@@ -24,6 +31,10 @@ services:
   redis:
     image: redis:7-alpine
     container_name: redax-redis
+    # DEV ONLY: in-memory only. For production swap the line below for
+    #   ["redis-server", "--save", "60", "1", "--appendonly", "yes"]
+    # or a managed Redis offering; ephemeral state breaks rate-limit
+    # counters and any in-flight /v1/jobs admission on a restart.
     command: ["redis-server", "--save", "", "--appendonly", "no"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
