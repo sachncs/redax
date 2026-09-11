@@ -31,5 +31,12 @@ jobs:
       - name: verify (tests + lint + typecheck + determinism)
         run: make verify
 
+      - name: Verify commit author matches AGENTS.md convention
+        run: |
+          test "$(git log -1 --format='%an')" = "sachin" || \
+            (echo "Last commit author is not 'sachin' per AGENTS.md" && exit 1)
+          test "$(git log -1 --format='%ae')" = "sachncs@gmail.com" || \
+            (echo "Last commit email is not 'sachncs@gmail.com' per AGENTS.md" && exit 1)
+
       - name: Eval gate
         run: python scripts/eval.py --fixture tests/fixtures/synthetic_pii.jsonl
