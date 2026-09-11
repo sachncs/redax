@@ -100,7 +100,10 @@ effect there are documented but not yet active.
 2. `require_api_key` validates the API key (no-op when keys are unset)
 3. `rate_limit` checks the per-minute bucket
 4. Idempotency cache hit → return cached response
-5. Response cache hit → return cached response
+5. Response cache hit → return cached response (the cache key is salted
+   by `REDAX_HASH_SALT` when `REDAX_CACHE_SHARED=false`, isolating
+   tenants; setting `REDAX_CACHE_SHARED=true` shares one bucket across
+   tenants using a deterministic hash without the salt)
 6. `Redactor.redact(text, policy=...)`:
    - If policy provided: iterate `policy.fields`, dispatch each to its strategy
    - Each strategy may invoke the detector, apply its own substitution
