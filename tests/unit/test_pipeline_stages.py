@@ -65,3 +65,15 @@ def test_pipeline_inputs_compatible_with_redactionbench_annotations() -> None:
     annotated = LabelledSpan(0, 17, SpanCategory.MANDATORY)
     assert regex[0].start == annotated.start
     assert regex[0].end == annotated.end
+
+
+def test_fuse_contextual_optional_with_no_red_spans_returns_model_spans() -> None:
+    """Contextual-optional in docs/bench.md: no mandatory spans + non-empty yellow.
+
+    ``fuse`` keeps the high-confidence model spans rather than dropping
+    them to an empty set, so the bench R-Score keeps the recall lift.
+    """
+    yellow = (make_test_span(0, 5, conf=0.9), make_test_span(10, 15, conf=0.8))
+    result = fuse((), yellow)
+    assert result == yellow
+    assert len(result) == 2
