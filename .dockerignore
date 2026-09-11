@@ -20,6 +20,7 @@ wasm/pkg
 wasm/target
 examples/wasm-demo/pkg
 examples/wasm-demo/node_modules
+bench-results
 
 *.onnx
 *.safetensors
