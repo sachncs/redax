@@ -7,15 +7,21 @@ in either direction.
 ## Python SDK
 
 ```python
-from redax import Redactor
+from app.redaction import Redactor, load_policy
+from app.inference.regex import RegexDetector
 
-redactor = Redactor(policy="default")
+strategies = {"mask": RegexDetector()}
+redactor = Redactor(
+    detector=RegexDetector(),
+    strategies=strategies,
+    replacement="[REDACTED]",
+)
 
 
-def chat(user_message: str) -> str:
-    safe_input = redactor.redact(user_message)
+async def chat(user_message: str) -> str:
+    safe_input = (await redactor.redact(user_message, policy=load_policy("policies/default.yaml").fields)).text
     response = your_llm_call(safe_input)
-    safe_output = redactor.redact(response.text)
+    safe_output = (await redactor.redact(response.text)).text
     return safe_output
 ```
 
