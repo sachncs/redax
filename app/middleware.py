@@ -19,6 +19,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import Response
 
 from app.logging import get_logger
+from app.observability.tracing import current_trace_id_hex
 
 
 def get_request_id(request: Request) -> str:
@@ -53,6 +54,7 @@ def emit_access_line(
         request_id: The correlated request id, copied from
             ``X-Request-ID`` or generated server-side.
     """
+    trace_id = current_trace_id_hex() or ""
     get_logger("redax.access").info(
         "redax.access",
         method=method,
@@ -60,6 +62,7 @@ def emit_access_line(
         status=status,
         duration_ms=duration_ms,
         request_id=request_id,
+        trace_id=trace_id,
     )
 
 

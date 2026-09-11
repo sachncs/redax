@@ -118,6 +118,8 @@ def register(app: FastAPI) -> None:
                     yield f"data: {json.dumps(payload)}\n\n"
                 yield "data: [DONE]\n\n"
                 if audit is not None:
+                    from app.observability.tracing import current_trace_id_hex
+
                     await audit.record(
                         Event(
                             request_id=request_id,
@@ -126,6 +128,7 @@ def register(app: FastAPI) -> None:
                             text_chars=len(text),
                             entities_detected=span_summary(all_spans),
                             inference_ms=inference_ms,
+                            trace_id=current_trace_id_hex() or "",
                         )
                     )
                 REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
