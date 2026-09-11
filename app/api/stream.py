@@ -110,6 +110,10 @@ def register(app: FastAPI) -> None:
                     payload = {
                         "text": result.text,
                         "spans": [s.__dict__ for s in result.spans],
+                        "relex_map": result.relex_map,
+                        "used_pipeline": False,
+                        "used_fallback": False,
+                        "digest": None,
                     }
                     yield f"data: {json.dumps(payload)}\n\n"
                 yield "data: [DONE]\n\n"
