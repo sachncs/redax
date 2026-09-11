@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+
 from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram
 
 REGISTRY = CollectorRegistry()
@@ -95,3 +97,42 @@ def queue_depth() -> float:
         for sample in metric.samples:
             return float(sample.value)
     return 0.0
+
+
+class RequestMetric:
+    """Context manager that wraps the per-request metrics boilerplate.
+
+    Each ``/v1/*`` route previously opened with the same five-line
+    pattern (``start = time.perf_counter()``; declare ``endpoint`` /
+    ``method``; increment ``REQUESTS`` in every branch; observe
+    ``REQUEST_LATENCY`` in a ``finally``). ``RequestMetric`` collapses
+    the boilerplate so new routes can adopt it with one ``with``
+    block and a single ``record(status)`` call per branch.
+
+    Use as::
+
+        timed = RequestMetric("POST /v1/redact")
+        try:
+            ...return ... record("200")
+        except TimeoutError:
+            ...record("504")
+        except TRANSIENT_EXC:
+            ...record("500")
+    """
+
+    def __init__(self, endpoint: str, method: str = "POST") -> None:
+        self.endpoint = endpoint
+        self.method = method
+        self.start = time.perf_counter()
+
+    def record(self, status: str) -> None:
+        """Increment REQUESTS for the given status; observed in __exit__."""
+        REQUESTS.labels(endpoint=self.endpoint, method=self.method, status=status).inc()
+
+    def __enter__(self) -> RequestMetric:
+        return self
+
+    def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
+        REQUEST_LATENCY.labels(endpoint=self.endpoint, method=self.method).observe(
+            time.perf_counter() - self.start
+        )
