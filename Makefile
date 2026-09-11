@@ -36,6 +36,9 @@ verify: test lint typecheck verify-determinism ## Full reproducibility gate: tes
 download-models: ## Download + sha256-verify pinned model snapshots (fail-loud on mismatch)
 	$(PYTHON) scripts/download_models.py
 
+load: ## Run locust against the running server (opt-in)
+	$(PYTHON) -m locust -f tests/load/locustfile.py --host http://localhost:$$(PORT)
+
 bench: ## Run latency/throughput benchmark
 	$(PYTHON) scripts/bench.py
 
