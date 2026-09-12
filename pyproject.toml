@@ -9,7 +9,7 @@ authors = [{ name = "sachin", email = "sachncs@gmail.com" }]
 # Exact pins only. Range specifiers are banned: the locking workflow
 # (pip-compile -> requirements.lock) is the only sanctioned upgrade path.
 # Deliberate version notes:
-#   - transformers==4.57.6 is the latest 4.x; gliner2==2.0.0 requires
+#   - transformers==5.16.1 is the latest 4.x; gliner2==2.0.0 requires
 #     transformers<5 so the 5.x line is currently unavailable.
 #   - redis==5.3.1 is the latest 5.x; arq==0.28.0 requires redis<6.
 #   - huggingface-hub==1.30.0 is the latest 0.x; transformers==4.57.6
@@ -28,7 +28,7 @@ dependencies = [
     "opentelemetry-sdk==1.44.0",
     "opentelemetry-exporter-otlp==1.44.0",
     "gliner2[local]==2.0.0",
-    "transformers==4.57.6",
+    "transformers==5.16.1",
     "huggingface-hub==1.30.0",
     "pyyaml==6.0.3",
 ]
