@@ -48,7 +48,7 @@ dev = [
     "pip-tools==7.6.1",
     "optimum==2.3.0",
     "onnxruntime==1.29.0",
-    "pytest-cov==6.0.0",
+    "pytest-cov==7.1.0",
 ]
 
 [project.scripts]
