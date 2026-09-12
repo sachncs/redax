@@ -12,7 +12,7 @@ authors = [{ name = "sachin", email = "sachncs@gmail.com" }]
 #   - transformers==4.57.6 is the latest 4.x; gliner2==2.0.0 requires
 #     transformers<5 so the 5.x line is currently unavailable.
 #   - redis==5.3.1 is the latest 5.x; arq==0.28.0 requires redis<6.
-#   - huggingface-hub==0.36.2 is the latest 0.x; transformers==4.57.6
+#   - huggingface-hub==1.30.0 is the latest 0.x; transformers==4.57.6
 #     requires huggingface-hub<1.0.
 dependencies = [
     "fastapi==0.141.1",
@@ -29,7 +29,7 @@ dependencies = [
     "opentelemetry-exporter-otlp==1.44.0",
     "gliner2[local]==2.0.0",
     "transformers==4.57.6",
-    "huggingface-hub==0.36.2",
+    "huggingface-hub==1.30.0",
     "pyyaml==6.0.3",
 ]
 
