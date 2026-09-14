@@ -1,0 +1,23 @@
+---
+import Base from "~/layouts/Base.astro";
+---
+<Base title="Not found · Redax" description="The page you're looking for doesn't exist.">
+  <section class="section">
+    <div class="container-x">
+      <div class="mx-auto max-w-xl text-center">
+        <span class="pill mx-auto"><span class="dot"></span>404</span>
+        <h1 class="mt-6 text-[clamp(40px,6vw,72px)] leading-[1.02] tracking-[-0.04em]">
+          That page is redacted.
+        </h1>
+        <p class="mt-5 text-[17px] text-ink-300">
+          The link you followed doesn't match any page we publish. Head back to the
+          landing page or check the docs.
+        </p>
+        <div class="mt-10 flex items-center justify-center gap-3">
+          <a href="/redax/" class="btn-primary">Back to home</a>
+          <a href="/redax/docs/api" class="btn-ghost">Read the docs</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</Base>
