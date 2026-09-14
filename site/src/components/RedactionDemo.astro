@@ -1,0 +1,196 @@
+---
+const SAMPLES = [
+  {
+    label: "Support email",
+    text:
+      "Hi Priya,\n\nFollowing up on ticket #48291 — please call +1 (415) 555-2671 or email priya.kapoor@stripe.com. Card on file: 4111 1111 1111 1111, exp 09/27.\n\n— Jordan Reyes, Customer Success",
+  },
+  {
+    label: "Medical record",
+    text:
+      "Patient: Maria Gonzalez (DOB 1982-04-17, SSN 123-45-6789) presented at UCSF with chest pain. MRN 991-2284. Contact: m.gonzalez@ucsf.edu, (415) 555-9988.",
+  },
+  {
+    label: "Engineering log",
+    text:
+      "2026-09-04 12:08:14 [INFO] deploy@api-7c9b: rollout ok · commit f1a2c3d · actor=lucas.huang@corp.io · ip 10.0.42.18",
+  },
+  {
+    label: "Plain conversation",
+    text:
+      "Hey! It's Anika Patel from Acme Robotics. We met at the conference in Berlin. My cell is +44 20 7946 0958 if you want to chat about the partnership.",
+  },
+];
+---
+<section id="demo" class="section relative">
+  <div class="container-x">
+    <div class="mx-auto max-w-3xl text-center">
+      <span class="pill mx-auto">
+        <span class="dot"></span>
+        Try it live
+      </span>
+      <h2 class="mt-5 text-[clamp(36px,5vw,64px)] leading-[1.02] tracking-[-0.04em] text-ink-0">
+        Type a sentence. Watch the PII disappear.
+      </h2>
+      <p class="mt-5 text-[17px] text-ink-300">
+        This runs the same deterministic regex pipeline that ships in Redax — entirely in your browser.
+        No request is ever made to a server.
+      </p>
+    </div>
+
+    <div class="reveal mt-12">
+      <div class="code-shell relative overflow-hidden">
+        <!-- header -->
+        <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-3 border-b border-white/[0.06] bg-white/[0.02]">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-[#ff5f57]"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-[#febc2e]"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-[#28c840]"></span>
+            <span class="ml-3 font-mono text-[12px] text-ink-400">demo · redact.live</span>
+          </div>
+          <div class="flex items-center gap-1.5 flex-wrap" id="demo-samples">
+            {SAMPLES.map((s, i) => (
+              <button
+                type="button"
+                class="demo-sample tab px-2.5 py-1 rounded-full text-[11.5px] font-mono text-ink-300 transition-colors"
+                data-idx={i}
+                data-active={i === 0 ? "true" : "false"}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <!-- editor + result -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-white/[0.06]">
+          <!-- input -->
+          <div class="relative">
+            <div class="px-5 pt-4 pb-2 flex items-center justify-between">
+              <span class="text-[11px] uppercase tracking-[0.2em] text-ink-400">Input</span>
+              <span class="text-[11px] font-mono text-ink-400">
+                <span id="demo-chars">0</span> chars
+              </span>
+            </div>
+            <textarea
+              id="demo-input"
+              spellcheck="false"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              class="w-full h-[260px] bg-transparent px-5 pb-5 text-[14.5px] font-mono leading-[1.65] text-ink-50 resize-none focus:outline-none placeholder:text-ink-500"
+              placeholder="Type or paste anything — email, phone, name, credit card…"
+            ></textarea>
+          </div>
+
+          <!-- output -->
+          <div class="relative bg-gradient-to-b from-flame-500/[0.05] to-transparent">
+            <div class="px-5 pt-4 pb-2 flex items-center justify-between">
+              <span class="text-[11px] uppercase tracking-[0.2em] text-ink-400">Redacted</span>
+              <span class="text-[11px] font-mono text-sage-400 flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-sage-400"></span>
+                <span id="demo-spans">0</span> spans · <span id="demo-ms">0</span> ms
+              </span>
+            </div>
+            <div
+              id="demo-output"
+              class="px-5 pb-5 text-[14.5px] font-mono leading-[1.65] text-ink-50 min-h-[260px] whitespace-pre-wrap"
+              aria-live="polite"
+            ></div>
+          </div>
+        </div>
+
+        <!-- footer stats -->
+        <div class="border-t border-white/[0.06] bg-white/[0.02] px-5 py-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-[12px] font-mono text-ink-300">
+          <div>
+            <div class="text-[10px] uppercase tracking-[0.2em] text-ink-500">Detectors</div>
+            <div class="mt-0.5 text-ink-100">regex · deterministic</div>
+          </div>
+          <div>
+            <div class="text-[10px] uppercase tracking-[0.2em] text-ink-500">Replacement</div>
+            <div class="mt-0.5 text-ink-100">[TYPE_NNNN]</div>
+          </div>
+          <div>
+            <div class="text-[10px] uppercase tracking-[0.2em] text-ink-500">Network</div>
+            <div class="mt-0.5 text-sage-400">none · local-only</div>
+          </div>
+          <div>
+            <div class="text-[10px] uppercase tracking-[0.2em] text-ink-500">Determinism</div>
+            <div class="mt-0.5 text-ink-100">byte-identical on retries</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  import { redact } from "~/scripts/redact";
+
+  const $input = document.getElementById("demo-input") as HTMLTextAreaElement | null;
+  const $output = document.getElementById("demo-output");
+  const $chars = document.getElementById("demo-chars");
+  const $spans = document.getElementById("demo-spans");
+  const $ms = document.getElementById("demo-ms");
+  const $samples = document.getElementById("demo-samples");
+
+  const SAMPLES = [
+    "Hi Priya,\n\nFollowing up on ticket #48291 — please call +1 (415) 555-2671 or email priya.kapoor@stripe.com. Card on file: 4111 1111 1111 1111, exp 09/27.\n\n— Jordan Reyes, Customer Success",
+    "Patient: Maria Gonzalez (DOB 1982-04-17, SSN 123-45-6789) presented at UCSF with chest pain. MRN 991-2284. Contact: m.gonzalez@ucsf.edu, (415) 555-9988.",
+    "2026-09-04 12:08:14 [INFO] deploy@api-7c9b: rollout ok · commit f1a2c3d · actor=lucas.huang@corp.io · ip 10.0.42.18",
+    "Hey! It's Anika Patel from Acme Robotics. We met at the conference in Berlin. My cell is +44 20 7946 0958 if you want to chat about the partnership.",
+  ];
+
+  function escapeHtml(s: string): string {
+    return s
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  function render() {
+    if (!$input || !$output) return;
+    const text = $input.value;
+    if ($chars) $chars.textContent = String(text.length);
+
+    const t0 = performance.now();
+    const { spans } = redact(text);
+    const ms = performance.now() - t0;
+
+    // Highlight spans inline
+    if (spans.length === 0) {
+      $output.textContent = text || "";
+    } else {
+      let html = "";
+      let cursor = 0;
+      for (const s of spans) {
+        html += escapeHtml(text.slice(cursor, s.start));
+        html += `<span class="demo-token" data-type="${s.type}">${escapeHtml(text.slice(s.start, s.end))}</span>`;
+        cursor = s.end;
+      }
+      html += escapeHtml(text.slice(cursor));
+      $output.innerHTML = html;
+    }
+
+    if ($spans) $spans.textContent = String(spans.length);
+    if ($ms) $ms.textContent = ms < 0.5 ? "< 1" : ms.toFixed(1);
+  }
+
+  function setSample(idx: number) {
+    if ($input) $input.value = SAMPLES[idx] ?? "";
+    $samples?.querySelectorAll(".demo-sample").forEach((el) => {
+      el.setAttribute("data-active", String(Number((el as HTMLElement).dataset.idx) === idx));
+    });
+    render();
+  }
+
+  $samples?.addEventListener("click", (e) => {
+    const t = e.target as HTMLElement;
+    const idx = t?.dataset?.idx;
+    if (idx != null) setSample(Number(idx));
+  });
+
+  $input?.addEventListener("input", render);
+
+  setSample(0);
+</script>
