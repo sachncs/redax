@@ -1,0 +1,185 @@
+---
+import { HERO } from "~/content/site";
+---
+<section class="hero-bg noise relative overflow-hidden pt-32 pb-20 sm:pt-40 sm:pb-28">
+  <div class="aurora" aria-hidden="true"></div>
+  <div class="grid-bg absolute inset-0 pointer-events-none" aria-hidden="true"></div>
+
+  <div class="container-x relative">
+    <div class="mx-auto max-w-4xl text-center">
+      <div class="reveal">
+        <span class="pill mx-auto">
+          <span class="dot"></span>
+          <span>{HERO.eyebrow}</span>
+        </span>
+      </div>
+
+      <h1
+        class="reveal reveal-delay-1 mt-6 text-[clamp(48px,8.5vw,108px)] leading-[0.96] tracking-[-0.045em]"
+      >
+        {HERO.title[0]}
+        <br />
+        <span class="shimmer">{HERO.title[1]}</span>
+      </h1>
+
+      <p
+        class="reveal reveal-delay-2 mx-auto mt-7 max-w-[640px] text-[clamp(17px,1.6vw,19px)] leading-[1.55] text-ink-200"
+      >
+        {HERO.subtitle}
+      </p>
+
+      <div class="reveal reveal-delay-3 mt-10 flex items-center justify-center gap-3">
+        {HERO.ctas.map((c) => (
+          <a href={c.href} class={c.variant === "primary" ? "btn-primary" : "btn-ghost"}>
+            {c.label}
+            {c.variant === "primary" ? (
+              <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M5 12h14M13 5l7 7-7 7"/>
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M4 6h16M4 12h10M4 18h16"/>
+              </svg>
+            )}
+          </a>
+        ))}
+      </div>
+
+      <ul class="reveal reveal-delay-4 mt-10 flex items-center justify-center gap-x-6 gap-y-2 flex-wrap text-[12.5px] text-ink-300">
+        {HERO.proof.map((p) => (
+          <li class="flex items-center gap-1.5">
+            <svg viewBox="0 0 24 24" class="w-3.5 h-3.5 text-sage-400" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M20 6 9 17l-5-5"/>
+            </svg>
+            {p}
+          </li>
+        ))}
+      </ul>
+    </div>
+
+    <!-- Product preview -->
+    <div class="reveal reveal-delay-3 mt-16 sm:mt-20">
+      <div class="relative mx-auto max-w-5xl">
+        <!-- Glow halo -->
+        <div
+          aria-hidden="true"
+          class="absolute -inset-x-20 -inset-y-10 bg-flame-500/25 blur-3xl rounded-full opacity-60"
+        ></div>
+
+        <div class="code-shell relative overflow-hidden">
+          <!-- title bar -->
+          <div class="flex items-center gap-2 px-4 py-3 border-b border-white/[0.06] bg-white/[0.02]">
+            <span class="w-2.5 h-2.5 rounded-full bg-[#ff5f57]"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-[#febc2e]"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-[#28c840]"></span>
+            <div class="mx-auto px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.06] text-[11px] text-ink-300 font-mono">
+              POST · /v1/redact
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-white/[0.06]">
+            <!-- request -->
+            <div class="p-6 sm:p-7">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] uppercase tracking-[0.2em] text-ink-400">Request</span>
+                <span class="text-[11px] font-mono text-ink-400">application/json</span>
+              </div>
+              <pre class="mt-4 text-[13px] leading-[1.65] font-mono text-ink-100 overflow-x-auto"><code><span class="tk-pun">{</span>
+  <span class="tk-str">"text"</span><span class="tk-pun">:</span> <span class="tk-str">"Hi, I'm Jordan Reyes from Stripe. "</span>
+        <span class="tk-str">"Reach me at jordan@stripe.com or "</span>
+        <span class="tk-str">"+1 (415) 555-2671. Card on file: "</span>
+        <span class="tk-str">"4111 1111 1111 1111."</span>
+<span class="tk-pun">}</span></code></pre>
+            </div>
+            <!-- response -->
+            <div class="p-6 sm:p-7 bg-gradient-to-b from-flame-500/[0.04] to-transparent">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] uppercase tracking-[0.2em] text-ink-400">Response</span>
+                <span class="text-[11px] font-mono text-sage-400 flex items-center gap-1.5">
+                  <span class="w-1.5 h-1.5 rounded-full bg-sage-400"></span>
+                  200 OK · 8 ms
+                </span>
+              </div>
+              <pre class="mt-4 text-[13px] leading-[1.65] font-mono text-ink-100 overflow-x-auto"><code><span class="tk-pun">{</span>
+  <span class="tk-str">"text"</span><span class="tk-pun">:</span> <span class="tk-str">"Hi, I'm [PERSON_0000] from [ORG_0000]. "</span>
+        <span class="tk-str">"Reach me at [EMAIL_0000] or "</span>
+        <span class="tk-str">"[PHONE_E164_0000]. Card on file: "</span>
+        <span class="tk-str">"[CREDIT_CARD_0000]."</span><span class="tk-pun">,</span>
+  <span class="tk-str">"spans"</span><span class="tk-pun">:</span> <span class="tk-pun">[</span> <span class="tk-com">/* 4 spans */</span> <span class="tk-pun">],</span>
+  <span class="tk-str">"digest"</span><span class="tk-pun">:</span> <span class="tk-str">"8f1d2c…"</span>
+<span class="tk-pun">}</span></code></pre>
+            </div>
+          </div>
+
+          <!-- pipeline rail -->
+          <div class="border-t border-white/[0.06] bg-white/[0.02] px-5 py-3 flex items-center gap-3 overflow-x-auto">
+            <span class="text-[11px] uppercase tracking-[0.2em] text-ink-400 shrink-0">Pipeline</span>
+            {[
+              { label: "regex", tone: "fast" },
+              { label: "gliner2", tone: "model" },
+              { label: "consensus", tone: "merge" },
+              { label: "replace", tone: "shape" },
+              { label: "audit", tone: "log" },
+            ].map((step, i, arr) => (
+              <>
+                <span class="pill !py-0.5 !text-[11px] !font-mono">
+                  <span class={`dot ${step.tone === "fast" ? "" : ""}`} style={
+                    step.tone === "fast" ? "background:#ffd28a; box-shadow:0 0 0 3px rgb(255 210 138/0.18)" :
+                    step.tone === "model" ? "background:#93c5fd; box-shadow:0 0 0 3px rgb(147 197 253/0.18)" :
+                    step.tone === "merge" ? "background:#c8b6ff; box-shadow:0 0 0 3px rgb(200 182 255/0.18)" :
+                    step.tone === "shape" ? "background:#b6f0c0; box-shadow:0 0 0 3px rgb(182 240 192/0.18)" :
+                    "background:#ffb4c1; box-shadow:0 0 0 3px rgb(255 180 193/0.18)"
+                  }></span>
+                  {step.label}
+                </span>
+                {i < arr.length - 1 && (
+                  <svg viewBox="0 0 24 24" class="w-3 h-3 text-ink-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+                    <path d="M5 12h14M13 5l7 7-7 7"/>
+                  </svg>
+                )}
+              </>
+            ))}
+            <span class="ml-auto text-[11px] font-mono text-ink-400 shrink-0">8 ms · 4 spans</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Trust bar -->
+      <div class="reveal reveal-delay-4 mt-16 sm:mt-20">
+        <p class="text-center text-[12px] uppercase tracking-[0.3em] text-ink-400">
+          Runs on any hardware · CPU-friendly · no telemetry
+        </p>
+        <div class="marquee-pause mt-6 relative overflow-hidden mask-edges">
+          <div class="marquee-track flex gap-12 items-center text-ink-300 whitespace-nowrap will-change-transform">
+            {[...Array(2)].map(() => (
+              <div class="flex gap-12 items-center">
+                {[
+                  "fastapi",
+                  "pydantic",
+                  "transformers",
+                  "gliner2",
+                  "openmed-pii",
+                  "prometheus",
+                  "opentelemetry",
+                  "redis",
+                  "arq",
+                  "structlog",
+                  "huggingface",
+                  "transformers.js",
+                ].map((lib) => (
+                  <span class="font-mono text-[13px] text-ink-400/80 hover:text-ink-100 transition-colors">{lib}</span>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .mask-edges {
+    mask-image: linear-gradient(90deg, transparent, black 10%, black 90%, transparent);
+    -webkit-mask-image: linear-gradient(90deg, transparent, black 10%, black 90%, transparent);
+  }
+</style>
