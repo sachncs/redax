@@ -343,6 +343,18 @@ For operators / maintainers:
 - **[AGENTS.md](AGENTS.md)** — Conventions for anyone editing the
   codebase.
 
+## Marketing site
+
+The project page lives under [`site/`](site/) and deploys to GitHub Pages
+via [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
+
+```bash
+cd site
+npm install
+npm run dev      # http://localhost:4321/redax/
+npm run build    # static output in site/dist
+```
+
 ---
 
 ## Contributing
