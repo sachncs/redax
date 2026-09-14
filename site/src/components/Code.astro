@@ -1,0 +1,208 @@
+---
+import { QUICKSTART } from "~/content/site";
+
+type Tab = { id: string; label: string; badge?: string; lang: string };
+const TABS: Tab[] = [
+  { id: "curl", label: "cURL", lang: "bash" },
+  { id: "python", label: "Python", lang: "python" },
+  { id: "response", label: "Response", badge: "JSON", lang: "json" },
+];
+
+const COPY: Record<string, string[]> = {
+  curl: QUICKSTART.curl,
+  python: QUICKSTART.python,
+  response: QUICKSTART.response,
+};
+
+// Hand-rolled syntax highlighting. We tokenize a small set of patterns per
+// language and emit HTML with class names our global CSS styles. This avoids
+// shipping a full grammar bundle while keeping the page visually sharp.
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+const PY_KEYWORDS = new Set([
+  "import", "from", "as", "def", "return", "if", "else", "elif", "for", "while",
+  "in", "not", "and", "or", "is", "with", "async", "await", "class", "pass",
+  "raise", "try", "except", "finally", "yield", "lambda", "True", "False", "None",
+]);
+const BASH_KEYWORDS = new Set(["curl"]);
+
+type Token = { cls: string; text: string };
+
+function tokenize(code: string, lang: string): Token[] {
+  const out: Token[] = [];
+  let i = 0;
+
+  const push = (cls: string, text: string) => {
+    const last = out[out.length - 1];
+    if (last && last.cls === cls) last.text += text;
+    else out.push({ cls, text });
+  };
+
+  while (i < code.length) {
+    const c = code[i];
+
+    // line comment (# for bash/python, // for json-c, none for pure json)
+    if (lang === "python" && c === "#") {
+      let j = i;
+      while (j < code.length && code[j] !== "\n") j++;
+      push("tk-com", code.slice(i, j));
+      i = j;
+      continue;
+    }
+
+    // strings
+    if (c === '"' || c === "'") {
+      const quote = c;
+      let j = i + 1;
+      while (j < code.length && code[j] !== quote) {
+        if (code[j] === "\\") j += 2;
+        else j++;
+      }
+      j = Math.min(j + 1, code.length);
+      push("tk-str", code.slice(i, j));
+      i = j;
+      continue;
+    }
+
+    // numbers
+    if (lang !== "bash" && /[0-9]/.test(c) && (i === 0 || /[\s,(=:[\]]/.test(code[i - 1]))) {
+      let j = i;
+      while (j < code.length && /[0-9.]/.test(code[j])) j++;
+      push("tk-num", code.slice(i, j));
+      i = j;
+      continue;
+    }
+
+    // identifiers / keywords
+    if (/[A-Za-z_]/.test(c)) {
+      let j = i;
+      while (j < code.length && /[A-Za-z0-9_.]/.test(code[j])) j++;
+      const word = code.slice(i, j);
+      if (lang === "python" && PY_KEYWORDS.has(word)) push("tk-key", word);
+      else if (lang === "bash" && BASH_KEYWORDS.has(word)) push("tk-key", word);
+      else if (lang === "bash" && i > 0 && code[i - 1] === "-") push("tk-key", word);
+      else if (code[j] === "(") push("tk-fn", word);
+      else push("tk-var", word);
+      i = j;
+      continue;
+    }
+
+    // everything else
+    push("tk-pun", c);
+    i++;
+  }
+  return out;
+}
+
+function highlight(code: string, lang: string): string {
+  return tokenize(code, lang)
+    .map((t) => `<span class="${t.cls}">${escapeHtml(t.text)}</span>`)
+    .join("");
+}
+
+const highlighted: Record<string, string> = {};
+for (const t of TABS) {
+  highlighted[t.id] = highlight(COPY[t.id].join("\n"), t.lang);
+}
+---
+<section id="start" class="section relative">
+  <div class="container-x">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-start">
+      <div class="lg:col-span-5">
+        <span class="pill"><span class="dot"></span>Quickstart</span>
+        <h2 class="reveal mt-5 text-[clamp(36px,5vw,64px)] leading-[1.02] tracking-[-0.04em]">
+          One endpoint.
+          <br />
+          <span class="text-ink-400">Five lines.</span>
+        </h2>
+        <p class="reveal reveal-delay-1 mt-6 text-[16px] text-ink-300 max-w-md">
+          Wrap any LLM call in front of <code class="font-mono text-[14px] text-ink-100 bg-white/[0.05] px-1.5 py-0.5 rounded">/v1/redact</code>.
+          PII comes out before the model sees it. Same text in, same text out — every time.
+        </p>
+
+        <dl class="reveal reveal-delay-2 mt-10 space-y-5">
+          {[
+            { k: "Endpoint", v: "POST /v1/redact", mono: true },
+            { k: "Auth", v: "X-API-Key header (or auth disabled in dev)" },
+            { k: "Idempotency", v: "Idempotency-Key header short-circuits retries" },
+            { k: "Response", v: "text + spans + digest (sha256 of output)" },
+            { k: "Errors", v: "RFC 7807 problem-details JSON" },
+          ].map((row) => (
+            <div class="flex items-baseline gap-4 border-b border-white/[0.05] pb-3">
+              <dt class="w-32 shrink-0 text-[12px] uppercase tracking-[0.2em] text-ink-400">{row.k}</dt>
+              <dd class={`text-[14px] text-ink-100 ${row.mono ? "font-mono" : ""}`}>{row.v}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+
+      <div class="lg:col-span-7 reveal reveal-delay-1">
+        <div class="code-shell relative overflow-hidden">
+          <div class="flex items-center gap-1 border-b border-white/[0.06] bg-white/[0.02] px-2 py-1.5">
+            {TABS.map((t, i) => (
+              <button
+                type="button"
+                class="tab px-3 py-1.5 rounded-full text-[12.5px] font-medium text-ink-300 transition-colors flex items-center gap-1.5"
+                data-tab={t.id}
+                data-active={i === 0 ? "true" : "false"}
+                data-panel-for={t.id}
+              >
+                {t.label}
+                {t.badge && (
+                  <span class="text-[10px] uppercase tracking-[0.15em] text-ink-500 font-mono">{t.badge}</span>
+                )}
+              </button>
+            ))}
+            <div class="ml-auto flex items-center gap-1.5 px-2 text-[11px] font-mono text-ink-500">
+              <svg viewBox="0 0 24 24" class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="6" y="6" width="12" height="12" rx="2"/>
+              </svg>
+              localhost:8000
+            </div>
+          </div>
+          {TABS.map((t) => (
+            <div class="p-5 sm:p-6 overflow-x-auto" data-panel={t.id} set:html={highlighted[t.id]} />
+          ))}
+        </div>
+
+        <div class="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3 text-[12.5px] font-mono text-ink-300">
+          <div class="card p-4">
+            <div class="text-[10.5px] uppercase tracking-[0.2em] text-ink-500">Latency (regex)</div>
+            <div class="mt-1 text-[18px] text-ink-0">&lt; 1 ms</div>
+          </div>
+          <div class="card p-4">
+            <div class="text-[10.5px] uppercase tracking-[0.2em] text-ink-500">Latency (gliner2)</div>
+            <div class="mt-1 text-[18px] text-ink-0">~ 123 ms<span class="text-ink-500 text-[12px]"> · CPU</span></div>
+          </div>
+          <div class="card p-4">
+            <div class="text-[10.5px] uppercase tracking-[0.2em] text-ink-500">Audit log</div>
+            <div class="mt-1 text-[18px] text-ink-0">append-only<span class="text-ink-500 text-[12px]"> · fsync</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  const buttons = document.querySelectorAll<HTMLElement>("[data-panel-for]");
+  const panels = document.querySelectorAll<HTMLElement>("[data-panel]");
+  buttons.forEach((b) => {
+    b.addEventListener("click", () => {
+      const id = b.dataset.panelFor;
+      if (!id) return;
+      buttons.forEach((x) => x.setAttribute("data-active", String(x === b)));
+      panels.forEach((p) => {
+        p.style.display = p.dataset.panel === id ? "" : "none";
+      });
+    });
+  });
+  panels.forEach((p, i) => {
+    p.style.display = i === 0 ? "" : "none";
+  });
+</script>
