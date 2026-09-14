@@ -1,0 +1,145 @@
+---
+import { BENCH } from "~/content/site";
+
+function pct(r: number) {
+  return `${(r / 0.6) * 100}%`;
+}
+---
+<section id="benchmarks" class="section relative overflow-hidden">
+  <div
+    aria-hidden="true"
+    class="absolute inset-0 opacity-50 pointer-events-none"
+    style="background: radial-gradient(ellipse 60% 50% at 50% 100%, oklch(70% 0.18 195 / 0.08), transparent 60%);"
+  ></div>
+
+  <div class="container-x relative">
+    <div class="mx-auto max-w-3xl text-center">
+      <span class="pill mx-auto"><span class="dot"></span>Benchmarks</span>
+      <h2 class="reveal mt-5 text-[clamp(36px,5vw,64px)] leading-[1.02] tracking-[-0.04em]">
+        Numbers we publish.
+        <br />
+        <span class="text-ink-400">Numbers you can defend.</span>
+      </h2>
+      <p class="reveal reveal-delay-1 mt-5 text-[17px] text-ink-300">{BENCH.intro}</p>
+    </div>
+
+    <div class="reveal mt-14 grid grid-cols-1 lg:grid-cols-12 gap-4">
+      <div class="lg:col-span-7 card p-6 sm:p-8 relative overflow-hidden">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-[11px] uppercase tracking-[0.2em] text-ink-400">pii200k · mean R-Score</div>
+            <h3 class="mt-1 text-[22px] font-semibold tracking-[-0.02em]">Across 5,060 documents</h3>
+          </div>
+          <span class="pill !text-[11px] !font-mono">higher is better</span>
+        </div>
+
+        <div class="mt-8 space-y-5">
+          {BENCH.rows.map((row) => (
+            <div>
+              <div class="flex items-baseline justify-between text-[13.5px]">
+                <span class="font-mono text-ink-100 flex items-center gap-2">
+                  {row.detector}
+                  {row.winner && (
+                    <span class="pill !text-[10px] !py-0.5 !px-2 !font-mono !border-flame-400/40 !text-flame-200 !bg-flame-500/10">
+                      winner
+                    </span>
+                  )}
+                </span>
+                <span class="font-mono text-ink-300">{row.pii200k.toFixed(3)}</span>
+              </div>
+              <div class="mt-2 h-2 rounded-full bg-white/[0.04] overflow-hidden relative">
+                <div
+                  class={`absolute inset-y-0 left-0 rounded-full ${row.winner ? "bg-gradient-to-r from-flame-400 to-flame-600" : "bg-white/30"}`}
+                  style={`width: ${pct(row.pii200k)}; transition: width 1.2s var(--ease-emph);`}
+                ></div>
+              </div>
+              <div class="mt-1.5 flex items-center justify-between text-[11px] font-mono text-ink-500">
+                <span>{row.role} · {row.params}</span>
+                <span>p50 {row.latency}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div class="mt-8 pt-6 border-t border-white/[0.06] grid grid-cols-3 gap-4 text-[12.5px]">
+          <div>
+            <div class="text-[10.5px] uppercase tracking-[0.2em] text-ink-500">Recall@0.5 IOU</div>
+            <div class="mt-1 font-mono text-ink-100">strict, deterministic</div>
+          </div>
+          <div>
+            <div class="text-[10.5px] uppercase tracking-[0.2em] text-ink-500">Format precision</div>
+            <div class="mt-1 font-mono text-ink-100">placeholder-shaped</div>
+          </div>
+          <div>
+            <div class="text-[10.5px] uppercase tracking-[0.2em] text-ink-500">Corpus</div>
+            <div class="mt-1 font-mono text-ink-100">ai4privacy/pii-masking-200k</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lg:col-span-5 grid grid-cols-1 gap-4">
+        <div class="card p-6 sm:p-7 relative overflow-hidden">
+          <div
+            aria-hidden="true"
+            class="absolute -top-12 -right-12 w-44 h-44 rounded-full bg-flame-500/20 blur-3xl"
+          ></div>
+          <div class="relative">
+            <div class="text-[11px] uppercase tracking-[0.2em] text-ink-400">Headline</div>
+            <div class="mt-2 text-[64px] sm:text-[80px] leading-none tracking-[-0.05em] font-semibold text-ink-0">
+              0.552
+            </div>
+            <div class="mt-1 font-mono text-[12px] text-flame-300">pii200k · gliner2</div>
+            <p class="mt-5 text-[14px] text-ink-300 leading-[1.55]">
+              GLiNER2 outperforms OpenMed-PII on both corpora while running
+              <span class="text-ink-100"> 2.1× smaller</span> and
+              <span class="text-ink-100"> 1.4× faster</span> on CPU.
+            </p>
+          </div>
+        </div>
+
+        <div class="card p-6 sm:p-7">
+          <div class="text-[11px] uppercase tracking-[0.2em] text-ink-400">Per-category (pii200k)</div>
+          <ul class="mt-4 space-y-3">
+            {[
+              { label: "academic",  v: 0.562 },
+              { label: "code",      v: 0.440 },
+              { label: "emails",    v: 0.649 },
+              { label: "medical",   v: 0.581 },
+              { label: "financial", v: 0.602 },
+              { label: "logs",      v: 0.473 },
+            ].map((c) => (
+              <li class="flex items-center gap-3 text-[13.5px] font-mono">
+                <span class="w-24 text-ink-300">{c.label}</span>
+                <div class="flex-1 h-1.5 rounded-full bg-white/[0.05] overflow-hidden">
+                  <div
+                    class="h-full bg-gradient-to-r from-flame-400/70 to-flame-600/70"
+                    style={`width: ${(c.v / 0.7) * 100}%`}
+                  ></div>
+                </div>
+                <span class="text-ink-100 w-12 text-right">{c.v.toFixed(3)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <a
+          href="/redax/docs/bench"
+          class="card lift p-5 sm:p-6 flex items-center gap-4 group"
+        >
+          <div class="grid place-items-center w-10 h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] text-flame-300">
+            <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 4h12l4 4v12H4z"/><path d="M14 4v6h6"/>
+            </svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="text-[15px] font-semibold tracking-[-0.015em] text-ink-0">Read the methodology</div>
+            <div class="mt-0.5 text-[13px] text-ink-400">docs/bench.md · docs/benchmark-results.md</div>
+          </div>
+          <svg viewBox="0 0 24 24" class="w-4 h-4 text-ink-400 group-hover:text-ink-100 transition-colors" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M5 12h14M13 5l7 7-7 7"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
