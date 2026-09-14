@@ -1,0 +1,55 @@
+---
+import { FEATURES } from "~/content/site";
+
+// Inline SVG icons. Two-stroke, hand-tuned for visual harmony.
+const ICONS: Record<string, string> = {
+  regex: `<path d="M6 4v16M6 8h8a4 4 0 0 1 0 8H6"/><path d="M18 4v16"/>`,
+  gliner: `<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/>`,
+  swap: `<path d="M3 7h14l-3-3M21 17H7l3 3"/>`,
+  lock: `<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>`,
+  spark: `<path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="3"/>`,
+  policy: `<path d="M6 3h9l4 4v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>`,
+  audit: `<path d="M4 6h16M4 12h16M4 18h10"/><circle cx="18" cy="18" r="2"/>`,
+  obs: `<path d="M4 14a8 8 0 0 1 16 0M7 14a5 5 0 0 1 10 0"/><circle cx="12" cy="14" r="1.5"/>`,
+  rate: `<path d="M3 12a9 9 0 1 1 18 0M3 12h4M21 12h-4"/><circle cx="12" cy="12" r="3"/>`,
+  wasm: `<rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 9h16M9 5V3M15 5V3"/><path d="M9 13l2 2-2 2M15 13l-2 2 2 2"/>`,
+  rfc: `<path d="M4 7h16M4 12h10M4 17h16"/><circle cx="18" cy="12" r="2"/>`,
+  bench: `<path d="M4 20V8M10 20V4M16 20v-9M22 20H2"/>`,
+};
+---
+<section id="features" class="section">
+  <div class="container-x">
+    <div class="flex items-end justify-between flex-wrap gap-6">
+      <div class="max-w-2xl">
+        <span class="pill"><span class="dot"></span>Features</span>
+        <h2 class="reveal mt-5 text-[clamp(36px,5vw,64px)] leading-[1.02] tracking-[-0.04em]">
+          Everything you'd ship to production.
+          <span class="text-ink-400">Nothing you wouldn't.</span>
+        </h2>
+      </div>
+      <p class="reveal reveal-delay-1 max-w-sm text-[14.5px] text-ink-300">
+        Twelve carefully chosen capabilities. Each exists because a real operator asked for it — not because
+        a competitor had it on a slide.
+      </p>
+    </div>
+
+    <ul class="reveal mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      {FEATURES.map((f, i) => (
+        <li class={`lift card p-6 relative overflow-hidden group ${i % 3 === 1 ? "sm:translate-y-4" : ""}`}>
+          <div
+            aria-hidden="true"
+            class="absolute -inset-px rounded-[inherit] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+            style="background: linear-gradient(140deg, rgb(224 51 78 / 0.12), transparent 60%);"
+          ></div>
+          <div class="relative">
+            <div class="grid place-items-center w-10 h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] text-flame-300">
+              <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" set:html={ICONS[f.icon] || ICONS.lock}/>
+            </div>
+            <h3 class="mt-5 text-[16.5px] font-semibold tracking-[-0.015em] text-ink-0">{f.title}</h3>
+            <p class="mt-2 text-[13.5px] leading-[1.55] text-ink-300">{f.body}</p>
+          </div>
+        </li>
+      ))}
+    </ul>
+  </div>
+</section>
