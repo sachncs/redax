@@ -1,0 +1,100 @@
+---
+import { PIPELINE } from "~/content/site";
+
+const toneStyles: Record<string, string> = {
+  fast:  "from-[#ffd28a] to-[#ff9d4a]",
+  model: "from-[#93c5fd] to-[#7c9cf3]",
+  merge: "from-[#c8b6ff] to-[#9f8aff]",
+  shape: "from-[#b6f0c0] to-[#65d394]",
+  log:   "from-[#ffb4c1] to-[#e0334e]",
+};
+---
+<section id="pipeline" class="section relative overflow-hidden">
+  <div
+    aria-hidden="true"
+    class="absolute inset-0 opacity-50 pointer-events-none"
+    style="background: radial-gradient(ellipse 60% 40% at 50% 0%, oklch(65% 0.22 25 / 0.10), transparent 60%);"
+  ></div>
+
+  <div class="container-x relative">
+    <div class="mx-auto max-w-3xl text-center">
+      <span class="pill mx-auto"><span class="dot"></span>Pipeline</span>
+      <h2 class="reveal mt-5 text-[clamp(36px,5vw,64px)] leading-[1.02] tracking-[-0.04em]">
+        One request. Six stages.<br />No PII survives.
+      </h2>
+      <p class="reveal reveal-delay-1 mt-5 text-[17px] text-ink-300">
+        The engine is a small DAG: deterministic regex first, then optional encoders,
+        then consensus fusion. Every stage writes to the audit log; nothing writes
+        the values.
+      </p>
+    </div>
+
+    <ol class="reveal mt-16 relative grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {PIPELINE.map((step, i) => (
+        <li class="card p-6 relative overflow-hidden group lift">
+          <div
+            aria-hidden="true"
+            class={`absolute -top-16 -right-16 w-44 h-44 rounded-full bg-gradient-to-br ${toneStyles[step.tone]} opacity-15 blur-3xl group-hover:opacity-25 transition-opacity duration-500`}
+          ></div>
+          <div class="relative flex items-start gap-4">
+            <div class="shrink-0 grid place-items-center w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.08] font-mono text-[12px] text-ink-200">
+              {step.n}
+            </div>
+            <div class="min-w-0">
+              <h3 class="text-[17px] font-semibold tracking-[-0.02em] text-ink-0">{step.name}</h3>
+              <p class="mt-2 text-[13.5px] leading-[1.6] text-ink-300">{step.detail}</p>
+            </div>
+          </div>
+          <div class="mt-5 flex items-center gap-2 text-[10.5px] uppercase tracking-[0.2em] text-ink-500">
+            <span class="font-mono">stage_{step.n}</span>
+            <span class="h-px flex-1 bg-white/[0.06]"></span>
+            <span>{i < PIPELINE.length - 1 ? "→" : "●"}</span>
+          </div>
+        </li>
+      ))}
+    </ol>
+
+    <!-- Diagram strip -->
+    <div class="reveal mt-12">
+      <div class="code-shell relative overflow-hidden">
+        <div class="px-5 py-3 border-b border-white/[0.06] flex items-center justify-between">
+          <span class="text-[11px] uppercase tracking-[0.2em] text-ink-400">Request lifecycle</span>
+          <span class="text-[11px] font-mono text-ink-400">app/redaction/pipeline.py</span>
+        </div>
+        <div class="p-6 sm:p-8 grid grid-cols-1 md:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr] items-center gap-3 sm:gap-4">
+          {[
+            { label: "request", sub: "POST /v1/redact" },
+            { label: "policy", sub: "field → strategy" },
+            { label: "detect", sub: "regex + GLiNER2" },
+            { label: "redact", sub: "typed placeholder" },
+          ].map((step, i, arr) => (
+            <>
+              <div class="card p-4 text-center">
+                <div class="font-mono text-[11px] text-ink-400">{step.sub}</div>
+                <div class="mt-1 text-[14px] font-semibold text-ink-0">{step.label}</div>
+              </div>
+              {i < arr.length - 1 && (
+                <div class="hidden md:grid place-items-center text-ink-500">
+                  <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M5 12h14M13 5l7 7-7 7"/>
+                  </svg>
+                </div>
+              )}
+            </>
+          ))}
+        </div>
+        <div class="border-t border-white/[0.06] bg-white/[0.02] px-5 py-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-[12px] text-ink-300">
+          <span class="flex items-center gap-2">
+            <span class="w-1.5 h-1.5 rounded-full bg-sage-400"></span>
+            <span class="font-mono">audit_log.append(digest, span_count, latency)</span>
+          </span>
+          <span class="flex items-center gap-2">
+            <span class="w-1.5 h-1.5 rounded-full bg-flame-400"></span>
+            <span class="font-mono">never writes values</span>
+          </span>
+          <span class="ml-auto text-ink-500 font-mono">fsync after every line</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
