@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" width="320" height="80" role="img" aria-label="Redax">
+  <title>Redax</title>
+  <defs>
+    <linearGradient id="lk-mark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FF5C5C"/>
+      <stop offset="55%" stop-color="#E0334E"/>
+      <stop offset="100%" stop-color="#7A1A3B"/>
+    </linearGradient>
+  </defs>
+  <g>
+    <rect width="80" height="80" rx="20" fill="url(#lk-mark)"/>
+    <path d="M24 22 h17 a10 10 0 0 1 10 10 v2 a8 8 0 0 1 -8 8 h-9 l-2 0 12 16 h-9 l-11 -16 V22 z M34 31 v8 h7 a4 4 0 0 0 4 -4 v0 a4 4 0 0 0 -4 -4 z"
+          fill="#ffffff" opacity="0.97"/>
+    <rect x="20" y="58" width="40" height="4" rx="2" fill="#ffffff" opacity="0.85"/>
+  </g>
+  <text x="98" y="52" font-family="ui-sans-serif, system-ui, -apple-system, 'SF Pro Display', Inter, Segoe UI, Roboto, sans-serif"
+        font-size="38" font-weight="600" letter-spacing="-1.2" fill="currentColor">redax</text>
+</svg>
