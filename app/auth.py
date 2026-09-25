@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import secrets
 from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException
@@ -41,7 +42,9 @@ def require_api_key(
     valid = settings.api_key_set()
     if not valid:
         return "anonymous"
-    if x_api_key is None or x_api_key not in valid:
+    if x_api_key is None or not any(
+        secrets.compare_digest(x_api_key, candidate) for candidate in valid
+    ):
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
     return x_api_key
 
