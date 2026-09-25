@@ -12,6 +12,17 @@ from approvaltests.reporters.python_native_reporter import PythonNativeReporter
 FIXTURE_DIR = Path(__file__).parent.parent / "fixtures" / "redactionbench"
 
 
+def gliner2_runtime_unavailable(stderr: str) -> bool:
+    """Identify optional local-model runtime failures on CPU-only CI hosts."""
+    unavailable_markers = (
+        "local_files_only",
+        "libcudart.so",
+        "libcublas",
+        "CUDA driver version is insufficient",
+    )
+    return any(marker in stderr for marker in unavailable_markers)
+
+
 def test_run_bench_cli_emits_approval_snapshot() -> None:
     output = subprocess.run(
         [
@@ -66,8 +77,8 @@ def test_gliner2_rscore_at_least_matches_regex_baseline() -> None:
         capture_output=True,
         text=True,
     )
-    if gliner2.returncode != 0 and "local_files_only" in gliner2.stderr:
-        pytest.skip("GLiNER2 checkpoint is not available in the local model cache")
+    if gliner2.returncode != 0 and gliner2_runtime_unavailable(gliner2.stderr):
+        pytest.skip("GLiNER2 local runtime or checkpoint is unavailable on this CI host")
     assert gliner2.returncode == 0, gliner2.stderr
     regex_mean = json.loads(regex.stdout)["corpus_mean"]
     gliner2_mean = json.loads(gliner2.stdout)["corpus_mean"]
