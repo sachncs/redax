@@ -29,7 +29,7 @@ fields:                   # required
 |---|---|
 | `passThrough` | Returns the text unchanged. Use for non-PII fields like `gender`. |
 | `mask` | Substitutes every span (passed in) with a configured format string. |
-| `hash` | Replaces every span with `SHA256(salt + text)[:length]`; useful for stable join keys. |
+| `hash` | Replaces every span with a keyed HMAC-SHA256 token `HMAC(salt, text)[:length]`; useful for stable join keys. Protect the salt and review dictionary-attack risk. |
 | `regex` | Runs the regex detector on the field's text and applies `format`. |
 | `autoDeID` | Runs the NER detector (possibly multi-pass) and emits typed placeholders or format strings. |
 

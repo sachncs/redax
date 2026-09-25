@@ -123,13 +123,16 @@ class Hash:
         documents maps to the same token.
         """
         import hashlib
+        import hmac
 
         from app.redaction.apply import apply_spans
 
         replacements: list[str] = []
         for span in spans:
-            digest = hashlib.sha256(
-                f"{self.salt}{text[span.start : span.end]}".encode()
+            digest = hmac.new(
+                self.salt.encode("utf-8"),
+                text[span.start : span.end].encode("utf-8"),
+                hashlib.sha256,
             ).hexdigest()
             length = int(config.get("length", 8))
             replacements.append(f"[HASH:{digest[:length]}]")

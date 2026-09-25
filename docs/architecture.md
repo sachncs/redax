@@ -99,7 +99,8 @@ effect there are documented but not yet active.
 1. FastAPI receives POST `/v1/redact` with `{text, entity_types?, policy?}`
 2. `require_api_key` validates the API key (no-op when keys are unset)
 3. `rate_limit` checks the per-minute bucket
-4. Idempotency cache hit → return cached response
+4. Idempotency cache hit → return a versioned, redacted response; legacy
+   envelopes are ignored and recomputed
 5. Response cache hit → return cached response (the cache key is salted
    by `REDAX_HASH_SALT` when `REDAX_CACHE_SHARED=false`, isolating
    tenants; setting `REDAX_CACHE_SHARED=true` shares one bucket across
