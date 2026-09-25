@@ -187,28 +187,10 @@ export const BENCH: {
   rows: BenchRow[];
   winner: string;
 } = {
-    intro:
-    "This is a published RedactionBench snapshot on a 5,060-document stratified sample of `ai4privacy/pii-masking-200k`. The metric rewards recall and format precision. Treat the numbers as comparative evidence, not a production SLA; see the benchmark methodology for model, hardware, and run details.",
-  rows: [
-    {
-      detector: "regex",
-      role: "Safety net",
-      params: "n/a",
-      redactionbench: 0.167,
-      pii200k: 0.142,
-      latency: "< 1 ms",
-    },
-    {
-      detector: "gliner2",
-      role: "Default",
-      params: "205M",
-      redactionbench: 0.454,
-      pii200k: 0.552,
-      latency: "123 ms*",
-      winner: true,
-    },
-  ],
-  winner: "gliner2",
+  intro:
+    "No release-grade score is published from this checkout yet. Redax keeps the benchmark harness and fixtures available so operators can run the same detector, model revision, hardware, and corpus that matter for their deployment.",
+  rows: [],
+  winner: "",
 };
 
 export const DEPLOY = [
