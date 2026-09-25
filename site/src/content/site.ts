@@ -37,7 +37,6 @@ export const HERO = {
 export const NAV = [
   { label: "Product", href: "/redax/#product" },
   { label: "How it works", href: "/redax/#how-it-works" },
-  { label: "Pipeline", href: "/redax/#pipeline" },
   { label: "Benchmarks", href: "/redax/#benchmarks" },
   { label: "Deploy", href: "/redax/#deploy" },
   { label: "Security", href: DOCS.security },

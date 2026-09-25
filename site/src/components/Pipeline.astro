@@ -24,8 +24,8 @@ const toneStyles: Record<string, string> = {
       </h2>
       <p class="reveal reveal-delay-1 mt-5 text-[17px] text-ink-300">
         The engine is a small DAG: deterministic regex first, then optional encoders,
-        then consensus fusion. Every stage writes to the audit log; nothing writes
-        the values.
+        then consensus fusion. The request records operational metadata at the
+        boundary; the audit event does not write the original values.
       </p>
     </div>
 

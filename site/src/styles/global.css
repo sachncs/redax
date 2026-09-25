@@ -342,8 +342,8 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .btn-ghost:hover { background: rgb(255 255 255 / 0.07); border-color: rgb(255 255 255 / 0.14); }
 
 /* Section spacing */
-.section { padding: clamp(72px, 9vw, 140px) 0; }
-.section-tight { padding: clamp(48px, 6vw, 96px) 0; }
+.section { padding: clamp(60px, 6.5vw, 104px) 0; }
+.section-tight { padding: clamp(40px, 4.5vw, 72px) 0; }
 
 /* Container */
 .container-x {
