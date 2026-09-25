@@ -16,6 +16,7 @@ RUN pip install --prefix=/install --no-deps -r /build/requirements.lock
 
 # Install the package itself with no deps (deps were resolved above).
 COPY pyproject.toml /build/
+COPY README.md LICENSE /build/
 COPY app /build/app
 RUN pip install --prefix=/install --no-deps /build
 

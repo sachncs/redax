@@ -6,6 +6,8 @@
 *.md
 !app/**/*.md
 !policies/**/*.md
+!README.md
+!LICENSE
 
 tests
 docs
