@@ -16,6 +16,7 @@ export const DOCS = {
   integration: "/redax/docs/integration",
   policies: "/redax/docs/policies",
   bench: "/redax/docs/bench",
+  deployment: "/redax/docs/deployment",
 } as const;
 
 export const HERO = {
@@ -269,6 +270,7 @@ export const FOOTER = {
         { label: "Architecture", href: DOCS.architecture },
         { label: "Integration", href: DOCS.integration },
         { label: "Policies", href: DOCS.policies },
+        { label: "Deployment", href: DOCS.deployment },
       ],
     },
     {

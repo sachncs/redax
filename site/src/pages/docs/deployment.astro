@@ -1,0 +1,41 @@
+---
+import DocsLayout from "~/layouts/DocsLayout.astro";
+---
+<DocsLayout active="deployment" title="Deployment" description="Move from a local proof-of-concept to a private, observable redaction boundary that your team can operate.">
+  <section class="card border-flame-400/20 bg-flame-500/[0.06] p-6 sm:p-8">
+    <div class="text-[11px] uppercase tracking-[0.2em] text-flame-300">The recommended path</div>
+    <p class="mt-4 text-[16px] leading-[1.7] text-ink-100">Start with Docker Compose so the API and Redis wiring are correct. Once your application is integrated, keep the same API contract and move the containers behind your ingress, service identity, durable audit storage, and monitoring.</p>
+  </section>
+
+  <section>
+    <h2 class="text-[25px] text-ink-0">1. Run locally</h2>
+    <p class="mt-3">This gives a developer a repeatable environment with the redaction API and Redis dependency. The health check confirms the service is reachable before you integrate application code.</p>
+    <pre class="code-shell mt-5 overflow-x-auto p-5 text-[13px] leading-[1.7] text-ink-100"><code>{`git clone https://github.com/sachncs/redax.git
+cd redax
+docker compose up
+
+curl http://localhost:8000/healthz`}</code></pre>
+  </section>
+
+  <section>
+    <h2 class="text-[25px] text-ink-0">2. Set the production boundary</h2>
+    <p class="mt-3">The defaults are convenient for a laptop, not a public service. Set these values before accepting real traffic.</p>
+    <div class="mt-4 grid gap-3">
+      {[ ["REDAX_API_KEYS", "Turn on authentication. Keep keys in your secret manager and rotate them."], ["REDAX_HASH_SALT", "Use a unique random value per deployment so hashes and cache keys cannot be correlated across environments."], ["REDAX_REDIS_URL", "Point rate limiting, idempotency, response caching, and jobs at durable Redis."], ["REDAX_AUDIT_PATH", "Mount durable storage or a log shipper. The audit file contains metadata, not raw PII."], ["REDAX_OTLP_ENDPOINT", "Send traces to your internal collector when you need distributed request visibility."] ].map(([name, body]) => <div class="card p-5 sm:flex sm:items-start sm:gap-6"><code class="shrink-0 text-flame-200">{name}</code><p class="mt-2 sm:mt-0 text-[14px] text-ink-300">{body}</p></div>)}
+    </div>
+  </section>
+
+  <section>
+    <h2 class="text-[25px] text-ink-0">3. Probe the right things</h2>
+    <div class="mt-4 grid gap-3 sm:grid-cols-3">
+      {[ ["/healthz", "Liveness", "Is the process running? Use this for restart decisions."], ["/readyz", "Readiness", "Is the redactor initialized and able to serve traffic? Use this for load balancers."], ["/metrics", "Metrics", "Are latency, errors, queue depth, and detected entities within your operating range?"] ].map(([path, title, body]) => <div class="card p-5"><code class="text-flame-200">{path}</code><div class="mt-3 text-[15px] font-semibold text-ink-0">{title}</div><p class="mt-2 text-[13px] text-ink-400">{body}</p></div>)}
+    </div>
+  </section>
+
+  <section>
+    <h2 class="text-[25px] text-ink-0">Production checklist</h2>
+    <ul class="mt-4 grid gap-3 text-[14px] text-ink-200">
+      {["Authentication is enabled and tested with an invalid key.", "The API is reachable only from the services that need the privacy boundary.", "Redis and audit storage survive a container restart.", "Readiness, error rate, latency, and queue depth are monitored.", "A policy version is committed with the application release.", "The team has verified that logs, traces, cache keys, and audit events do not contain raw values."].map((item) => <li class="card flex gap-3 p-4"><span class="text-sage-400">✓</span><span>{item}</span></li>)}
+    </ul>
+  </section>
+</DocsLayout>

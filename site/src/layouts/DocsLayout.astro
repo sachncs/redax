@@ -14,6 +14,7 @@ const links = [
   { key: "integration", label: "Integration", href: "/redax/docs/integration" },
   { key: "policies", label: "Policies", href: "/redax/docs/policies" },
   { key: "bench", label: "Benchmarks", href: "/redax/docs/bench" },
+  { key: "deployment", label: "Deployment", href: "/redax/docs/deployment" },
 ];
 ---
 <Base title={`${title} · Redax docs`} description={description}>
@@ -45,6 +46,11 @@ const links = [
           <span class="pill"><span class="dot"></span>Redax documentation</span>
           <h1 class="mt-6 text-[clamp(42px,6vw,76px)] leading-[1.02] tracking-[-0.045em]">{title}</h1>
           <p class="mt-6 max-w-2xl text-[18px] leading-[1.6] text-ink-300">{description}</p>
+          <div class="mt-8 grid gap-2 sm:grid-cols-3">
+            <div class="card p-4"><div class="text-[10px] uppercase tracking-[0.18em] text-flame-300">Why</div><p class="mt-2 text-[13px] leading-[1.5] text-ink-400">Keep raw customer text outside the model boundary.</p></div>
+            <div class="card p-4"><div class="text-[10px] uppercase tracking-[0.18em] text-flame-300">What</div><p class="mt-2 text-[13px] leading-[1.5] text-ink-400">A local API that detects, replaces, and records safely.</p></div>
+            <div class="card p-4"><div class="text-[10px] uppercase tracking-[0.18em] text-flame-300">How</div><p class="mt-2 text-[13px] leading-[1.5] text-ink-400">Run it, send text, pass only the returned text onward.</p></div>
+          </div>
           <div class="mt-12 grid gap-10 text-[15px] leading-[1.7] text-ink-200">
             <slot />
           </div>
