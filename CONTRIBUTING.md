@@ -13,16 +13,24 @@ Discussions if enabled). For security issues, follow
 
 ## Development setup
 
+Redax currently targets Python 3.13.
+
 ```
 python -m venv .venv
 source .venv/bin/activate
-pip install -e .[dev]
+python -m pip install --upgrade pip
+python -m pip install --no-deps -r requirements.lock
+python -m pip install -e '.[dev]'
 ```
 
 ## Tests
 
 ```
 pytest -q
+make lint
+make typecheck
+npm --prefix site run check
+npm --prefix site run build
 ```
 
 ## Lint / format
@@ -37,7 +45,7 @@ ruff format --check .
 1. Fork the repository.
 2. Create a topic branch off `master` (use linear history).
 3. Make focused commits with clear messages.
-4. Ensure `tests`, `lint`, and `format` all pass.
+4. Ensure tests, lint, type checking, and the site checks all pass.
 5. Use the [PR template](./.github/PULL_REQUEST_TEMPLATE.md).
 6. Push the branch and open a pull request targeting `master`.
 

@@ -19,7 +19,7 @@ all of them.
    │   Auth  (X-API-Key)                                            │
    │   Rate limit  (Redis fixed-window per API key)               │
    │   Idempotency-Key  (Redis 24h)                                │
-   │   Response cache  (SHA256(text + policy + salt), 1h)        │
+   │   Response cache  (versioned effective request key, 1h)     │
    │   RFC 7807 problem responses                                  │
    └──────────────────────────┬───────────────────────────────────┘
                               │
@@ -98,7 +98,8 @@ effect there are documented but not yet active.
 ## Data flow for one request
 
 1. FastAPI receives POST `/v1/redact` with `{text, entity_types?, policy?}`
-2. `require_api_key` validates the API key (no-op when keys are unset)
+2. `require_api_key` validates the API key; development may run without one,
+   while production settings require configured non-default keys
 3. `rate_limit` checks the per-minute bucket
 4. Idempotency cache hit → return a versioned, redacted response; legacy
    envelopes are ignored and recomputed

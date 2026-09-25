@@ -115,8 +115,9 @@ audit event per request with aggregated span counts.
 
 Server-Sent Events. Splits the input into chunks (`chunk_chars`, default
 `REDAX_STREAM_CHUNK_CHARS`) and emits one event per chunk, then a final `[DONE]`.
-Each event is capped at `REDAX_STREAM_CHUNK_BYTES` bytes of UTF-8 (a grapheme is
-never split across events).
+Each event is capped at `REDAX_STREAM_CHUNK_BYTES` bytes of UTF-8. Chunking
+preserves Unicode code-point boundaries; clients that require grapheme-cluster
+boundaries should reassemble the stream before rendering.
 
 ```bash
 curl -N -X POST http://localhost:8000/v1/redact/stream \

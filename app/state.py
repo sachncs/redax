@@ -13,8 +13,10 @@ that mutate it (lifespan setup/teardown) live in ``app/main.py``.
 Attributes:
     ready: ``True`` after lifespan startup completes; routes can reject
         requests with 503 while this is ``False``.
-    detector: The primary encoder (GLiNER2 or OpenMed) used by the
-        legacy ``Redactor`` path and the multi-stage pipeline.
+    detector: The configured detector used by the legacy ``Redactor`` path
+        and the multi-stage pipeline. The supported model-backed detector is
+        GLiNER2; regex detection remains available for explicit lightweight
+        deployments.
     regex_detector: The deterministic regex detector used as the
         Stage-1 high-precision anchor in the pipeline and as the
         default fallback when no encoder is configured.

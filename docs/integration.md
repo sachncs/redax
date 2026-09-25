@@ -1,10 +1,15 @@
 # Integration
 
-The recommended integration pattern is to call Redax immediately before
-and after every LLM call. This keeps raw PII from crossing the boundary
-in either direction.
+Redax is an HTTP service. Put it at the boundary where your application sends
+text to an external model or stores it in an external system, and choose that
+boundary deliberately for your threat model. Redax is not a guarantee that
+PII is absent from application memory, logs, prompts, or model output.
 
-## Python SDK
+## Python application code
+
+The `app.*` modules are implementation details, not a stable Python SDK. New
+integrations should call the HTTP API so authentication, limits, policy
+precedence, and response semantics stay consistent across languages.
 
 ```python
 from app.redaction import Redactor, load_policy
@@ -19,15 +24,13 @@ redactor = Redactor(
 
 
 async def chat(user_message: str) -> str:
-    safe_input = (
-        await redactor.redact(user_message, policy=load_policy("policies/default.yaml").fields)
-    ).text
+    safe_input = (await redactor.redact(user_message)).text
     response = your_llm_call(safe_input)
     safe_output = (await redactor.redact(response.text)).text
     return safe_output
 ```
 
-## Direct HTTP
+## Redact over HTTP
 
 ```python
 import httpx
@@ -36,13 +39,18 @@ import httpx
 def redact(text: str) -> str:
     r = httpx.post(
         "http://localhost:8000/v1/redact",
-        json={"text": text, "policy": {...}},  # or omit policy
+        json={"text": text},  # add policy or entity_types when required
         headers={"X-API-Key": "..."},
         timeout=10,
     )
     r.raise_for_status()
     return r.json()["text"]
 ```
+
+`/v1/redact` always returns transformed text. It does not return a reversible
+mapping of original values. If an application needs to inspect detections
+before choosing a redaction policy, call `/v1/detect` explicitly and treat
+its original-text response as sensitive data.
 
 ## Batch (multiple texts at once)
 
@@ -112,8 +120,10 @@ httpx.post(url, json=body, headers={"Idempotency-Key": "abc-123"})
 
 ## Response caching
 
-Identical (text + policy + entity_types) requests return the cached response
-regardless of API key (1h TTL). Tunable via `REDAX_CACHE_TTL_SECONDS`.
+Identical effective requests return the same safe response from the cache when
+enabled. The cache key includes the text, policy, entity types, mode, detector,
+and model revision; it never stores a reversible mapping. Tunable via
+`REDAX_CACHE_TTL_SECONDS`.
 
 ## Audit log
 
