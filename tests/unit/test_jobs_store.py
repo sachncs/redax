@@ -63,10 +63,11 @@ def redis_client() -> FakeRedis:
 
 async def test_create_keeps_ttl_and_tracks_owner(store: JobStore, redis_client: FakeRedis) -> None:
     record = await store.create(owner="k1")
-    assert redis_client.records[f"redax:job:{record.id}"]["owner"] == "k1"
-    assert redis_client.counter["redax:jobs:k1"] == 1
+    owner_token = store.owner_token("k1")
+    assert redis_client.records[f"redax:job:{record.id}"]["owner"] == owner_token
+    assert redis_client.counter[f"redax:jobs:{owner_token}"] == 1
     assert (f"redax:job:{record.id}", 60) in redis_client.expires
-    assert ("redax:jobs:k1", 60) in redis_client.expires
+    assert (f"redax:jobs:{owner_token}", 60) in redis_client.expires
 
 
 async def test_count_for_key_reads_counter(store: JobStore, redis_client: FakeRedis) -> None:
@@ -84,7 +85,7 @@ async def test_terminal_transition_releases_owner_slot(
     record = await store.create(owner="k1")
     await store.set_result(record.id, {"text": "done"})
     assert await store.count_for_key("k1") == 0
-    assert "redax:jobs:k1" not in redis_client.counter
+    assert f"redax:jobs:{store.owner_token('k1')}" not in redis_client.counter
 
 
 async def test_error_transition_releases_owner_slot(
@@ -154,5 +155,5 @@ async def test_release_owner_count_deletes_when_count_reaches_one(
     # Counter is at 1; set_result calls release_owner_count, which
     # takes the int(raw) <= 1 path and deletes the key.
     await store.set_result(record.id, {"text": "done"})
-    assert "redax:jobs:k1" not in redis_client.counter
+    assert f"redax:jobs:{store.owner_token('k1')}" not in redis_client.counter
     assert await store.count_for_key("k1") == 0

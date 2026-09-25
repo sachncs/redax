@@ -111,7 +111,9 @@ def register(app: FastAPI) -> None:
                     {
                         "text": r.text,
                         "spans": [s.__dict__ for s in r.spans],
-                        "relex_map": r.relex_map,
+                        # Re-identification maps contain original values and
+                        # are intentionally kept inside the library boundary.
+                        "relex_map": {},
                     }
                     for r in results
                 ]

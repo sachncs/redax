@@ -128,7 +128,7 @@ def register(app: FastAPI) -> None:
             REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
             return job_store_unavailable(request, "job store not initialized")
         record = await store.get(job_id)
-        if record is None:
+        if record is None or record.owner != store.owner_token(api_key):
             REQUESTS.labels(endpoint=endpoint, method=method, status="404").inc()
             return problem_response(
                 request,
@@ -191,7 +191,9 @@ async def run_job(
             {
                 "text": result.text,
                 "spans": [s.__dict__ for s in result.spans],
-                "relex_map": result.relex_map,
+                # Re-identification maps contain original values and must not
+                # be persisted in or returned from the job API.
+                "relex_map": {},
                 "inference_ms": inference_ms,
             },
         )
@@ -215,7 +217,7 @@ async def run_job(
         ERRORS.labels(type="job_timeout").inc()
         await record_failure(job_id, store, logger)
     except TRANSIENT_EXC as exc:
-        logger.error("redax.job_failed", job_id=job_id, error=exc)
+        logger.error("redax.job_failed", job_id=job_id, error=exc.__class__.__name__)
         ERRORS.labels(type="job_failed").inc()
         await record_failure(job_id, store, logger)
     finally:

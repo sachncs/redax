@@ -69,13 +69,14 @@ class InMemoryJobStore(JobStore):
             status="queued",
             result=None,
             error=None,
-            owner=owner,
+            owner=self.owner_token(owner) if owner else "",
         )
         self.records[rec.id] = rec
         return rec
 
     async def count_for_key(self, owner: str):
-        return sum(1 for record in self.records.values() if record.owner == owner)
+        token = self.owner_token(owner)
+        return sum(1 for record in self.records.values() if record.owner == token)
 
     async def get(self, job_id):
         return self.records.get(job_id)
@@ -84,12 +85,10 @@ class InMemoryJobStore(JobStore):
         self.records[job_id].status = status
 
     async def set_result(self, job_id, result):
-        self.records[job_id].owner = ""
         self.records[job_id].result = result
         self.records[job_id].status = "done"
 
     async def set_error(self, job_id, error):
-        self.records[job_id].owner = ""
         self.records[job_id].error = error
         self.records[job_id].status = "failed"
 
@@ -100,7 +99,10 @@ def app_with_state():
     test_state.settings = type(
         "S",
         (),
-        {"max_text_chars": 100_000, "api_key_set": lambda self: {"test-key"}},
+        {
+            "max_text_chars": 100_000,
+            "api_key_set": lambda self: {"test-key", "other-key"},
+        },
     )()
     test_state.redactor = Redactor(
         detector=StubDetector(),
@@ -330,6 +332,17 @@ def test_job_not_found(app_with_state):
     body = r.json()
     assert body["status"] == 404
     assert body["title"] == "Job not found"
+
+
+def test_job_result_is_private_to_the_submitting_api_key(app_with_state):
+    with TestClient(app_with_state) as client:
+        sub = client.post(
+            "/v1/jobs", json={"text": "hi a@b.com"}, headers={"X-API-Key": "test-key"}
+        )
+        assert sub.status_code == 202
+        job_id = sub.json()["id"]
+        response = client.get(f"/v1/jobs/{job_id}", headers={"X-API-Key": "other-key"})
+    assert response.status_code == 404
 
 
 def test_failed_job_does_not_leak_internal_error(app_with_no_redactor):

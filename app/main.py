@@ -134,7 +134,7 @@ async def build_state(settings: Settings) -> State:
         await store.start()
         job_store: JobStore | None = store
     except Exception as exc:
-        log.warning("redax.redis_unavailable", error=str(exc))
+        log.warning("redax.redis_unavailable", error=exc.__class__.__name__)
         job_store = None
     if job_store is None:
         log.warning(

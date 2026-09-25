@@ -8,6 +8,7 @@ and decremented on terminal transitions.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import uuid
 from dataclasses import dataclass
@@ -27,8 +28,8 @@ class JobRecord:
             the job is still queued or running.
         error: Human-readable failure reason; ``None`` unless ``status``
             is ``failed``.
-        owner: The API key that submitted the job; used for per-key
-            admission control.
+        owner: A one-way API-key token used for admission control and
+            ownership checks. The clear API key is never persisted.
     """
 
     id: str
@@ -72,7 +73,12 @@ class JobStore:
         return self.KEY_TEMPLATE.format(ns=self.namespace, id=job_id)
 
     def _count_key(self, owner: str) -> str:
-        return self.COUNT_KEY_TEMPLATE.format(ns=self.namespace, owner=owner)
+        return self.COUNT_KEY_TEMPLATE.format(ns=self.namespace, owner=self.owner_token(owner))
+
+    @staticmethod
+    def owner_token(owner: str) -> str:
+        """Return the bounded, non-secret token used for job ownership state."""
+        return hashlib.sha256(owner.encode("utf-8", errors="replace")).hexdigest()[:32]
 
     async def start(self) -> None:
         """Connect to Redis and verify the link with a ping.
@@ -106,7 +112,13 @@ class JobStore:
         if client is None:
             raise RuntimeError("JobStore.start() must run before create()")
         job_id = uuid.uuid4().hex
-        record = JobRecord(id=job_id, status="queued", result=None, error=None, owner=owner)
+        record = JobRecord(
+            id=job_id,
+            status="queued",
+            result=None,
+            error=None,
+            owner=self.owner_token(owner) if owner else "",
+        )
         await self.set_record(record)
         if owner:
             count_key = self._count_key(owner)
