@@ -5,9 +5,9 @@ All endpoints speak JSON. Errors come back as RFC 7807 `application/problem+json
 ## POST /v1/redact
 
 Redact a single text. Returns `{text, spans, relex_map, used_pipeline,
-used_fallback, digest}`. The shape is stable across the legacy
-`Redactor` path (default) and the new multi-stage pipeline path
-(`use_pipeline=true`).
+used_fallback, digest}`. `text` is always transformed before it leaves this
+endpoint, regardless of the selected detector path. The HTTP `relex_map` is
+always `{}` because its keys are original entity values.
 
 **Request body**:
 
@@ -39,7 +39,7 @@ used_fallback, digest}`. The shape is stable across the legacy
 {
   "text": "Email me at [EMAIL_0001]",
   "spans": [{"start": 12, "end": 29, "type": "EMAIL", "confidence": 1.0}],
-  "relex_map": {"alice@example.com": "[EMAIL_0001]"},
+  "relex_map": {},
   "used_pipeline": false,
   "used_fallback": false,
   "digest": null
@@ -50,7 +50,7 @@ used_fallback, digest}`. The shape is stable across the legacy
 
 ```json
 {
-  "text": "Email me at alice@example.com",
+  "text": "Email me at [EMAIL_0001]",
   "spans": [
     {"start": 8,  "end": 24, "type": "EMAIL",    "confidence": 0.99},
     {"start": 0,  "end": 8,  "type": "PERSON",   "confidence": 0.85}
@@ -62,19 +62,12 @@ used_fallback, digest}`. The shape is stable across the legacy
 }
 ```
 
-The pipeline response keeps the original text (no relexicalization at
-the route level — the existing redax redactor still owns relex) and
-records `used_fallback=true` when the model stage's circuit breaker is
-open. `digest` is a SHA-256 of the input text for log correlation;
-the audit log records the hash but never the text itself.
-
-**Note on response shape asymmetry.** The legacy `Redactor` path
-populates `relex_map` from the matched strategy (e.g. the
-`autoDeID` strategy emits `[TYPE_NNNN]` placeholders, the `mask`
-strategy leaves it empty). The `use_pipeline=true` path always
-returns `relex_map = {}` because the multi-stage pipeline does not
-yet apply policy strategies; it is a span-fusion surface only.
-Callers that need relex should leave `use_pipeline` unset.
+The pipeline applies typed placeholders after span fusion and records
+`used_fallback=true` when the model stage's circuit breaker uses its explicit
+fallback behavior. `digest` is a SHA-256 of the input text for correlation;
+the audit log records the digest but never the text itself. Library-level
+relexicalization remains available to Python callers, but its original-value
+map is not an HTTP feature.
 
 **Errors**: 413 (oversize), 422 (validation), 429 (rate-limited), 503 (not ready), 504 (timeout).
 
@@ -90,7 +83,9 @@ overall timeout.
 {"items": [{"text": "..."}, {"text": "..."}]}
 ```
 
-Requires an API key when configured. Enforces `max_text_chars` per item (413),
+Requires an API key when configured. Each result contains transformed text and
+an empty `relex_map`; original-value maps never cross the HTTP boundary.
+Enforces `max_text_chars` per item (413),
 the shared rate limit (429/503), a per-request timeout (504), and emits one
 audit event per request with aggregated span counts.
 
@@ -107,7 +102,8 @@ curl -N -X POST http://localhost:8000/v1/redact/stream \
   -d '{"text": "long doc...", "chunk_chars": 1000}'
 ```
 
-Requires an API key when configured. Rejects oversized payloads (413), enforces
+Requires an API key when configured. Each event contains transformed text and
+an empty `relex_map`. Rejects oversized payloads (413), enforces
 the shared rate limit (429/503), and a per-chunk timeout yields a
 `{"error": "request timeout", "status": 504}` SSE event. Each event is capped
 at `REDAX_STREAM_CHUNK_BYTES` (default 4096) bytes and defaults to
@@ -140,7 +136,9 @@ curl http://localhost:8000/v1/jobs/{id}
 # {"id": "...", "status": "done", "result": {...}, "error": null}
 ```
 
-An unknown `{id}` returns a 404 `application/problem+json` body. A failed job
+An API key can only retrieve jobs submitted with that same key; other keys
+receive the same 404 as an unknown job. An unknown `{id}` returns a 404
+`application/problem+json` body. A failed job
 surfaces the stable `"error": "job failed"` marker — never an internal
 exception string. A job whose redaction exceeds `request_timeout_seconds` fails
 the same way (recorded as `redax_errors_total{type="job_timeout"}`). Completed
