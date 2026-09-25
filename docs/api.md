@@ -2,6 +2,27 @@
 
 All endpoints speak JSON. Errors come back as RFC 7807 `application/problem+json`.
 
+## POST /v1/detect
+
+Detection-only diagnostics. This endpoint intentionally returns the original
+`text` plus validated, overlap-resolved spans. Do not forward its response to a
+downstream model; use `/v1/redact` for transformed output.
+
+```json
+{"text": "Email alice@example.com", "entity_types": ["email"]}
+```
+
+```json
+{
+  "text": "Email alice@example.com",
+  "spans": [{"start": 6, "end": 23, "type": "EMAIL", "confidence": 1.0}]
+}
+```
+
+It has the same API-key, size, timeout, and rate-limit boundary as the
+redaction endpoints. Audit events record counts and timing, not the returned
+text.
+
 ## POST /v1/redact
 
 Redact a single text. Returns `{text, spans, relex_map, used_pipeline,

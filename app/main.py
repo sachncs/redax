@@ -18,6 +18,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api import (
     register_batch,
+    register_detect,
     register_health,
     register_jobs,
     register_policies,
@@ -256,6 +257,7 @@ register_health(app)
 register_policies(app)
 register_redact(app)
 register_batch(app)
+register_detect(app)
 register_stream(app)
 register_jobs(app)
 

@@ -10,8 +10,9 @@ all of them.
    ┌──────────────────────────▼───────────────────────────────────┐
    │  FastAPI application  (app/main.py)                          │
    │                                                              │
-   │   POST /v1/redact            POST /v1/redact/batch          │
-   │   POST /v1/redact/stream     POST /v1/jobs                  │
+   │   POST /v1/detect             POST /v1/redact                │
+   │   POST /v1/redact/batch      POST /v1/redact/stream         │
+   │   POST /v1/jobs                                             │
    │   GET  /v1/jobs/{id}         GET  /v1/policies              │
    │   GET  /healthz /readyz /metrics                            │
    │                                                              │

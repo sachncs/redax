@@ -5,6 +5,7 @@ without import-time coupling.
 """
 
 from .batch import register as register_batch
+from .detect import register as register_detect
 from .health import register as register_health
 from .jobs import register as register_jobs
 from .policies import register as register_policies
@@ -13,6 +14,7 @@ from .stream import register as register_stream
 
 __all__ = [
     "register_batch",
+    "register_detect",
     "register_health",
     "register_jobs",
     "register_policies",
