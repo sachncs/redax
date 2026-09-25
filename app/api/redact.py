@@ -55,6 +55,7 @@ class RedactResponse(BaseModel):
 
 
 _CACHE_SKIPPED_LOGGED: set[str] = set()
+IDEMPOTENCY_RESPONSE_VERSION = 2
 
 
 def request_fingerprint(body: RedactRequest, policy: dict[str, Any] | None) -> str:
@@ -76,6 +77,12 @@ def _log_cache_skipped(name: str) -> None:
         return
     _CACHE_SKIPPED_LOGGED.add(name)
     get_logger("redax.api").warning("redax.cache_skipped", cache=name)
+
+
+def idempotency_storage_key(namespace: str, key: str) -> str:
+    """Return a Redis key that does not persist the caller's header value."""
+    digest = hashlib.sha256(key.encode("utf-8", errors="replace")).hexdigest()
+    return f"{namespace}:idem:{digest}"
 
 
 def register(app: FastAPI) -> None:
@@ -155,10 +162,17 @@ def register(app: FastAPI) -> None:
                         _log_cache_skipped("idempotency")
                     else:
                         ns = getattr(settings, "redis_namespace", "redax")
-                        idem_raw = await job_store.client.get(f"{ns}:idem:{x_idempotency_key}")
+                        idem_raw = await job_store.client.get(
+                            idempotency_storage_key(ns, x_idempotency_key)
+                        )
                         if idem_raw:
                             idem_payload = json.loads(idem_raw)
-                            if isinstance(idem_payload, dict) and "response" in idem_payload:
+                            if (
+                                isinstance(idem_payload, dict)
+                                and idem_payload.get("response_version")
+                                == IDEMPOTENCY_RESPONSE_VERSION
+                                and "response" in idem_payload
+                            ):
                                 if idem_payload.get("request_fingerprint") != fingerprint:
                                     return problem_response(
                                         request,
@@ -262,9 +276,10 @@ def register(app: FastAPI) -> None:
                     if x_idempotency_key:
                         idem_ttl = getattr(settings, "idempotency_ttl_seconds", 86_400)
                         await job_store.client.set(
-                            f"{ns}:idem:{x_idempotency_key}",
+                            idempotency_storage_key(ns, x_idempotency_key),
                             json.dumps(
                                 {
+                                    "response_version": IDEMPOTENCY_RESPONSE_VERSION,
                                     "request_fingerprint": fingerprint,
                                     "response": response_body,
                                 }

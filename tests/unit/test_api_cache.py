@@ -4,6 +4,7 @@ import hypothesis.strategies as st
 from hypothesis import given
 
 from app.api.cache import redaction_cache_key, redaction_cache_payload
+from app.api.redact import idempotency_storage_key
 
 _TEXT = st.text(st.characters(blacklist_categories=["Cs", "Cc"]), min_size=1, max_size=60)
 
@@ -15,6 +16,12 @@ def test_key_is_a_stable_hash_of_the_payload(text: str, policy: dict[str, str]) 
     assert key == redaction_cache_key(redaction_cache_payload(text, policy, [], "salt-1"))
     assert len(key) == 64
     assert key != redaction_cache_key(redaction_cache_payload(text + "!", policy, [], "salt-1"))
+
+
+def test_idempotency_storage_key_does_not_include_header_value() -> None:
+    key = idempotency_storage_key("redax", "email=alice@example.com")
+    assert "alice@example.com" not in key
+    assert key.startswith("redax:idem:")
 
 
 @given(_TEXT, st.text(min_size=1, max_size=16))
