@@ -90,6 +90,45 @@ def test_redact_returns_substituted_text(app_with_redactor):
     assert body["spans"][0]["type"] == "EMAIL"
 
 
+def test_regex_mode_default_policy_redacts_structured_aliases() -> None:
+    regex = RegexDetector()
+    test_state = State()
+    test_state.settings = type(
+        "S",
+        (),
+        {
+            "max_text_chars": 1000,
+            "hash_salt": "x",
+            "api_key_set": lambda self: set(),
+            "default_policy": "default",
+            "policies_dir": "policies",
+            "request_timeout_seconds": 30.0,
+            "rate_limit_per_minute": 0,
+        },
+    )()
+    test_state.redactor = Redactor(
+        detector=regex,
+        strategies={
+            "passThrough": Skip(),
+            "mask": Mask(),
+            "regex": Regex(detector=regex),
+            "autoDeID": Deid(regex),
+        },
+    )
+    test_state.job_store = None
+    test_state.ready = True
+
+    app = FastAPI()
+    app.state.state = test_state
+    register(app)
+
+    with TestClient(app) as client:
+        response = client.post("/v1/redact", json={"text": "Email alice@example.com"})
+
+    assert response.status_code == 200
+    assert response.json()["text"] == "Email [EMAIL_0000]"
+
+
 def test_redact_validates_empty_text(app_with_redactor):
     with TestClient(app_with_redactor) as client:
         resp = client.post("/v1/redact", json={"text": ""})
