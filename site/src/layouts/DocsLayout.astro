@@ -1,0 +1,55 @@
+---
+import Base from "~/layouts/Base.astro";
+
+interface Props {
+  title: string;
+  description: string;
+  active: string;
+}
+
+const { title, description, active } = Astro.props;
+const links = [
+  { key: "api", label: "HTTP API", href: "/redax/docs/api" },
+  { key: "architecture", label: "Architecture", href: "/redax/docs/architecture" },
+  { key: "integration", label: "Integration", href: "/redax/docs/integration" },
+  { key: "policies", label: "Policies", href: "/redax/docs/policies" },
+  { key: "bench", label: "Benchmarks", href: "/redax/docs/bench" },
+];
+---
+<Base title={`${title} · Redax docs`} description={description}>
+  <section class="section pt-32 sm:pt-40">
+    <div class="container-x">
+      <div class="grid grid-cols-1 lg:grid-cols-[220px_minmax(0,760px)] gap-10 lg:gap-20">
+        <aside class="lg:sticky lg:top-28 lg:self-start">
+          <a href="/redax/" class="text-[13px] text-ink-400 hover:text-ink-0 transition-colors">← Back to Redax</a>
+          <div class="mt-8 text-[11px] uppercase tracking-[0.2em] text-ink-500">Documentation</div>
+          <nav aria-label="Documentation" class="mt-3 grid gap-1">
+            {links.map((link) => (
+              <a
+                href={link.href}
+                aria-current={active === link.key ? "page" : undefined}
+                class={`rounded-lg px-3 py-2 text-[13.5px] transition-colors ${active === link.key ? "bg-white/[0.08] text-ink-0" : "text-ink-400 hover:bg-white/[0.04] hover:text-ink-100"}`}
+              >
+                {link.label}
+              </a>
+            ))}
+          </nav>
+          <div class="mt-8 rounded-xl border border-white/[0.08] bg-white/[0.03] p-4">
+            <div class="text-[11px] uppercase tracking-[0.18em] text-flame-300">Start here</div>
+            <p class="mt-2 text-[13px] leading-[1.5] text-ink-300">Run Redax locally, send one request, and inspect the safe output.</p>
+            <a href="/redax/#start" class="mt-3 inline-flex text-[13px] text-ink-100 hover:text-flame-200">Open quickstart →</a>
+          </div>
+        </aside>
+
+        <article class="min-w-0">
+          <span class="pill"><span class="dot"></span>Redax documentation</span>
+          <h1 class="mt-6 text-[clamp(42px,6vw,76px)] leading-[1.02] tracking-[-0.045em]">{title}</h1>
+          <p class="mt-6 max-w-2xl text-[18px] leading-[1.6] text-ink-300">{description}</p>
+          <div class="mt-12 grid gap-10 text-[15px] leading-[1.7] text-ink-200">
+            <slot />
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+</Base>

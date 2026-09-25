@@ -11,11 +11,11 @@ export const SITE = {
 } as const;
 
 export const DOCS = {
-  api: `${SITE.repo}/blob/master/docs/api.md`,
-  architecture: `${SITE.repo}/blob/master/docs/architecture.md`,
-  integration: `${SITE.repo}/blob/master/docs/integration.md`,
-  policies: `${SITE.repo}/blob/master/docs/policies.md`,
-  bench: `${SITE.repo}/blob/master/docs/bench.md`,
+  api: "/redax/docs/api",
+  architecture: "/redax/docs/architecture",
+  integration: "/redax/docs/integration",
+  policies: "/redax/docs/policies",
+  bench: "/redax/docs/bench",
 } as const;
 
 export const HERO = {
@@ -25,17 +25,18 @@ export const HERO = {
     "Redax is a small, deterministic PII engine that strips emails, phones, names, and identifiers from any text — before it reaches an LLM. Built for teams that refuse to send customer data to someone else's GPU.",
   ctas: [
     { label: "Get started", href: "#start", variant: "primary" as const },
-    { label: "Read the docs", href: DOCS.api, variant: "ghost" as const, external: true },
+    { label: "Read the docs", href: DOCS.api, variant: "ghost" as const },
   ],
   proof: ["Apache-2.0", "No telemetry", "Runs on a laptop", "CPU-friendly"],
 } as const;
 
 export const NAV = [
-  { label: "Product", href: "#product" },
-  { label: "Pipeline", href: "#pipeline" },
-  { label: "Benchmarks", href: "#benchmarks" },
-  { label: "Deploy", href: "#deploy" },
-  { label: "Docs", href: DOCS.api, external: true },
+  { label: "Product", href: "/redax/#product" },
+  { label: "How it works", href: "/redax/#how-it-works" },
+  { label: "Pipeline", href: "/redax/#pipeline" },
+  { label: "Benchmarks", href: "/redax/#benchmarks" },
+  { label: "Deploy", href: "/redax/#deploy" },
+  { label: "Docs", href: DOCS.api },
   { label: "GitHub", href: SITE.repo, external: true },
 ] as const;
 
@@ -254,19 +255,20 @@ export const FOOTER = {
     {
       title: "Product",
       links: [
-        { label: "Features", href: "#product" },
-        { label: "Pipeline", href: "#pipeline" },
-        { label: "Benchmarks", href: "#benchmarks" },
-        { label: "Deployment", href: "#deploy" },
+        { label: "Features", href: "/redax/#product" },
+        { label: "How it works", href: "/redax/#how-it-works" },
+        { label: "Pipeline", href: "/redax/#pipeline" },
+        { label: "Benchmarks", href: "/redax/#benchmarks" },
+        { label: "Deployment", href: "/redax/#deploy" },
       ],
     },
     {
       title: "Docs",
       links: [
-        { label: "HTTP API", href: DOCS.api, external: true },
-        { label: "Architecture", href: DOCS.architecture, external: true },
-        { label: "Integration", href: DOCS.integration, external: true },
-        { label: "Policies", href: DOCS.policies, external: true },
+        { label: "HTTP API", href: DOCS.api },
+        { label: "Architecture", href: DOCS.architecture },
+        { label: "Integration", href: DOCS.integration },
+        { label: "Policies", href: DOCS.policies },
       ],
     },
     {

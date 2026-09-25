@@ -33,8 +33,6 @@ import { HERO } from "~/content/site";
           <a
             href={c.href}
             class={c.variant === "primary" ? "btn-primary" : "btn-ghost"}
-            target={"external" in c && c.external ? "_blank" : undefined}
-            rel={"external" in c && c.external ? "noopener noreferrer" : undefined}
           >
             {c.label}
             {c.variant === "primary" ? (

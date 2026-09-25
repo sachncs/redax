@@ -1,0 +1,13 @@
+---
+import DocsLayout from "~/layouts/DocsLayout.astro";
+---
+<DocsLayout active="policies" title="Policies" description="Make redaction behavior explicit, reviewable, and versioned alongside your application code.">
+  <section><h2 class="text-[25px] text-ink-0">A policy is your contract</h2><p class="mt-3">Policies decide which fields are inspected, which detector is used, and what replacement strategy is applied. Keep them in git so a change is reviewed like any other security-sensitive change.</p><pre class="code-shell mt-5 overflow-x-auto p-5 text-[13px] leading-[1.7] text-ink-100"><code>{`name: customer-message
+version: 1.0.0
+fields:
+  free_text:
+    strategy: autoDeID
+    relex: true
+    entity_types: [person, email, phone]`}</code></pre></section>
+  <section><h2 class="text-[25px] text-ink-0">Choose the right strategy</h2><div class="mt-4 grid gap-3">{[["passThrough", "No inspection. Use only for fields that are not sensitive."], ["regex", "Fast, deterministic patterns for structured identifiers."], ["autoDeID", "Detector-backed redaction for names and contextual entities."], ["hash", "Stable one-way replacements for join keys and analytics."]].map(([name, body]) => <div class="card p-5 sm:flex sm:items-start sm:gap-6"><code class="shrink-0 text-flame-200">{name}</code><p class="mt-2 sm:mt-0 text-[14px] text-ink-300">{body}</p></div>)}</div></section>
+</DocsLayout>

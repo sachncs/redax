@@ -1,0 +1,11 @@
+---
+import DocsLayout from "~/layouts/DocsLayout.astro";
+---
+<DocsLayout active="integration" title="Integration" description="Add Redax before and after the model call without changing your model provider or application contract.">
+  <section><h2 class="text-[25px] text-ink-0">The sandwich pattern</h2><p class="mt-3">Redact user input before it crosses the model boundary. Redact model output again before it is stored, displayed, or sent to another system. This keeps both directions inside the same policy.</p><pre class="code-shell mt-5 overflow-x-auto p-5 text-[13px] leading-[1.7] text-ink-100"><code>{`user message → Redax → LLM → Redax → UI / storage`}</code></pre></section>
+  <section><h2 class="text-[25px] text-ink-0">Python shape</h2><p class="mt-3">Keep the Redax call in a small boundary function so the rest of your application never has to remember which fields are sensitive.</p><pre class="code-shell mt-5 overflow-x-auto p-5 text-[13px] leading-[1.7] text-ink-100"><code>{`async def safe_chat(message: str) -> str:
+    safe_input = await redact(message)
+    answer = await call_your_llm(safe_input.text)
+    return (await redact(answer)).text`}</code></pre></section>
+  <section class="card p-6 sm:p-8"><h2 class="text-[22px] text-ink-0">Start locally</h2><p class="mt-3">Use Docker Compose for the first integration, then promote the same API contract behind your own ingress and service identity.</p><a href="/redax/#deploy" class="btn-primary mt-6">View deployment options →</a></section>
+</DocsLayout>

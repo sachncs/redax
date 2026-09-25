@@ -1,0 +1,41 @@
+---
+import DocsLayout from "~/layouts/DocsLayout.astro";
+---
+<DocsLayout
+  active="api"
+  title="HTTP API"
+  description="Put Redax directly in front of your LLM call. Send text in, receive safe text plus the evidence you need to operate the boundary."
+>
+  <section>
+    <h2 class="text-[25px] text-ink-0">The request path</h2>
+    <p class="mt-3">Your application calls <code>POST /v1/redact</code> before it calls the model. Redax applies the selected policy, detects sensitive spans, replaces them with typed placeholders, and returns a digest for traceability.</p>
+    <div class="mt-5 grid grid-cols-1 sm:grid-cols-4 gap-2">
+      {[ ["1", "Send", "plain text"], ["2", "Detect", "regex + NER"], ["3", "Replace", "typed tokens"], ["4", "Continue", "safe prompt"] ].map(([n, title, body]) => (
+        <div class="card p-4"><div class="font-mono text-[11px] text-flame-300">{n}</div><div class="mt-3 text-[14px] font-semibold text-ink-0">{title}</div><div class="mt-1 text-[12px] text-ink-400">{body}</div></div>
+      ))}
+    </div>
+  </section>
+
+  <section>
+    <h2 class="text-[25px] text-ink-0">Redact text</h2>
+    <p class="mt-3">The smallest useful integration is one JSON request. Authentication can be enabled with <code>X-API-Key</code>; local development can run without it.</p>
+    <pre class="code-shell mt-5 overflow-x-auto p-5 text-[13px] leading-[1.7] text-ink-100"><code>{`curl -s -X POST http://localhost:8000/v1/redact \\
+  -H 'Content-Type: application/json' \\
+  -d '{"text":"Email me at alice@example.com"}'`}</code></pre>
+  </section>
+
+  <section>
+    <h2 class="text-[25px] text-ink-0">Response shape</h2>
+    <p class="mt-3">The response is designed for both the next LLM call and your observability pipeline. It contains safe text, typed spans, and a SHA-256 digest—not the original values.</p>
+    <pre class="code-shell mt-5 overflow-x-auto p-5 text-[13px] leading-[1.7] text-ink-100"><code>{`{
+  "text": "Email me at [EMAIL_0000]",
+  "spans": [{"start": 12, "end": 29, "type": "EMAIL", "confidence": 1.0}],
+  "digest": "8f1d2c..."
+}`}</code></pre>
+  </section>
+
+  <section class="card p-6 sm:p-8">
+    <h2 class="text-[22px] text-ink-0">Safe retries</h2>
+    <p class="mt-3">Send an <code>Idempotency-Key</code> with retryable requests. Redax returns the same result for the same key instead of creating duplicate work, making it safe to put behind queues and load balancers.</p>
+  </section>
+</DocsLayout>
