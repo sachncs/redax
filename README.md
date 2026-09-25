@@ -97,6 +97,7 @@ loading, CORS, and readiness behavior.
 - [Benchmark methodology](docs/bench.md)
 - [Benchmark results](docs/benchmark-results.md)
 - [Model survey and provenance](docs/models-survey.md)
+- [Launch audit and remaining limitations](docs/launch-audit.md)
 - [Product status](https://sachncs.github.io/redax/docs/status)
 
 The polished entry point is the [Redax product site](https://sachncs.github.io/redax/).
