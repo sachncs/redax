@@ -21,11 +21,16 @@ All settings read from environment variables prefixed with `REDAX_`. See
 | `REDAX_HOST` | `0.0.0.0` | uvicorn bind address |
 | `REDAX_PORT` | `8000` | uvicorn bind port |
 | `REDAX_REDIS_URL` | `redis://localhost:6379/0` | for jobs / cache / rate limit |
+| `REDAX_REDIS_NAMESPACE` | `redax` | namespace all Redis keys when sharing a Redis instance |
+| `REDAX_SERVICE_NAME` | `redax` | service name used by tracing and diagnostics |
 | `REDAX_ENV` | `prod` | `dev` permits local unauthenticated development; `prod` requires API keys and trusted hosts |
 | `REDAX_TRUSTED_HOSTS` | `""` | comma-separated hostnames required in production |
 | `REDAX_CORS_ORIGINS` | `""` | comma-separated browser origins; empty disables browser CORS |
 | `REDAX_MODEL_CACHE` | `./models_cache` | HF_HOME redirect |
 | `REDAX_MODEL_NAME` | `fastino/gliner2-privacy-filter-PII-multi` | HF model id |
+| `REDAX_MODEL_REVISION` | pinned commit | model revision required for reproducible loading |
+| `REDAX_MODEL_THRESHOLD` | `0.5` | GLiNER2 detection threshold |
+| `REDAX_DETECTOR` | `gliner2` | `gliner2` or explicit `regex` mode |
 | `REDAX_POLICIES_DIR` | `./policies` | where to find policy YAMLs |
 | `REDAX_DEFAULT_POLICY` | `default` | name of the default policy |
 | `REDAX_AUDIT_PATH` | `./audit.jsonl` | append-only audit log path |
@@ -33,6 +38,7 @@ All settings read from environment variables prefixed with `REDAX_`. See
 | `REDAX_MAX_TEXT_CHARS` | `100000` | reject inputs longer than this |
 | `REDAX_API_KEYS` | `""` | comma-separated; required when `REDAX_ENV=prod` |
 | `REDAX_RATE_LIMIT_PER_MINUTE` | `60` | per API key; 0 disables |
+| `REDAX_RATE_LIMIT_FAIL_OPEN` | `false` | allow authenticated traffic when Redis rate limiting is unavailable |
 | `REDAX_CACHE_TTL_SECONDS` | `3600` | response cache TTL |
 | `REDAX_CACHE_SHARED` | `false` | share the response cache across deployments (requires identical `REDAX_HASH_SALT`) |
 | `REDAX_IDEMPOTENCY_TTL_SECONDS` | `86400` | idempotency cache TTL |
@@ -45,6 +51,13 @@ All settings read from environment variables prefixed with `REDAX_`. See
 | `REDAX_AUDIT_MAX_BYTES` | `1000000000` | rotate the audit log when it reaches this size |
 | `REDAX_AUDIT_ROTATION_BACKUPS` | `5` | keep this many rotated audit files; 0 truncates instead |
 | `REDAX_AUDIT_RETENTION_SECONDS` | `7776000` | drop audit lines older than this at startup |
+| `REDAX_REQUEST_TIMEOUT_SECONDS` | `30` | per-request and job inference timeout |
+| `REDAX_INFERENCE_CONCURRENCY` | `2` | concurrent model detector calls |
+| `REDAX_MULTI_PASS_MAX` | `3` | maximum detector passes for `multi_pass` policies |
+| `REDAX_PIPELINE_ENABLED` | `true` | enable staged pipeline wiring when a model detector is active |
+| `REDAX_PIPELINE_BREAKER_THRESHOLD` | `3` | consecutive model failures before opening the circuit |
+| `REDAX_PIPELINE_BREAKER_COOLDOWN_S` | `5` | seconds before a circuit probe |
+| `REDAX_METRICS_BY_TENANT` | `false` | reserved setting; tenant labels are disabled by default |
 | `REDAX_WORKER_CONCURRENCY` | `1` | reserved for the planned arq worker (`redax-worker`); jobs currently run in-process via FastAPI background tasks |
 | `REDAX_OTLP_ENDPOINT` | `""` | OTLP gRPC endpoint for traces |
 
