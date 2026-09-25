@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as package_version
 from typing import Any
 
 from fastapi import FastAPI
@@ -42,6 +44,11 @@ from app.redaction.stages.gate import Gate
 from app.redaction.stages.model import ModelStage
 from app.redaction.strategy import Deid, Hash, Mask, Regex, Skip, Strategy
 from app.state import State
+
+try:
+    PROJECT_VERSION = package_version("redax")
+except PackageNotFoundError:
+    PROJECT_VERSION = "0.1.0"
 
 
 async def build_state(settings: Settings) -> State:
@@ -226,7 +233,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(
     title="Redax",
-    version="0.1.0",
+    version=PROJECT_VERSION,
     description="Self-hosted PII redaction engine.",
     lifespan=lifespan,
 )
