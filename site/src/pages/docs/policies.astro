@@ -2,14 +2,14 @@
 import DocsLayout from "~/layouts/DocsLayout.astro";
 ---
 <DocsLayout active="policies" title="Policies" description="Make redaction behavior explicit, reviewable, and versioned alongside your application code.">
-version: 1.0.0
-fields:
-  free_text:
-    strategy: autoDeID
-    relex: true
-    entity_types: [person, email, phone]`}</code></pre></section>
-  <section class="card border-flame-400/20 bg-flame-500/[0.06] p-6 sm:p-8"><div class="text-[11px] uppercase tracking-[0.2em] text-flame-300">Why policies exist</div><p class="mt-4 text-[16px] leading-[1.7] text-ink-100">A detector can find a span, but it cannot know your business intent. A support ticket, a medical record, and an internal join key may need different treatment. Policies turn that decision into a named, reviewable contract.</p></section>
-  <section><h2 class="text-[25px] text-ink-0">A policy is your contract</h2><p class="mt-3">Policies decide which fields are inspected, which detector is used, and what replacement strategy is applied. Keep them in git so a change is reviewed like any other security-sensitive change.</p><pre class="code-shell mt-5 overflow-x-auto p-5 text-[13px] leading-[1.7] text-ink-100"><code>{`name: customer-message
+  <section class="card border-flame-400/20 bg-flame-500/[0.06] p-6 sm:p-8">
+    <div class="text-[11px] uppercase tracking-[0.2em] text-flame-300">Why policies exist</div>
+    <p class="mt-4 text-[16px] leading-[1.7] text-ink-100">A detector can find a span, but it cannot know your business intent. A support ticket, a medical record, and an internal join key may need different treatment. Policies turn that decision into a named, reviewable contract.</p>
+  </section>
+  <section>
+    <h2 class="text-[25px] text-ink-0">A policy is your contract</h2>
+    <p class="mt-3">Policies decide which fields are inspected, which detector is used, and what replacement strategy is applied. Keep them in git so a change is reviewed like any other security-sensitive change.</p>
+    <pre class="code-shell mt-5 overflow-x-auto p-5 text-[13px] leading-[1.7] text-ink-100"><code>{`name: customer-message
 version: 1.0.0
 fields:
   free_text:
@@ -18,13 +18,22 @@ fields:
     entity_types: [person, email, phone]
   customer_id:
     strategy: hash
-    length: 12`}</code></pre></section>
-version: 1.0.0
-fields:
-  free_text:
-    strategy: autoDeID
-    relex: true
-    entity_types: [person, email, phone]`}</code></pre></section>
-  <section><h2 class="text-[25px] text-ink-0">Choose the right strategy</h2><div class="mt-4 grid gap-3">{[["passThrough", "No inspection. Use only for fields that are not sensitive."], ["regex", "Fast, deterministic patterns for structured identifiers."], ["autoDeID", "Detector-backed redaction for names and contextual entities."], ["hash", "Stable one-way replacements for join keys and analytics."]].map(([name, body]) => <div class="card p-5 sm:flex sm:items-start sm:gap-6"><code class="shrink-0 text-flame-200">{name}</code><p class="mt-2 sm:mt-0 text-[14px] text-ink-300">{body}</p></div>)}</div></section>
-  <section><h2 class="text-[25px] text-ink-0">How to introduce a policy safely</h2><ol class="mt-4 grid gap-3">{["Start from the least permissive built-in policy that fits the field.", "Add a fixture containing representative, non-production data.", "Run the redaction and inspect both the safe text and the spans.", "Bump the policy version when behavior changes.", "Deploy the policy with the application release so the audit record can be explained later."].map((item, i) => <li class="card flex gap-4 p-5"><span class="font-mono text-[12px] text-flame-300">0{i + 1}</span><span class="text-[14px] text-ink-300">{item}</span></li>)}</ol></section>
+    length: 12`}</code></pre>
+  </section>
+  <section>
+    <h2 class="text-[25px] text-ink-0">Which setting wins?</h2>
+    <p class="mt-3">The HTTP API applies one explicit precedence order. An inline <code>policy</code> wins first; otherwise <code>entity_types</code> selects the detector-backed redaction path; otherwise the configured <code>REDAX_DEFAULT_POLICY</code> applies. If none is selected, the detector uses its direct default behavior. <code>policy</code> and <code>entity_types</code> cannot be combined.</p>
+  </section>
+  <section>
+    <h2 class="text-[25px] text-ink-0">Choose the right strategy</h2>
+    <div class="mt-4 grid gap-3">
+      {[ ["passThrough", "No inspection. Use only for fields that are not sensitive."], ["mask", "Replace detected spans with a fixed format."], ["regex", "Fast, deterministic patterns for structured identifiers."], ["autoDeID", "Detector-backed redaction for names and contextual entities."], ["hash", "Stable keyed replacements for join keys and analytics."] ].map(([name, body]) => <div class="card p-5 sm:flex sm:items-start sm:gap-6"><code class="shrink-0 text-flame-200">{name}</code><p class="mt-2 sm:mt-0 text-[14px] text-ink-300">{body}</p></div>)}
+    </div>
+  </section>
+  <section>
+    <h2 class="text-[25px] text-ink-0">How to introduce a policy safely</h2>
+    <ol class="mt-4 grid gap-3">
+      {["Start from the least permissive built-in policy that fits the field.", "Add a fixture containing representative, non-production data.", "Run the redaction and inspect both the safe text and the spans.", "Bump the policy version when behavior changes.", "Deploy the policy with the application release so the audit record can be explained later."].map((item, i) => <li class="card flex gap-4 p-5"><span class="font-mono text-[12px] text-flame-300">0{i + 1}</span><span class="text-[14px] text-ink-300">{item}</span></li>)}
+    </ol>
+  </section>
 </DocsLayout>
