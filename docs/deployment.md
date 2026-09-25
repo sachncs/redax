@@ -10,6 +10,24 @@ curl http://localhost:8000/healthz
 Brings up `redax` and `redis` with healthcheck-gated dependency. Volumes
 persist the model cache and audit log.
 
+## Deployment tiers
+
+Choose the smallest tier that matches the boundary you need. Redis is not
+required for a single-process redaction service when caching, rate limiting,
+and asynchronous jobs are disabled, but production authentication and trusted
+hosts are still required.
+
+| Tier | Runtime | Redis | Intended use |
+|---|---|---|---|
+| Simple | One Python/Docker process, usually `REDAX_DETECTOR=regex` | Optional; disable rate limiting and do not use cache/jobs when absent | Local or small controlled service with deterministic structured detection |
+| Standard | One or a few processes with the pinned local GLiNER2 model | Recommended for rate limits, cache, idempotency, and jobs | The default production starting point |
+| Scaled | Multiple identical API replicas behind an ingress | Shared, durable Redis with a unique namespace | Higher throughput with consistent model, policy, secret, and limit configuration |
+
+The current `/v1/jobs` implementation executes work in FastAPI background
+tasks inside the receiving process. It is bounded and useful for modest jobs,
+but it is not a durable distributed worker queue; use a separate worker design
+before treating jobs as a high-scale workload.
+
 ## Configuration
 
 All settings read from environment variables prefixed with `REDAX_`. See
