@@ -3,6 +3,7 @@
 
 export const SITE = {
   name: "Redax",
+  version: "0.1.0",
   title: "Redax — Self-hosted PII redaction for the LLM era",
   description:
     "A self-hosted PII redaction boundary for teams that want to inspect and replace sensitive text before it reaches a model. Local-first, policy-driven, and explicit about its limits.",
