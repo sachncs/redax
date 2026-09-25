@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends, FastAPI, Header, Request
 from pydantic import BaseModel, Field
 
 from app.api.cache import redaction_cache_key, redaction_cache_payload
+from app.api.policy import effective_policy, policy_version
 from app.audit.backend import Event, span_summary
 from app.auth import require_api_key
 from app.errors import (
@@ -31,7 +32,6 @@ from app.logging import get_logger
 from app.middleware import get_request_id
 from app.observability import CACHE_HITS, REQUEST_LATENCY, REQUESTS
 from app.ratelimit import rate_limit
-from app.redaction.policies import load_policy, parse_policy_dict
 from app.state import State, get_state
 
 
@@ -86,17 +86,6 @@ def idempotency_storage_key(namespace: str, key: str) -> str:
     return f"{namespace}:idem:{digest}"
 
 
-def normalized_policy(raw: dict[str, Any], source: str) -> dict[str, Any]:
-    """Validate a policy and return one canonical shape for execution/cache keys."""
-    parsed = parse_policy_dict(raw, source=source)
-    return {
-        "name": parsed.name,
-        "version": parsed.version,
-        "description": parsed.description,
-        "fields": parsed.fields,
-    }
-
-
 def register(app: FastAPI) -> None:
     """Mount the POST /v1/redact route on ``app``."""
 
@@ -148,7 +137,7 @@ def register(app: FastAPI) -> None:
                 )
             if policy is not None:
                 try:
-                    policy = normalized_policy(policy, "<request>")
+                    policy = effective_policy(settings, policy, body.entity_types)
                 except (TypeError, ValueError) as exc:
                     REQUESTS.labels(endpoint=endpoint, method=method, status="422").inc()
                     return problem_response(
@@ -159,23 +148,17 @@ def register(app: FastAPI) -> None:
                         detail=str(exc),
                     )
             if policy is None and body.entity_types is None and not body.use_pipeline:
-                default_name = getattr(settings, "default_policy", "") if settings else ""
-                policies_dir = getattr(settings, "policies_dir", "./policies") if settings else None
-                if default_name and policies_dir:
-                    from pathlib import Path
-
-                    policy_path = Path(policies_dir) / f"{default_name}.yaml"
-                    if policy_path.exists():
-                        loaded = load_policy(policy_path)
-                        policy = normalized_policy(
-                            {
-                                "name": loaded.name,
-                                "version": loaded.version,
-                                "description": loaded.description,
-                                "fields": loaded.fields,
-                            },
-                            str(policy_path),
-                        )
+                try:
+                    policy = effective_policy(settings, None, None)
+                except (TypeError, ValueError) as exc:
+                    REQUESTS.labels(endpoint=endpoint, method=method, status="422").inc()
+                    return problem_response(
+                        request,
+                        type="https://redax.ai/errors/invalid-policy",
+                        title="Invalid Policy",
+                        status=422,
+                        detail=str(exc),
+                    )
             pipeline = state.pipeline
             if body.use_pipeline and pipeline is None:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="422").inc()
@@ -328,17 +311,12 @@ def register(app: FastAPI) -> None:
                         )
 
                 if audit is not None:
-                    version = (
-                        "policy"
-                        if isinstance(policy, dict) and policy.get("version")
-                        else "default"
-                    )
                     from app.observability.tracing import current_trace_id_hex
 
                     audit_kwargs: dict[str, Any] = dict(
                         request_id=request_id,
                         ts="",
-                        policy_version=str(version),
+                        policy_version=policy_version(policy),
                         text_chars=len(body.text),
                         entities_detected=span_summary(spans),
                         inference_ms=inference_ms,

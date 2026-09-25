@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from app.api.policy import default_policy, policy_version
 from app.audit.backend import Event, span_summary
 from app.auth import require_api_key
 from app.errors import TRANSIENT_EXC, internal_error, payload_too_large, timeout_error
@@ -78,13 +79,18 @@ def register(app: FastAPI) -> None:
             timeout_seconds = getattr(settings, "request_timeout_seconds", 30.0)
             inference_concurrency = max(1, int(getattr(settings, "inference_concurrency", 2)))
             semaphore = asyncio.Semaphore(inference_concurrency)
+            policy = default_policy(settings)
             inference_start = time.perf_counter()
             async with asyncio.timeout(timeout_seconds):
 
                 async def run_one(text: str, entity_types: list[str] | None) -> Any:
                     """Run one item under the per-batch concurrency semaphore."""
                     async with semaphore:
-                        return await redactor.redact(text, entity_types=entity_types)
+                        return await redactor.redact(
+                            text,
+                            policy=policy if entity_types is None else None,
+                            entity_types=entity_types,
+                        )
 
                 results = await asyncio.gather(
                     *(run_one(item.text, item.entity_types) for item in body.items)
@@ -98,7 +104,7 @@ def register(app: FastAPI) -> None:
                     Event(
                         request_id=request_id,
                         ts="",
-                        policy_version="default",
+                        policy_version=policy_version(policy),
                         text_chars=sum(len(item.text) for item in body.items),
                         entities_detected=span_summary(spans),
                         inference_ms=inference_ms,

@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
+from app.api.policy import default_policy, policy_version
 from app.audit.backend import Event, span_summary
 from app.auth import require_api_key
 from app.errors import TRANSIENT_EXC, internal_error, payload_too_large
@@ -83,6 +84,7 @@ def register(app: FastAPI) -> None:
         timeout_seconds = getattr(settings, "request_timeout_seconds", 30.0)
         chunk_bytes = getattr(settings, "stream_chunk_bytes", 4096)
         default_chunk_chars = getattr(settings, "stream_chunk_chars", 2000)
+        policy = body.policy if body.policy is not None else default_policy(settings)
         latency_start = time.perf_counter()
 
         async def event_source() -> AsyncIterator[str]:
@@ -98,7 +100,7 @@ def register(app: FastAPI) -> None:
                             inference_start = time.perf_counter()
                             result = await redactor.redact(
                                 piece,
-                                policy=body.policy,
+                                policy=policy,
                                 entity_types=body.entity_types,
                             )
                             inference_ms += int((time.perf_counter() - inference_start) * 1000)
@@ -126,7 +128,7 @@ def register(app: FastAPI) -> None:
                         Event(
                             request_id=request_id,
                             ts="",
-                            policy_version="default",
+                            policy_version=policy_version(policy),
                             text_chars=len(text),
                             entities_detected=span_summary(all_spans),
                             inference_ms=inference_ms,

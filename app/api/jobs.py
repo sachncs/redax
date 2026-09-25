@@ -16,6 +16,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from app.api.policy import default_policy, policy_version
 from app.audit.backend import Event, span_summary
 from app.auth import require_api_key
 from app.errors import (
@@ -180,10 +181,14 @@ async def run_job(
     try:
         timeout_seconds = getattr(state.settings, "request_timeout_seconds", 30.0)
         async with asyncio.timeout(timeout_seconds):
+            policy = payload.get("policy")
+            entity_types = payload.get("entity_types")
+            if policy is None and entity_types is None:
+                policy = default_policy(state.settings)
             result = await redactor.redact(
                 payload["text"],
-                policy=payload.get("policy"),
-                entity_types=payload.get("entity_types"),
+                policy=policy,
+                entity_types=entity_types,
             )
         inference_ms = int((time.perf_counter() - start) * 1000)
         await store.set_result(
@@ -205,7 +210,7 @@ async def run_job(
                 Event(
                     request_id=request_id,
                     ts="",
-                    policy_version="default",
+                    policy_version=policy_version(policy),
                     text_chars=len(payload["text"]),
                     entities_detected=span_summary(result.spans),
                     inference_ms=inference_ms,
