@@ -102,8 +102,13 @@ class RegexDetector:
         Returns:
             The matched spans, sorted by ``(start, end)``.
         """
-        requested = {ENTITY_TYPE_ALIASES.get(item.strip().upper(), item.strip().upper()) for item in entity_types}
-        active = [r for r in self.rules if r.type in requested] if entity_types else list(self.rules)
+        requested = {
+            ENTITY_TYPE_ALIASES.get(item.strip().upper(), item.strip().upper())
+            for item in entity_types
+        }
+        active = (
+            [r for r in self.rules if r.type in requested] if entity_types else list(self.rules)
+        )
         spans: list[Span] = []
         for rule in active:
             for match in rule.pattern.finditer(text):
