@@ -1,11 +1,11 @@
 # Architecture
 
-Redax is a self-hosted PII redaction engine. One process, four API surfaces,
-two deployment targets (Docker + WASM), one detection pipeline shared across
-all of them.
+Redax is a self-hosted PII redaction engine. The supported server runtime is
+the Docker/Python service; an experimental browser/WASM regex demo is kept
+separate and does not claim model or policy parity with the server.
 
 ```
-                  Clients  (SDK / HTTP / browser WASM bundle)
+                  Clients  (HTTP / experimental browser demo)
                               │
    ┌──────────────────────────▼───────────────────────────────────┐
    │  FastAPI application  (app/main.py)                          │
