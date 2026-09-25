@@ -13,7 +13,7 @@ import DocsLayout from "~/layouts/DocsLayout.astro";
 
   <section>
     <h2 class="text-[25px] text-ink-0">The request path</h2>
-    <p class="mt-3">Call this endpoint before your model call. The steps are intentionally visible so a developer can reason about privacy, correctness, and operations separately.</p>
+    <p class="mt-3">Call this endpoint at the boundary where text leaves your controlled system. The steps are intentionally visible so a developer can reason about privacy, correctness, and operations separately.</p>
     <div class="mt-5 grid grid-cols-1 sm:grid-cols-4 gap-2">
       {[ ["1", "Send", "Your application sends text and an optional policy."], ["2", "Detect", "Regex and/or a local NER model find candidate spans."], ["3", "Replace", "Redax applies the policy and creates typed placeholders."], ["4", "Continue", "Your model receives only the redacted text."] ].map(([n, title, body]) => (
         <div class="card p-4"><div class="font-mono text-[11px] text-flame-300">{n}</div><div class="mt-3 text-[14px] font-semibold text-ink-0">{title}</div><div class="mt-1 text-[12px] leading-[1.5] text-ink-400">{body}</div></div>
@@ -70,7 +70,7 @@ import DocsLayout from "~/layouts/DocsLayout.astro";
 
   <section class="card p-6 sm:p-8">
     <h2 class="text-[22px] text-ink-0">Next step</h2>
-    <p class="mt-3">Once the single request works, read the integration guide to place Redax before and after the model call, then use the deployment checklist before exposing it to production traffic.</p>
+    <p class="mt-3">Once the single request works, read the integration guide to choose the boundaries that fit your threat model, then use the deployment checklist before exposing it to production traffic.</p>
     <div class="mt-6 flex flex-wrap gap-3"><a href="/redax/docs/integration" class="btn-primary">Read integration →</a><a href="/redax/docs/deployment" class="btn-ghost">Production checklist</a></div>
   </section>
 </DocsLayout>
