@@ -2,7 +2,7 @@
   <h1 align="center">Redax</h1>
   <p align="center">A self-hosted PII redaction engine that sits between your text and your LLM.</p>
   <p align="center">
-    <a href="#installation"><img src="https://img.shields.io/badge/python-3.11%2B-blue" alt="Python"></a>
+    <a href="#installation"><img src="https://img.shields.io/badge/python-3.13%2B-blue" alt="Python"></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-green" alt="License"></a>
     <a href="https://github.com/sachncs/redax/releases/latest"><img src="https://img.shields.io/github/v/release/sachncs/redax" alt="Latest release"></a>
     <a href="https://github.com/sachncs/redax/actions"><img src="https://img.shields.io/github/actions/workflow/status/sachncs/redax/ci.yml?branch=master" alt="CI"></a>
@@ -98,7 +98,7 @@ minutes.
 
 ## Before you start
 
-You'll need **Python 3.11 or newer** installed on your computer,
+You'll need **Python 3.13 or newer** installed on your computer,
 and **git** for downloading the code.
 
 If you don't know what Python is or whether you have it:
@@ -106,7 +106,7 @@ If you don't know what Python is or whether you have it:
 1. Open a terminal (on macOS: `Cmd + Space`, type "Terminal"; on
    Windows: open "PowerShell"; on Linux: open your usual terminal).
 2. Type `python3 --version` and press Enter.
-3. If you see a version number starting with `3.11` or higher,
+3. If you see a version number starting with `3.13` or higher,
    you're set.
 4. Otherwise, follow the
    [official Python installer guide](https://realpython.com/installing-python/).

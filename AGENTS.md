@@ -24,7 +24,7 @@ See `MILESTONES.md` for the full decoding rule.
 
 ## Code style
 
-- Python 3.11+. `from __future__ import annotations` not needed.
+- Python 3.13+. `from __future__ import annotations` not needed.
 - No semi-private naming (`_underscore` methods). Everything called from elsewhere is public.
 - Prefer concrete classes over Protocol unless multiple implementations exist now or are genuinely planned.
 - One module = one responsibility. If a file mixes concerns, split it.

@@ -1,8 +1,7 @@
 .PHONY: help dev test lint typecheck download-models bench eval build-server build-wasm build-all clean install verify verify-determinism load
 
-# pyproject.toml requires-python >= 3.11; mypy runs against 3.12. Override
-# with `PYTHON=python3.11 make verify` if you must lock to a specific
-# interpreter.
+# pyproject.toml requires Python 3.13+; set PYTHON explicitly when using a
+# virtualenv managed by uv, pyenv, or another environment manager.
 PYTHON ?= python3
 HOST ?= 0.0.0.0
 PORT ?= 8000
