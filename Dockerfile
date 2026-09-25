@@ -38,10 +38,8 @@ COPY policies /policies
 
 # Pin and SHA-256-verify the production detector snapshot. Fail loud
 # (non-zero exit, container refuses to start) if the local copy does
-# not match the committed digest. Regenerate with:
-#   python scripts/download_models.py \
-#       --model OpenMed/OpenMed-PII-SuperClinical-Large-434M-v1 \
-#       --revision df7af994d39d358e52f929ff1b3a40d894adf022 --record
+# not match the committed digest. The image ships the same model and
+# revision used by the default Settings configuration.
 COPY MODEL_HASHES.txt MODEL_HASHES.txt
 COPY scripts/download_models.py scripts/download_models.py
 # Models are downloaded as root here so the cache directory created
@@ -50,8 +48,8 @@ COPY scripts/download_models.py scripts/download_models.py
 # redax:redax (see the mkdir/chown above); the build step itself runs
 # as root for one RUN instruction only.
 RUN python scripts/download_models.py \
-        --model OpenMed/OpenMed-PII-SuperClinical-Large-434M-v1 \
-        --revision df7af994d39d358e52f929ff1b3a40d894adf022
+        --model fastino/gliner2-privacy-filter-PII-multi \
+        --revision c153999da5f4c509df4322b0c6a1baf3d2c284d
 
 USER redax
 
