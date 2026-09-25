@@ -5,6 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
 from approvaltests import verify
 from approvaltests.reporters.python_native_reporter import PythonNativeReporter
 
@@ -61,10 +62,13 @@ def test_gliner2_rscore_at_least_matches_regex_baseline() -> None:
             "--detector",
             "gliner2",
         ],
-        check=True,
+        check=False,
         capture_output=True,
         text=True,
     )
+    if gliner2.returncode != 0 and "local_files_only" in gliner2.stderr:
+        pytest.skip("GLiNER2 checkpoint is not available in the local model cache")
+    assert gliner2.returncode == 0, gliner2.stderr
     regex_mean = json.loads(regex.stdout)["corpus_mean"]
     gliner2_mean = json.loads(gliner2.stdout)["corpus_mean"]
     assert gliner2_mean >= regex_mean, (

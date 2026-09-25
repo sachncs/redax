@@ -80,6 +80,11 @@ async def build_state(settings: Settings) -> State:
             await gliner2.load()
             await gliner2.warmup()
         except (OSError, RuntimeError, ValueError, TimeoutError) as exc:
+            if settings.env == "prod":
+                raise RuntimeError(
+                    "configured GLiNER2 detector could not be loaded; "
+                    "production startup refuses to downgrade to regex-only"
+                ) from exc
             log.warning(
                 "redax.detector_load_failed",
                 model=settings.model_name,

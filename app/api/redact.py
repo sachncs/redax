@@ -8,6 +8,7 @@ honours an ``Idempotency-Key`` header and the response cache.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import time
 from typing import Annotated, Any
@@ -54,6 +55,19 @@ class RedactResponse(BaseModel):
 
 
 _CACHE_SKIPPED_LOGGED: set[str] = set()
+
+
+def request_fingerprint(body: RedactRequest, policy: dict[str, Any] | None) -> str:
+    """Hash the complete effective request for safe idempotency reuse."""
+    payload = {
+        "text": body.text,
+        "entity_types": body.entity_types or [],
+        "policy": policy or {},
+        "use_pipeline": body.use_pipeline,
+    }
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode()
+    ).hexdigest()
 
 
 def _log_cache_skipped(name: str) -> None:
@@ -122,6 +136,7 @@ def register(app: FastAPI) -> None:
 
             timeout_seconds = getattr(settings, "request_timeout_seconds", 30.0)
             async with asyncio.timeout(timeout_seconds):
+                fingerprint = request_fingerprint(body, policy)
                 # Idempotency short-circuit
                 if x_idempotency_key:
                     if job_store is None:
@@ -130,19 +145,33 @@ def register(app: FastAPI) -> None:
                         ns = getattr(settings, "redis_namespace", "redax")
                         idem_raw = await job_store.client.get(f"{ns}:idem:{x_idempotency_key}")
                         if idem_raw:
+                            idem_payload = json.loads(idem_raw)
+                            if isinstance(idem_payload, dict) and "response" in idem_payload:
+                                if idem_payload.get("request_fingerprint") != fingerprint:
+                                    return problem_response(
+                                        request,
+                                        type="https://redax.ai/errors/idempotency-key-reused",
+                                        title="Idempotency Key Reused",
+                                        status=409,
+                                        detail="Idempotency-Key must be reused with the same request body",
+                                    )
+                                cached_response = idem_payload["response"]
+                            else:
+                                cached_response = idem_payload
                             CACHE_HITS.labels(cache="idempotency").inc()
                             REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
-                            return json.loads(idem_raw)
+                            return cached_response
 
                 # Response cache short-circuit
                 cache_shared = bool(getattr(settings, "cache_shared", False))
                 cache_key = redaction_cache_key(
                     redaction_cache_payload(
                         body.text,
-                        body.policy,
+                        policy,
                         body.entity_types,
                         getattr(settings, "hash_salt", "") or "",
                         shared=cache_shared,
+                        mode="pipeline" if body.use_pipeline else "legacy",
                     )
                 )
                 if job_store is None:
@@ -182,7 +211,7 @@ def register(app: FastAPI) -> None:
                     ]
                     relex_map: dict[str, str] = {}
                     response_body = {
-                        "text": body.text,
+                        "text": pipeline_result.text,
                         "spans": pipeline_spans,
                         "relex_map": relex_map,
                     }
@@ -195,7 +224,9 @@ def register(app: FastAPI) -> None:
                     response_body = {
                         "text": result.text,
                         "spans": [s.__dict__ for s in result.spans],
-                        "relex_map": result.relex_map,
+                        # Re-identification maps contain original values and
+                        # must never cross the HTTP boundary.
+                        "relex_map": {},
                     }
 
                 ttl = getattr(settings, "cache_ttl_seconds", 3600)
@@ -210,7 +241,12 @@ def register(app: FastAPI) -> None:
                         idem_ttl = getattr(settings, "idempotency_ttl_seconds", 86_400)
                         await job_store.client.set(
                             f"{ns}:idem:{x_idempotency_key}",
-                            json.dumps(response_body),
+                            json.dumps(
+                                {
+                                    "request_fingerprint": fingerprint,
+                                    "response": response_body,
+                                }
+                            ),
                             ex=idem_ttl,
                         )
 

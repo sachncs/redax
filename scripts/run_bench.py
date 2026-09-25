@@ -34,6 +34,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from app.bench.annotation import LabelledSpan, SpanCategory, load_annotations
 from app.bench.corpus import load_corpus
 from app.bench.rscore import rscore

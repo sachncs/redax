@@ -208,6 +208,10 @@ def test_redact_pipeline_path_returns_used_pipeline_flag():
     assert body["used_pipeline"] is True
     assert body["used_fallback"] is False
     assert body["digest"] is not None
+    assert "Dr. Jane Doe" not in body["text"]
+    assert "jane@example.com" not in body["text"]
+    assert "[PERSON_0001]" in body["text"]
+    assert "[EMAIL_0001]" in body["text"]
     types = [s["type"] for s in body["spans"]]
     assert "EMAIL" in types, f"regex gate should have caught the email: {types}"
     assert "PERSON" in types, f"model stage should have added the name: {types}"

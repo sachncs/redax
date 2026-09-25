@@ -15,6 +15,7 @@ import time
 from dataclasses import dataclass
 
 from app.inference.detector import Span
+from app.redaction.apply import apply_spans
 from app.redaction.circuit.breaker import Breaker, OpenError
 from app.redaction.stages.consensus import fuse
 from app.redaction.stages.fallback import from_regex_only
@@ -37,7 +38,7 @@ class Outcome:
 
 @dataclass(frozen=True)
 class PipelineResult:
-    """Final pipeline output for one ``/v1/redact`` request."""
+    """Final, redacted pipeline output for one ``/v1/redact`` request."""
 
     text: str
     spans: tuple[Span, ...]
@@ -86,9 +87,17 @@ class Pipeline:
         fallback_outcome = self.fallback_stage(fused, model_outcome.circuit_open)
         outcomes.append(fallback_outcome)
 
+        counters: dict[str, int] = {}
+        replacements: list[str] = []
+        for span in fused:
+            entity_type = span.type.upper()
+            counters[entity_type] = counters.get(entity_type, 0) + 1
+            replacements.append(f"[{entity_type}_{counters[entity_type]:04d}]")
+        redacted_text = apply_spans(text, list(fused), replacements)
+
         total_latency = sum(o.latency_ms for o in outcomes)
         return PipelineResult(
-            text=text,
+            text=redacted_text,
             spans=fused,
             stages=tuple(outcomes),
             used_fallback=model_outcome.circuit_open,

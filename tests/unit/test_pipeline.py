@@ -49,6 +49,8 @@ def test_pipeline_basic_consensus() -> None:
     result = run_async_coro(pipeline("Reach me at jane@example.com or +1-415-555-0199"))
     assert isinstance(result.spans, tuple)
     assert len(result.spans) >= 1
+    assert "jane@example.com" not in result.text
+    assert "[EMAIL_0001]" in result.text
     assert not result.used_fallback
 
 
