@@ -313,7 +313,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   gap: 8px;
   padding: 11px 18px;
   border-radius: 999px;
-  background: var(--color-flame-500);
+  background: linear-gradient(135deg, var(--color-flame-400), var(--color-flame-600));
   color: white;
   font-weight: 500;
   font-size: 14px;
@@ -322,7 +322,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   box-shadow: 0 10px 24px -10px rgb(224 51 78 / 0.7);
   transition: transform 0.25s var(--ease-emph), box-shadow 0.25s var(--ease-emph);
 }
-.btn-primary:hover { background: var(--color-flame-600); transform: translateY(-1px); box-shadow: 0 14px 30px -10px rgb(224 51 78 / 0.75); }
+.btn-primary:hover { background: linear-gradient(135deg, var(--color-flame-300), var(--color-flame-600)); transform: translateY(-1px); box-shadow: 0 14px 30px -10px rgb(224 51 78 / 0.75); }
 .btn-primary:active { transform: translateY(0); }
 
 .btn-ghost {

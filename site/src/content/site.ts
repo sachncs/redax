@@ -5,7 +5,7 @@ export const SITE = {
   name: "Redax",
   title: "Redax — Self-hosted PII redaction for the LLM era",
   description:
-    "A tiny, self-hosted redaction engine that sits between your text and your LLM. Deterministic. Auditable. Runs on your hardware.",
+    "A self-hosted PII redaction boundary for teams that want to inspect and replace sensitive text before it reaches a model. Local-first, policy-driven, and explicit about its limits.",
   repo: "https://github.com/sachncs/redax",
   registry: "https://ghcr.io/sachncs/redax",
 } as const;
@@ -17,18 +17,21 @@ export const DOCS = {
   policies: "/redax/docs/policies",
   bench: "/redax/docs/bench",
   deployment: "/redax/docs/deployment",
+  security: "/redax/docs/security",
+  dataFlow: "/redax/docs/data-flow",
+  status: "/redax/docs/status",
 } as const;
 
 export const HERO = {
   eyebrow: "Self-hosted · Apache-2.0",
   title: ["Redact before", "you prompt."],
   subtitle:
-    "Redax is a small, deterministic PII engine that strips emails, phones, names, and identifiers from any text — before it reaches an LLM. Built for teams that refuse to send customer data to someone else's GPU.",
+    "Redax is a local-first PII redaction boundary that detects structured identifiers and optional contextual entities, then returns safer text before your application calls an LLM. You control the host, model files, network, and retention.",
   ctas: [
     { label: "Get started", href: "#start", variant: "primary" as const },
     { label: "Read the docs", href: DOCS.api, variant: "ghost" as const },
   ],
-  proof: ["Apache-2.0", "No telemetry", "Runs on a laptop", "CPU-friendly"],
+  proof: ["Apache-2.0", "No hosted inference", "Runs on your host", "CPU-friendly path"],
 } as const;
 
 export const NAV = [
@@ -37,6 +40,7 @@ export const NAV = [
   { label: "Pipeline", href: "/redax/#pipeline" },
   { label: "Benchmarks", href: "/redax/#benchmarks" },
   { label: "Deploy", href: "/redax/#deploy" },
+  { label: "Security", href: DOCS.security },
   { label: "Docs", href: DOCS.api },
   { label: "GitHub", href: SITE.repo, external: true },
 ] as const;
@@ -46,25 +50,25 @@ export const VALUE_PROPS = [
     eyebrow: "01",
     title: "Deterministic by design",
     body:
-      "Same input, same output, every time. Two replicas behind a load balancer return byte-for-byte identical results — no drift, no surprises.",
+      "The regex and replacement paths are deterministic under the same code and configuration. Model-backed results depend on the pinned model and runtime, so Redax exposes that boundary instead of hiding it.",
   },
   {
     eyebrow: "02",
     title: "Privacy is the architecture",
     body:
-      "No cloud calls. No model phones home. Your text and your telemetry never leave the box you deploy Redax on.",
+      "Redax does not require a hosted inference hop. Keep model files local, control egress, and configure telemetry deliberately for the boundary you operate.",
   },
   {
     eyebrow: "03",
     title: "Drop-in, not rip-and-replace",
     body:
-      "A single POST endpoint, an OpenAI-compatible shape, and a Python SDK. Wrap any LLM call in five lines.",
+      "A single POST endpoint and a small integration surface. Put Redax immediately before your existing model call and keep your provider unchanged.",
   },
   {
     eyebrow: "04",
-    title: "Built for production",
+    title: "Production foundations",
     body:
-      "Idempotency, rate limiting, response cache, Prometheus metrics, OpenTelemetry traces, and an append-only audit log.",
+      "Operational foundations include idempotency, rate limiting, response caching, Prometheus metrics, OpenTelemetry hooks, and a local JSONL audit log. Review the deployment limits before calling it production-ready.",
   },
 ] as const;
 
@@ -85,30 +89,23 @@ export const PIPELINE = [
   },
   {
     n: "03",
-    name: "OpenMed-PII (optional)",
-    detail:
-      "A 434M clinical-grade encoder with 54 entity types for healthcare and multilingual workloads. Swap in with one env var.",
-    tone: "model",
-  },
-  {
-    n: "04",
     name: "Consensus fusion",
     detail:
       "Spans are merged across detectors, deduped by overlap, and typed with the highest-confidence label.",
     tone: "merge",
   },
   {
-    n: "05",
+    n: "04",
     name: "Replacement + relex",
     detail:
       "Deterministic typed placeholders ([EMAIL_0001]) plus optional hiding-in-plain-sight relexicalization.",
     tone: "shape",
   },
   {
-    n: "06",
+    n: "05",
     name: "Audit log",
     detail:
-      "What was redacted and where — never the value itself. fsync'd, rotated, and signed by default.",
+      "Counts, types, timing, and request metadata — not original values. The local JSONL backend supports rotation and optional fsync; it is not a tamper-proof ledger.",
     tone: "log",
   },
 ] as const;
@@ -126,18 +123,18 @@ export const FEATURES = [
   },
   {
     icon: "swap",
-    title: "One env var to swap detectors",
-    body: "Switch to OpenMed-PII for healthcare workloads with `REDAX_DETECTOR=openmed`. No code change.",
+    title: "Explicit detector modes",
+    body: "The current server supports the deterministic regex path and the pinned local GLiNER2 path. Choose the mode deliberately and verify readiness before sending traffic.",
   },
   {
     icon: "lock",
-    title: "Reversible typed placeholders",
-    body: "`[EMAIL_0001]` instead of `[REDACTED]`. The same entity always maps to the same placeholder across requests.",
+    title: "Typed placeholders",
+    body: "`[EMAIL_0001]` is easier to inspect than a generic mask. Treat any re-identification map as sensitive; the HTTP boundary is for safe text, not automatic restoration.",
   },
   {
     icon: "spark",
     title: "Hiding-in-Plain-Sight relex",
-    body: "Optionally replace names with plausible lookalikes so the output still reads like English.",
+    body: "An optional relexicalization strategy can keep text readable. It is not a privacy guarantee and should be reviewed for collisions and downstream use.",
   },
   {
     icon: "policy",
@@ -147,7 +144,7 @@ export const FEATURES = [
   {
     icon: "audit",
     title: "Append-only audit log",
-    body: "Records what was redacted and where — never the values. Configurable rotation, retention, and fsync.",
+    body: "Records redaction metadata without original values in the event payload. Rotation, retention, and fsync are configurable; integrity signing is not provided by the current file backend.",
   },
   {
     icon: "obs",
@@ -157,12 +154,12 @@ export const FEATURES = [
   {
     icon: "rate",
     title: "Rate limit + idempotency",
-    body: "Per-API-key token bucket in Redis. `Idempotency-Key` short-circuits retries safely.",
+    body: "Per-API-key fixed-window limiting in Redis. `Idempotency-Key` can short-circuit retries; clients should reuse it only for the same request body.",
   },
   {
     icon: "wasm",
-    title: "WASM bundle",
-    body: "Same model, INT8-quantised, runs in the browser via Transformers.js. No server round-trip needed.",
+    title: "Browser demo (experimental)",
+    body: "The public browser demo runs the structured regex detector locally. It is not parity with the optional server-side model and should not be treated as a complete DLP control.",
   },
   {
     icon: "rfc",
@@ -172,7 +169,7 @@ export const FEATURES = [
   {
     icon: "bench",
     title: "Quantified against a benchmark",
-    body: "RedactionBench R-Score measured against `ai4privacy/pii-masking-200k`. Numbers you can defend in review.",
+    body: "A published RedactionBench snapshot against `ai4privacy/pii-masking-200k`. Use the methodology and your own workload before setting an SLO.",
   },
 ] as const;
 
@@ -191,8 +188,8 @@ export const BENCH: {
   rows: BenchRow[];
   winner: string;
 } = {
-  intro:
-    "Redax is scored against the RedactionBench harness on a 5,060-document stratified sample of `ai4privacy/pii-masking-200k`. The metric rewards both recall and format precision, with a strict penalty for redaction gaps.",
+    intro:
+    "This is a published RedactionBench snapshot on a 5,060-document stratified sample of `ai4privacy/pii-masking-200k`. The metric rewards recall and format precision. Treat the numbers as comparative evidence, not a production SLA; see the benchmark methodology for model, hardware, and run details.",
   rows: [
     {
       detector: "regex",
@@ -204,11 +201,11 @@ export const BENCH: {
     },
     {
       detector: "openmed",
-      role: "Clinical-grade",
+      role: "Reference snapshot",
       params: "434M",
       redactionbench: 0.272,
       pii200k: 0.385,
-      latency: "168 ms",
+      latency: "168 ms*",
     },
     {
       detector: "gliner2",
@@ -216,7 +213,7 @@ export const BENCH: {
       params: "205M",
       redactionbench: 0.454,
       pii200k: 0.552,
-      latency: "123 ms",
+      latency: "123 ms*",
       winner: true,
     },
   ],
@@ -245,13 +242,13 @@ export const DEPLOY = [
   {
     title: "WASM bundle",
     badge: "Browser",
-    body: "Same GLiNER2 model, INT8-quantised. Runs locally via Transformers.js with no server round-trip.",
+    body: "Experimental browser package. The current public demo is regex-only; model parity, packaging, and bundle provenance are not yet production guarantees.",
     code: ["import { redact } from '@sachncs/redax/wasm'", "await redact(text)"],
   },
 ] as const;
 
 export const FOOTER = {
-  tagline: "Self-hosted PII redaction. Your text never leaves your hardware.",
+  tagline: "Self-hosted PII redaction. Control the host, egress, model files, and retention.",
   columns: [
     {
       title: "Product",
@@ -271,6 +268,7 @@ export const FOOTER = {
         { label: "Integration", href: DOCS.integration },
         { label: "Policies", href: DOCS.policies },
         { label: "Deployment", href: DOCS.deployment },
+        { label: "Security boundary", href: DOCS.security },
       ],
     },
     {

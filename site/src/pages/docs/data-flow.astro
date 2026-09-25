@@ -1,0 +1,29 @@
+---
+import DocsLayout from "~/layouts/DocsLayout.astro";
+---
+<DocsLayout active="data-flow" title="Data flow" description="A concrete map of where request text travels, what is returned, and which side channels operators must secure.">
+  <section>
+    <h2 class="text-[25px] text-ink-0">Request path</h2>
+    <div class="code-shell mt-4 overflow-x-auto p-6 font-mono text-[13px] leading-[1.9] text-ink-200"><pre><code>{`client
+  → HTTP middleware: size, timeout, request id
+  → auth + rate limit + idempotency
+  → policy + detector(s)
+  → overlap resolution + replacement
+  → safe response: text + spans + digest
+  → your existing model call`}</code></pre></div>
+  </section>
+  <section>
+    <h2 class="text-[25px] text-ink-0">Side paths</h2>
+    <div class="mt-4 grid gap-3 sm:grid-cols-2">
+      {[['Audit', 'Counts, entity types, timing, and request metadata. The current file event does not intentionally include original values; protect the files and verify your backend.'], ['Metrics', 'Aggregated counters and timings. Never assume custom labels are safe: keep user text and credentials out of metric attributes.'], ['Traces', 'Trace context and operation metadata may leave the process when OTLP is configured. Review exporters and sampling before enabling them.'], ['Redis', 'Rate-limit, cache, idempotency, and job state depend on deployment configuration. Secure Redis and define retention before production use.']].map(([title, body]) => <div class="card p-5"><h3 class="text-[16px] font-semibold text-ink-0">{title}</h3><p class="mt-2 text-[14px] leading-[1.6] text-ink-300">{body}</p></div>)}
+    </div>
+  </section>
+  <section>
+    <h2 class="text-[25px] text-ink-0">The important boundary</h2>
+    <p class="mt-3">Only the returned redacted text should cross from Redax to a downstream model. Do not forward the request body, raw detected spans, or any re-identification map. If your application needs reversible workflows, keep that mapping in a separate, access-controlled system and make the choice explicit.</p>
+  </section>
+  <section>
+    <h2 class="text-[25px] text-ink-0">Verify before launch</h2>
+    <p class="mt-3">Run a request with representative PII, inspect the response, audit event, trace exporter, metrics labels, Redis keys, and reverse-proxy logs, then repeat with model loading disabled and with the downstream provider unavailable. The data flow is only as private as the least-controlled hop.</p>
+  </section>
+</DocsLayout>

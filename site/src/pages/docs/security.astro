@@ -1,0 +1,27 @@
+---
+import DocsLayout from "~/layouts/DocsLayout.astro";
+---
+<DocsLayout active="security" title="Security boundary" description="What Redax protects, what it cannot promise, and the controls operators still own.">
+  <section>
+    <h2 class="text-[25px] text-ink-0">The promise</h2>
+    <p class="mt-3">Redax is a boundary for recognized sensitive text. It can detect configured patterns and optional local model entities, replace them, and return a safer string before your application calls a downstream model. It is not a complete data-loss-prevention system and it does not prove that every secret or identifier was found.</p>
+  </section>
+  <section>
+    <h2 class="text-[25px] text-ink-0">Threats it helps with</h2>
+    <div class="mt-4 grid gap-3 sm:grid-cols-2">
+      {["Structured identifiers in prompts and support text", "Accidental PII transfer to a model provider", "Unreviewed redaction behavior across application teams", "Missing operational evidence about what the boundary changed"].map((item) => <div class="card p-5 text-[14px] text-ink-300">{item}</div>)}
+    </div>
+  </section>
+  <section>
+    <h2 class="text-[25px] text-ink-0">What remains your responsibility</h2>
+    <div class="mt-4 grid gap-3">
+      {["Undetected PII, secrets, credentials, and new entity types", "The Redax host, container runtime, dependencies, and model files", "Network egress, telemetry exporters, reverse proxies, and provider logs", "Retention, access control, encryption, backups, and audit-log integrity", "Prompt injection and unsafe instructions carried in otherwise redacted text"].map((item) => <div class="card p-5 sm:flex sm:gap-5"><span class="shrink-0 font-mono text-[12px] text-flame-300">OWNER</span><span class="mt-1 sm:mt-0 text-[14px] text-ink-300">{item}</span></div>)}
+    </div>
+  </section>
+  <section>
+    <h2 class="text-[25px] text-ink-0">Production checklist</h2>
+    <ol class="mt-4 grid gap-3">
+      {["Pin the Redax image/package, model revision, and policy files.", "Preload model files if your deployment must not fetch at startup.", "Restrict egress and verify where metrics, traces, Redis, and logs are sent.", "Protect /metrics, audit files, Redis, and any response or idempotency store.", "Test representative Unicode, overlap, false-positive, and missed-entity cases before launch.", "Treat readiness as a deployment gate and monitor fallback or detector errors."].map((item, i) => <li class="card p-5 sm:flex sm:gap-5"><strong class="shrink-0 text-[14px] text-ink-0">{i + 1}.</strong><span class="mt-1 sm:mt-0 text-[14px] text-ink-300">{item}</span></li>)}
+    </ol>
+  </section>
+</DocsLayout>
