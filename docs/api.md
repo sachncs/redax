@@ -14,7 +14,7 @@ always `{}` because its keys are original entity values.
 ```json
 {
   "text": "Email me at alice@example.com",
-  "entity_types": ["email"],          // optional, overrides policy
+  "entity_types": ["email"],          // optional on the policy redactor path
   "policy": {                          // optional inline policy
     "name": "ad-hoc",
     "version": "0.1.0",
@@ -22,14 +22,10 @@ always `{}` because its keys are original entity values.
       "free_text": {"strategy": "autoDeID", "relex": true}
     }
   },
-  "use_pipeline": false                // optional, default false; flip to true
-                                       // to route through the multi-stage
-                                       // pipeline (regex gate + model +
-                                       // consensus + circuit-broken model
-                                       // fallback). When the pipeline is
-                                       // unavailable (regex-only deployment
-                                       // or model breaker permanently open)
-                                       // the legacy Redactor path is used.
+  "use_pipeline": false                // optional, default false; true selects
+                                       // the staged typed-placeholder path.
+                                       // Do not combine it with policy or
+                                       // entity_types; the API returns 422.
 }
 ```
 
@@ -62,12 +58,15 @@ always `{}` because its keys are original entity values.
 }
 ```
 
-The pipeline applies typed placeholders after span fusion and records
+When `use_pipeline=true`, the pipeline applies typed placeholders after span
+fusion and records
 `used_fallback=true` when the model stage's circuit breaker uses its explicit
 fallback behavior. `digest` is a SHA-256 of the input text for correlation;
 the audit log records the digest but never the text itself. Library-level
 relexicalization remains available to Python callers, but its original-value
-map is not an HTTP feature.
+map is not an HTTP feature. When `use_pipeline` is omitted, the configured
+default policy is loaded; an inline policy replaces that default. `entity_types`
+is forwarded only when no policy is selected.
 
 **Errors**: 413 (oversize), 422 (validation), 429 (rate-limited), 503 (not ready), 504 (timeout).
 

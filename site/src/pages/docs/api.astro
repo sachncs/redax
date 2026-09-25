@@ -34,7 +34,7 @@ import DocsLayout from "~/layouts/DocsLayout.astro";
   <section>
     <h2 class="text-[25px] text-ink-0">Request fields</h2>
     <div class="mt-4 grid gap-3">
-      {[ ["text", "required", "The string to inspect. The maximum is controlled by REDAX_MAX_TEXT_CHARS."], ["entity_types", "optional", "Limit detection to types such as email, person, phone, or SSN_US."], ["policy", "optional", "Inline policy override. Omit it to use REDAX_DEFAULT_POLICY."], ["use_pipeline", "optional", "Route through the staged regex/model/consensus pipeline. Leave unset for the legacy Redactor path when you need policy relexicalization."] ].map(([name, status, body]) => (
+      {[ ["text", "required", "The string to inspect. The maximum is controlled by REDAX_MAX_TEXT_CHARS."], ["entity_types", "optional", "Limit detection on the policy redactor path; do not combine with use_pipeline."], ["policy", "optional", "Inline policy override. Omit it to use REDAX_DEFAULT_POLICY."], ["use_pipeline", "optional", "Selects the staged regex/model/consensus path with typed placeholders. It cannot be combined with policy or entity_types; that combination returns 422."] ].map(([name, status, body]) => (
         <div class="card p-5 sm:grid sm:grid-cols-[150px_90px_1fr] sm:gap-4 sm:items-start"><code class="text-flame-200">{name}</code><span class="mt-1 sm:mt-0 text-[11px] uppercase tracking-[0.15em] text-ink-500">{status}</span><p class="mt-2 sm:mt-0 text-[14px] text-ink-300">{body}</p></div>
       ))}
     </div>

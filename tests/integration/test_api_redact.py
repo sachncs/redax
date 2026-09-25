@@ -217,6 +217,30 @@ def test_redact_pipeline_path_returns_used_pipeline_flag():
     assert "PERSON" in types, f"model stage should have added the name: {types}"
 
 
+def test_pipeline_rejects_policy_options_it_cannot_apply():
+    test_state = State()
+    test_state.settings = type(
+        "S",
+        (),
+        {"max_text_chars": 1000, "hash_salt": "x", "api_key_set": lambda self: set()},
+    )()
+    test_state.pipeline = object()
+    test_state.redactor = Redactor(detector=RedactStubDetector(), strategies={})
+    test_state.job_store = None
+    app = FastAPI()
+    app.state.state = test_state
+    register(app)
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/v1/redact",
+            json={"text": "alice@example.com", "use_pipeline": True, "entity_types": ["EMAIL"]},
+        )
+
+    assert response.status_code == 422
+    assert response.json()["type"].endswith("pipeline-policy-conflict")
+
+
 def test_redact_without_use_pipeline_uses_legacy_redactor():
     test_state = State()
     test_state.settings = type(

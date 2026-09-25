@@ -106,7 +106,19 @@ def register(app: FastAPI) -> None:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="413").inc()
                 return payload_too_large(request, f"text exceeds {max_chars} chars")
             policy = body.policy
-            if policy is None:
+            if body.use_pipeline and (body.policy is not None or body.entity_types is not None):
+                REQUESTS.labels(endpoint=endpoint, method=method, status="422").inc()
+                return problem_response(
+                    request,
+                    type="https://redax.ai/errors/pipeline-policy-conflict",
+                    title="Pipeline Policy Conflict",
+                    status=422,
+                    detail=(
+                        "use_pipeline=true uses the staged typed-placeholder contract; "
+                        "omit policy and entity_types or use the policy redactor path."
+                    ),
+                )
+            if policy is None and not body.use_pipeline:
                 default_name = getattr(settings, "default_policy", "") if settings else ""
                 policies_dir = getattr(settings, "policies_dir", "./policies") if settings else None
                 if default_name and policies_dir:
