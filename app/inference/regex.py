@@ -63,6 +63,21 @@ RULES: tuple[Rule, ...] = (
     Rule("URL", re.compile(r"\bhttps?://[^\s<>\"']+\b")),
 )
 
+ENTITY_TYPE_ALIASES: dict[str, str] = {
+    "EMAIL": "EMAIL",
+    "PHONE": "PHONE_E164",
+    "PHONE_NUMBER": "PHONE_E164",
+    "PHONE_E164": "PHONE_E164",
+    "IPV4": "IP_ADDRESS",
+    "IP_ADDRESS": "IP_ADDRESS",
+    "SSN": "SSN_US",
+    "SSN_US": "SSN_US",
+    "IBAN": "IBAN",
+    "CARD_NUMBER": "CREDIT_CARD",
+    "CREDIT_CARD": "CREDIT_CARD",
+    "URL": "URL",
+}
+
 
 class RegexDetector:
     """Deterministic Detector for structured PII types.
@@ -87,9 +102,8 @@ class RegexDetector:
         Returns:
             The matched spans, sorted by ``(start, end)``.
         """
-        active = (
-            [r for r in self.rules if r.type in entity_types] if entity_types else list(self.rules)
-        )
+        requested = {ENTITY_TYPE_ALIASES.get(item.strip().upper(), item.strip().upper()) for item in entity_types}
+        active = [r for r in self.rules if r.type in requested] if entity_types else list(self.rules)
         spans: list[Span] = []
         for rule in active:
             for match in rule.pattern.finditer(text):

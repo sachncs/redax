@@ -50,6 +50,15 @@ async def test_entity_types_filter() -> None:
 
 
 @pytest.mark.asyncio
+async def test_entity_types_accept_policy_aliases_case_insensitively() -> None:
+    detector = RegexDetector()
+
+    spans = await detector.detect("Email alice@example.com or +1 415-555-2671", ["email", "phone_number"])
+
+    assert {span.type for span in spans} == {"EMAIL", "PHONE_E164"}
+
+
+@pytest.mark.asyncio
 async def test_sorted_by_offset() -> None:
     d = RegexDetector()
     spans = await d.detect("a@b.com then 10.0.0.1", [])
