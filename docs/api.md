@@ -107,6 +107,9 @@ overall timeout.
 
 Requires an API key when configured. Each result contains transformed text and
 an empty `relex_map`; original-value maps never cross the HTTP boundary.
+When an item omits `entity_types`, the configured `REDAX_DEFAULT_POLICY` is
+applied just as it is for `/v1/redact`; an explicit `entity_types` selection
+uses the direct detector path for that item.
 Enforces `max_text_chars` per item (413),
 the shared rate limit (429/503), a per-request timeout (504), and emits one
 audit event per request with aggregated span counts.
@@ -131,6 +134,9 @@ the shared rate limit (429/503), and a per-chunk timeout yields a
 `{"error": "request timeout", "status": 504}` SSE event. Each event is capped
 at `REDAX_STREAM_CHUNK_BYTES` (default 4096) bytes and defaults to
 `REDAX_STREAM_CHUNK_CHARS` characters when `chunk_chars` is omitted.
+When `policy` and `entity_types` are omitted, each chunk uses the configured
+`REDAX_DEFAULT_POLICY`; an explicit policy or entity-type selection overrides
+that default.
 Emits one audit event per request.
 
 ## POST /v1/jobs, GET /v1/jobs/{id}

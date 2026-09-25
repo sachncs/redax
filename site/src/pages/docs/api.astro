@@ -55,6 +55,7 @@ import DocsLayout from "~/layouts/DocsLayout.astro";
 
   <section>
     <h2 class="text-[25px] text-ink-0">Choose the endpoint for the workload</h2>
+    <p class="mt-3">All redaction transports use <code>REDAX_DEFAULT_POLICY</code> when no explicit policy or entity-type selection is supplied. That keeps one policy contract across synchronous, batch, stream, and job requests.</p>
     <div class="mt-4 grid gap-3 sm:grid-cols-2">
       {[ ["/v1/detect", "Diagnostics", "Return original text plus validated spans; never forward this response as redacted output."], ["/v1/redact", "One request", "Interactive prompts, chat messages, and synchronous transformed output."], ["/v1/redact/batch", "Many requests", "Up to 1,000 items in parallel under one overall timeout."], ["/v1/redact/stream", "Long documents", "Server-sent events for chunked processing without waiting for the whole document."], ["/v1/jobs", "Async work", "Queue large jobs, poll by ID, and keep the request thread responsive."] ].map(([path, title, body]) => (
         <div class="card p-5"><code class="text-flame-200">{path}</code><div class="mt-3 text-[15px] font-semibold text-ink-0">{title}</div><p class="mt-1.5 text-[13.5px] text-ink-400">{body}</p></div>
