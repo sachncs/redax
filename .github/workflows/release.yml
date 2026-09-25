@@ -26,6 +26,9 @@ jobs:
       - name: Build sdist + wheel
         run: python -m build
 
+      - name: Generate artifact checksums
+        run: sha256sum dist/* > dist/SHA256SUMS
+
       - name: Build Docker image
         run: docker build -t ghcr.io/${{ github.repository }}:${{ github.ref_name }} .
 
@@ -46,3 +49,4 @@ jobs:
           path: |
             dist/*.whl
             dist/*.tar.gz
+            dist/SHA256SUMS
