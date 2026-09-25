@@ -13,6 +13,7 @@ from __future__ import annotations
 import time
 import uuid
 from collections.abc import Awaitable, Callable
+from re import fullmatch
 
 import structlog
 from fastapi import FastAPI, Request
@@ -20,6 +21,13 @@ from fastapi.responses import Response
 
 from app.logging import get_logger
 from app.observability.tracing import current_trace_id_hex
+
+
+def safe_request_id(value: str | None) -> str:
+    """Accept only bounded correlation IDs that are safe to place in logs."""
+    if value and len(value) <= 128 and fullmatch(r"[A-Za-z0-9._:-]+", value):
+        return value
+    return uuid.uuid4().hex
 
 
 def get_request_id(request: Request) -> str:
@@ -38,7 +46,7 @@ def get_request_id(request: Request) -> str:
     bound = structlog.contextvars.get_contextvars().get("request_id")
     if isinstance(bound, str) and bound:
         return bound
-    return request.headers.get("X-Request-ID") or uuid.uuid4().hex
+    return safe_request_id(request.headers.get("X-Request-ID"))
 
 
 def emit_access_line(
@@ -95,7 +103,7 @@ def register_request_context(app: FastAPI) -> None:
         (X-Content-Type-Options, X-Frame-Options, Referrer-Policy,
         Strict-Transport-Security) are stamped on every response.
         """
-        request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
+        request_id = safe_request_id(request.headers.get("X-Request-ID"))
         structlog.contextvars.bind_contextvars(request_id=request_id)
         start = time.perf_counter()
         status = 500

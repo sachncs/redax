@@ -285,6 +285,7 @@ export const FOOTER = {
 export const QUICKSTART: { curl: string[]; python: string[]; response: string[] } = {
   curl: [
     `curl -s -X POST http://localhost:8000/v1/redact \\`,
+    `  -H 'X-API-Key: local-compose-key' \\`,
     `  -H 'Content-Type: application/json' \\`,
     `  -d '{"text": "Email me at alice@example.com or +1-415-555-2671."}'`,
   ],

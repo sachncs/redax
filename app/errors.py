@@ -225,7 +225,7 @@ def install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(TimeoutError)
     async def timeout_handler(request: Request, exc: TimeoutError) -> JSONResponse:
         """Render an asyncio.timeout expiry as an RFC 7807 504 problem."""
-        get_logger("redax.errors").warning("redax.request_timeout", exc_info=exc)
+        get_logger("redax.errors").warning("redax.request_timeout", error=exc.__class__.__name__)
         return timeout_error(request)
 
     @app.exception_handler(RateLimitUnavailable)
@@ -233,13 +233,15 @@ def install_error_handlers(app: FastAPI) -> None:
         request: Request, exc: RateLimitUnavailable
     ) -> JSONResponse:
         """Render a rate-limit / Redis-down failure as a typed 503 problem."""
-        get_logger("redax.errors").warning("redax.rate_limit_unavailable", exc_info=exc)
+        get_logger("redax.errors").warning(
+            "redax.rate_limit_unavailable", error=exc.__class__.__name__
+        )
         return rate_limit_unavailable(request)
 
     @app.exception_handler(Exception)
     async def unhandled_error(request: Request, exc: Exception) -> JSONResponse:
         """Render any uncaught exception as a generic RFC 7807 500 problem."""
-        get_logger("redax.errors").error("redax.unhandled_error", exc_info=exc)
+        get_logger("redax.errors").error("redax.unhandled_error", error=exc.__class__.__name__)
         return problem_response(
             request,
             type="https://redax.ai/errors/internal",

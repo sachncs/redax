@@ -157,10 +157,18 @@ def register(app: FastAPI) -> None:
                                     )
                                 cached_response = idem_payload["response"]
                             else:
-                                cached_response = idem_payload
-                            CACHE_HITS.labels(cache="idempotency").inc()
-                            REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
-                            return cached_response
+                                # Entries written before the fingerprinted
+                                # envelope may contain the old response shape;
+                                # recompute instead of replaying it.
+                                cached_response = None
+                            if cached_response is None:
+                                idem_raw = None
+                            else:
+                                CACHE_HITS.labels(cache="idempotency").inc()
+                                REQUESTS.labels(
+                                    endpoint=endpoint, method=method, status="200"
+                                ).inc()
+                                return cached_response
 
                 # Response cache short-circuit
                 cache_shared = bool(getattr(settings, "cache_shared", False))
@@ -172,6 +180,8 @@ def register(app: FastAPI) -> None:
                         getattr(settings, "hash_salt", "") or "",
                         shared=cache_shared,
                         mode="pipeline" if body.use_pipeline else "legacy",
+                        detector=getattr(settings, "detector", ""),
+                        model_revision=getattr(settings, "model_revision", ""),
                     )
                 )
                 if job_store is None:

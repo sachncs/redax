@@ -43,6 +43,16 @@ def test_request_context_generates_id_when_absent() -> None:
     assert seen["bound"] == request_id
 
 
+def test_request_context_replaces_log_injection_request_id() -> None:
+    seen: dict = {}
+    app = make_app_with_probe(seen)
+    with TestClient(app) as client:
+        resp = client.get("/probe", headers={"X-Request-ID": "secret\nforged=1"})
+    assert resp.status_code == 200
+    assert resp.headers["X-Request-ID"] != "secret\nforged=1"
+    assert len(resp.headers["X-Request-ID"]) == 32
+
+
 def test_request_context_echoes_on_problem_response() -> None:
     from fastapi import HTTPException
 

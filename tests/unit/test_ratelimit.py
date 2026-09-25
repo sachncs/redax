@@ -87,8 +87,12 @@ async def test_within_limit_returns_key_and_sets_expiry_on_first_use() -> None:
     assert await rate_limit("key-1", state) == "key-1"
     assert await rate_limit("key-1", state) == "key-1"
     bucket = minute_bucket()
-    assert client.incr_calls == [f"redax:rl:key-1:{bucket}", f"redax:rl:key-1:{bucket}"]
-    assert client.expire_calls == [(f"redax:rl:key-1:{bucket}", 60)]
+    import hashlib
+
+    digest = hashlib.sha256(b"key-1").hexdigest()[:32]
+    expected = f"redax:rl:{digest}:{bucket}"
+    assert client.incr_calls == [expected, expected]
+    assert client.expire_calls == [(expected, 60)]
 
 
 @pytest.mark.asyncio
@@ -122,7 +126,13 @@ async def test_bucket_rotates_across_minute_boundary(monkeypatch: pytest.MonkeyP
     await rate_limit("key-1", state)
     monkeypatch.setattr(ratelimit_mod.time, "time", lambda: base + 60)
     await rate_limit("key-1", state)
-    assert client.incr_calls == ["redax:rl:key-1:28333333", "redax:rl:key-1:28333334"]
+    import hashlib
+
+    digest = hashlib.sha256(b"key-1").hexdigest()[:32]
+    assert client.incr_calls == [
+        f"redax:rl:{digest}:28333333",
+        f"redax:rl:{digest}:28333334",
+    ]
 
 
 def testminute_bucket_floors_to_minute(monkeypatch: pytest.MonkeyPatch) -> None:

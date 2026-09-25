@@ -233,17 +233,24 @@ app = FastAPI(
 install_error_handlers(app)
 register_request_context(app)
 
-# Middleware defaults are intentionally permissive for development. Production
-# deployments override REDAX_CORS_ORIGINS (comma-separated) and
-# REDAX_TRUSTED_HOSTS in the operator manifest.
+middleware_settings = Settings()
+cors_origins = middleware_settings.cors_origin_list()
+trusted_hosts = middleware_settings.trusted_host_list()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=(
+        cors_origins if cors_origins else (["*"] if middleware_settings.env == "dev" else [])
+    ),
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 app.add_middleware(GZipMiddleware, minimum_size=1024)
-app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=(
+        trusted_hosts if trusted_hosts else (["*"] if middleware_settings.env == "dev" else [])
+    ),
+)
 
 register_health(app)
 register_policies(app)

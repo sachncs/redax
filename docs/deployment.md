@@ -21,14 +21,17 @@ All settings read from environment variables prefixed with `REDAX_`. See
 | `REDAX_HOST` | `0.0.0.0` | uvicorn bind address |
 | `REDAX_PORT` | `8000` | uvicorn bind port |
 | `REDAX_REDIS_URL` | `redis://localhost:6379/0` | for jobs / cache / rate limit |
+| `REDAX_ENV` | `prod` | `dev` permits local unauthenticated development; `prod` requires API keys and trusted hosts |
+| `REDAX_TRUSTED_HOSTS` | `""` | comma-separated hostnames required in production |
+| `REDAX_CORS_ORIGINS` | `""` | comma-separated browser origins; empty disables browser CORS |
 | `REDAX_MODEL_CACHE` | `./models_cache` | HF_HOME redirect |
 | `REDAX_MODEL_NAME` | `fastino/gliner2-privacy-filter-PII-multi` | HF model id |
 | `REDAX_POLICIES_DIR` | `./policies` | where to find policy YAMLs |
 | `REDAX_DEFAULT_POLICY` | `default` | name of the default policy |
 | `REDAX_AUDIT_PATH` | `./audit.jsonl` | append-only audit log path |
-| `REDAX_HASH_SALT` | `change-me` | salt for `hash` strategy and cache keys |
+| `REDAX_HASH_SALT` | `change-me` | rejected at startup; set a unique random value |
 | `REDAX_MAX_TEXT_CHARS` | `100000` | reject inputs longer than this |
-| `REDAX_API_KEYS` | `""` | comma-separated; empty disables auth |
+| `REDAX_API_KEYS` | `""` | comma-separated; required when `REDAX_ENV=prod` |
 | `REDAX_RATE_LIMIT_PER_MINUTE` | `60` | per API key; 0 disables |
 | `REDAX_CACHE_TTL_SECONDS` | `3600` | response cache TTL |
 | `REDAX_CACHE_SHARED` | `false` | share the response cache across deployments (requires identical `REDAX_HASH_SALT`) |
@@ -47,7 +50,7 @@ All settings read from environment variables prefixed with `REDAX_`. See
 
 ## Production checklist
 
-- Set `REDAX_API_KEYS` (comma-separated) to enable auth
+- Set `REDAX_ENV=prod`, `REDAX_API_KEYS`, and `REDAX_TRUSTED_HOSTS`
 - Set `REDAX_HASH_SALT` to a per-deployment random value
 - Mount `REDAX_AUDIT_PATH` to durable storage (e.g. an EBS volume or a
   log shipper tail)

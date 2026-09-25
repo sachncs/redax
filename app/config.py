@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     port: int = 8000
     env: Literal["dev", "prod"] = "prod"
     redis_namespace: str = "redax"
+    cors_origins: str = ""
+    trusted_hosts: str = ""
 
     redis_url: str = "redis://localhost:6379/0"
     service_name: str = "redax"
@@ -104,6 +106,18 @@ class Settings(BaseSettings):
         ns = self.redis_namespace.strip() or "redax"
         return ns
 
+    def csv_values(self, value: str) -> list[str]:
+        """Parse a comma-separated setting into stable, trimmed values."""
+        return [item.strip() for item in value.split(",") if item.strip()]
+
+    def cors_origin_list(self) -> list[str]:
+        """Return configured CORS origins, empty when browser CORS is disabled."""
+        return self.csv_values(self.cors_origins)
+
+    def trusted_host_list(self) -> list[str]:
+        """Return configured hostnames accepted by the HTTP middleware."""
+        return self.csv_values(self.trusted_hosts)
+
     def verify(self) -> None:
         """Fail loudly on configuration that would undermine safety.
 
@@ -130,6 +144,13 @@ class Settings(BaseSettings):
                 "REDAX_JWT_SECRET no longer exists; remove it from the "
                 "environment (API keys now live in REDAX_API_KEYS)."
             )
+        if self.env == "prod" and not keys:
+            raise ValueError(
+                "REDAX_API_KEYS must be configured when REDAX_ENV=prod; "
+                "use REDAX_ENV=dev only for local unauthenticated development."
+            )
+        if self.env == "prod" and not self.trusted_host_list():
+            raise ValueError("REDAX_TRUSTED_HOSTS must be configured when REDAX_ENV=prod.")
         if self.detector == "regex":
             # Explicit opt-in only; regex is the boot-time fallback path.
             return

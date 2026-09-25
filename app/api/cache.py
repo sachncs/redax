@@ -14,6 +14,8 @@ def redaction_cache_payload(
     hash_salt: str,
     shared: bool = False,
     mode: str = "legacy",
+    detector: str = "",
+    model_revision: str = "",
 ) -> dict[str, Any]:
     """Build the canonical cache identity for a redaction request.
 
@@ -38,6 +40,8 @@ def redaction_cache_payload(
         "policy": policy or {},
         "entity_types": entity_types or [],
         "mode": mode,
+        "detector": detector,
+        "model_revision": model_revision,
     }
     if not shared:
         payload["salt"] = hash_salt or ""

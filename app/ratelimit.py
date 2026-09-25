@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import time
 
 from fastapi import HTTPException
@@ -60,7 +61,8 @@ async def rate_limit(api_key: str, state: State) -> str:
         if fail_open:
             return api_key
         raise RateLimitUnavailable()
-    bucket = f"{getattr(settings, 'redis_namespace', 'redax')}:rl:{api_key}:{minute_bucket()}"
+    key_digest = hashlib.sha256(api_key.encode("utf-8")).hexdigest()[:32]
+    bucket = f"{getattr(settings, 'redis_namespace', 'redax')}:rl:{key_digest}:{minute_bucket()}"
     client = job_store.client
     try:
         count = await client.incr(bucket)

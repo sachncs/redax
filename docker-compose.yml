@@ -11,8 +11,10 @@ services:
       REDAX_MODEL_CACHE: /models
       REDAX_AUDIT_PATH: /var/lib/redax/audit.jsonl
       REDAX_POLICIES_DIR: /policies
-      REDAX_HASH_SALT: change-me
-      REDAX_API_KEYS: dev-key
+      REDAX_ENV: dev
+      REDAX_HASH_SALT: local-compose-salt-change-before-sharing
+      REDAX_API_KEYS: local-compose-key
+      REDAX_TRUSTED_HOSTS: localhost,127.0.0.1
     volumes:
       - redax-models:/models
       - redax-audit:/var/lib/redax

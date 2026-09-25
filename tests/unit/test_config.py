@@ -43,7 +43,7 @@ def test_validate_refuses_default_secrets_when_auth_enabled() -> None:
 
 
 def test_validate_accepts_real_secrets() -> None:
-    s = Settings(api_keys="k1", hash_salt="a-strong-secret")
+    s = Settings(api_keys="k1", hash_salt="a-strong-secret", trusted_hosts="localhost")
     s.verify()
 
 
@@ -60,7 +60,12 @@ def test_validate_refuses_default_salt_even_without_auth() -> None:
 
 
 def test_validate_requires_model_revision() -> None:
-    s = Settings(model_revision="", hash_salt="a-strong-secret")
+    s = Settings(
+        model_revision="",
+        hash_salt="a-strong-secret",
+        api_keys="k1",
+        trusted_hosts="localhost",
+    )
     with pytest.raises(ValueError, match="MODEL_REVISION"):
         s.verify()
 
