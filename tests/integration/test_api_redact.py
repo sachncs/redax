@@ -90,6 +90,21 @@ def test_redact_returns_substituted_text(app_with_redactor):
     assert body["spans"][0]["type"] == "EMAIL"
 
 
+def test_redacted_value_does_not_appear_in_metrics(app_with_redactor):
+    """Prometheus output must remain metadata-only after a redaction request."""
+    from app.api.health import register as register_health
+
+    register_health(app_with_redactor)
+    secret = "alice@example.com"
+    with TestClient(app_with_redactor) as client:
+        response = client.post("/v1/redact", json={"text": f"Email {secret}"})
+        metrics = client.get("/metrics")
+
+    assert response.status_code == 200
+    assert metrics.status_code == 200
+    assert secret not in metrics.text
+
+
 def test_regex_mode_default_policy_redacts_structured_aliases() -> None:
     regex = RegexDetector()
     test_state = State()
