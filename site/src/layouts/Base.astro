@@ -17,7 +17,14 @@ const {
 } = Astro.props;
 
 const canonical = new URL(Astro.url.pathname, Astro.site).toString();
-const og = new URL(ogImage, Astro.site).toString();
+const baseUrl = import.meta.env.BASE_URL.endsWith("/")
+  ? import.meta.env.BASE_URL
+  : `${import.meta.env.BASE_URL}/`;
+const assetUrl = (path: string) =>
+  new URL(`${baseUrl}${path.replace(/^\/+/, "")}`, Astro.site).toString();
+const og = assetUrl(ogImage);
+const favicon = assetUrl("favicon.svg");
+const sitemap = assetUrl("sitemap-index.xml");
 ---
 <!doctype html>
 <html lang="en" class="scroll-pt-24">
@@ -26,9 +33,9 @@ const og = new URL(ogImage, Astro.site).toString();
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="dark" />
     <meta name="theme-color" content="#070710" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href={favicon} />
     <link rel="canonical" href={canonical} />
-    <link rel="sitemap" href="/sitemap-index.xml" />
+    <link rel="sitemap" href={sitemap} />
 
     <title>{title}</title>
     <meta name="description" content={description} />

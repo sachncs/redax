@@ -10,6 +10,14 @@ export const SITE = {
   registry: "https://ghcr.io/sachncs/redax",
 } as const;
 
+export const DOCS = {
+  api: `${SITE.repo}/blob/master/docs/api.md`,
+  architecture: `${SITE.repo}/blob/master/docs/architecture.md`,
+  integration: `${SITE.repo}/blob/master/docs/integration.md`,
+  policies: `${SITE.repo}/blob/master/docs/policies.md`,
+  bench: `${SITE.repo}/blob/master/docs/bench.md`,
+} as const;
+
 export const HERO = {
   eyebrow: "Self-hosted · Apache-2.0",
   title: ["Redact before", "you prompt."],
@@ -17,7 +25,7 @@ export const HERO = {
     "Redax is a small, deterministic PII engine that strips emails, phones, names, and identifiers from any text — before it reaches an LLM. Built for teams that refuse to send customer data to someone else's GPU.",
   ctas: [
     { label: "Get started", href: "#start", variant: "primary" as const },
-    { label: "Read the docs", href: "/redax/docs/api", variant: "ghost" as const },
+    { label: "Read the docs", href: DOCS.api, variant: "ghost" as const, external: true },
   ],
   proof: ["Apache-2.0", "No telemetry", "Runs on a laptop", "CPU-friendly"],
 } as const;
@@ -27,7 +35,7 @@ export const NAV = [
   { label: "Pipeline", href: "#pipeline" },
   { label: "Benchmarks", href: "#benchmarks" },
   { label: "Deploy", href: "#deploy" },
-  { label: "Docs", href: "/redax/docs/api" },
+  { label: "Docs", href: DOCS.api, external: true },
   { label: "GitHub", href: SITE.repo, external: true },
 ] as const;
 
@@ -255,10 +263,10 @@ export const FOOTER = {
     {
       title: "Docs",
       links: [
-        { label: "HTTP API", href: "/redax/docs/api" },
-        { label: "Architecture", href: "/redax/docs/architecture" },
-        { label: "Integration", href: "/redax/docs/integration" },
-        { label: "Policies", href: "/redax/docs/policies" },
+        { label: "HTTP API", href: DOCS.api, external: true },
+        { label: "Architecture", href: DOCS.architecture, external: true },
+        { label: "Integration", href: DOCS.integration, external: true },
+        { label: "Policies", href: DOCS.policies, external: true },
       ],
     },
     {

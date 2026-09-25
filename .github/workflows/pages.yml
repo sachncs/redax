@@ -34,6 +34,9 @@ jobs:
       - name: Install deps
         run: npm ci --no-audit --no-fund
 
+      - name: Typecheck site
+        run: npm run check
+
       - name: Build site
         env:
           SITE_URL: ${{ vars.SITE_URL || 'https://sachncs.github.io/redax' }}
