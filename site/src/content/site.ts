@@ -168,8 +168,8 @@ export const FEATURES = [
   },
   {
     icon: "bench",
-    title: "Quantified against a benchmark",
-    body: "A published RedactionBench snapshot against `ai4privacy/pii-masking-200k`. Use the methodology and your own workload before setting an SLO.",
+    title: "Benchmarkable by design",
+    body: "The harness and synthetic fixtures are checked in. Run them against your pinned detector, model revision, hardware, and workload before setting an SLO.",
   },
 ] as const;
 
@@ -281,7 +281,7 @@ export const QUICKSTART: { curl: string[]; python: string[]; response: string[] 
     `    {"start": 12, "end": 29, "type": "EMAIL", "confidence": 1.0},`,
     `    {"start": 33, "end": 47, "type": "PHONE_E164", "confidence": 1.0}`,
     `  ],`,
-    `  "digest": "8f1d2c..."`,
+    `  "digest": "keyed-hmac..."`,
     `}`,
   ],
 };
