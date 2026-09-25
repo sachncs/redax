@@ -130,7 +130,7 @@ for (const t of TABS) {
             { k: "Endpoint", v: "POST /v1/redact", mono: true },
             { k: "Auth", v: "X-API-Key header (or auth disabled in dev)" },
             { k: "Idempotency", v: "Idempotency-Key header short-circuits retries" },
-            { k: "Response", v: "safe text + spans + digest (sha256 input correlation)" },
+            { k: "Response", v: "safe text + spans + keyed digest" },
             { k: "Errors", v: "RFC 7807 problem-details JSON" },
           ].map((row) => (
             <div class="flex items-baseline gap-4 border-b border-white/[0.05] pb-3">

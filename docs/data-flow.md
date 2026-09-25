@@ -26,7 +26,7 @@ validate offsets → resolve overlaps → evaluate policy → replace spans
 |---|---:|---:|---:|---|
 | Process memory | yes, transiently | yes, transiently | yes | Required to detect and transform text. |
 | HTTP response | no, for redaction outputs | no | yes | `relex_map` is intentionally `{}` at HTTP boundaries. |
-| Audit file | no | no | no | Counts, types, durations, digest, and request metadata only. |
+| Audit file | no | no | no | Counts, types, durations, keyed digest, and request metadata only. |
 | Prometheus metrics | no | no | no | Never put user text or credentials in labels. |
 | Redis cache/idempotency | no | no | yes | TTL-bound response records; cache keys are digests. |
 | Redis jobs | no after submission payload leaves memory | no | yes | Job results are redacted; ownership uses one-way tokens. |

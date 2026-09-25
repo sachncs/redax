@@ -9,7 +9,7 @@ request via :meth:`Pipeline.__call__`.
 from __future__ import annotations
 
 import asyncio
-import hashlib
+import hmac
 import logging
 import time
 from dataclasses import dataclass
@@ -45,7 +45,7 @@ class PipelineResult:
     stages: tuple[Outcome, ...]
     used_fallback: bool
     total_latency_ms: float
-    digest: str  # SHA-256 of input text; never log the text itself
+    digest: str  # keyed digest of input text; never log the text itself
 
 
 @dataclass
@@ -61,12 +61,17 @@ class Pipeline:
     regex_gate: Gate
     model_stage: ModelStage
     model_breaker: Breaker
+    digest_salt: str = ""
 
     async def __call__(self, text: str) -> PipelineResult:
         if not isinstance(text, str):
             raise TypeError("text must be str")
 
-        digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
+        digest = hmac.new(
+            self.digest_salt.encode("utf-8"),
+            text.encode("utf-8"),
+            "sha256",
+        ).hexdigest()
         outcomes: list[Outcome] = []
         regex_outcome = await self.regex_gate_stage(text)
         outcomes.append(regex_outcome)

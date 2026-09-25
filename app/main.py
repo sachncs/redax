@@ -122,7 +122,7 @@ async def build_state(settings: Settings) -> State:
     )
 
     pipeline: Pipeline | None = None
-    if active is not regex:
+    if settings.pipeline_enabled and active is not regex:
         pipeline = Pipeline(
             regex_gate=Gate(detector=regex),
             model_stage=ModelStage(detector=active),
@@ -131,6 +131,7 @@ async def build_state(settings: Settings) -> State:
                 threshold=settings.pipeline_breaker_threshold,
                 cooldown_s=settings.pipeline_breaker_cooldown_s,
             ),
+            digest_salt=settings.hash_salt,
         )
 
     store = JobStore(

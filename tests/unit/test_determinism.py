@@ -227,7 +227,7 @@ def test_snapshot_digest_detects_layout_drift(tmp_path: Path) -> None:
 
 
 def test_pipeline_repeated_runs_yield_same_digest() -> None:
-    """End-to-end: same input text -> same SHA-256 digest every time.
+    """End-to-end: same input text -> same keyed digest every time.
 
     The digest is the only stable identifier of a redaction under the
     current API surface; if it ever drifts for fixed input, the audit

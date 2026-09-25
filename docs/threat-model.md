@@ -42,7 +42,7 @@ DLP product or an anonymity guarantee.
 3. Detector spans are validated and overlap-resolved before replacement.
 4. `/v1/redact` returns transformed text. Detection diagnostics are not a
    license to forward the request body downstream.
-5. Audit events contain counts, types, timing, digests, and request metadata;
+5. Audit events contain counts, types, timing, keyed digests, and request metadata;
    they must not contain original entity values. Redis state is TTL-bound and
    stores redacted responses; API keys are represented by one-way tokens in
    rate-limit/job ownership keys.

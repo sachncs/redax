@@ -42,7 +42,7 @@ import DocsLayout from "~/layouts/DocsLayout.astro";
 
   <section>
     <h2 class="text-[25px] text-ink-0">Response shape</h2>
-    <p class="mt-3">The response serves two consumers: the next LLM call needs <code>text</code>, while your application and operators need spans, a digest, and pipeline state. The audit log records metadata, never the original value.</p>
+    <p class="mt-3">The response serves two consumers: the next LLM call needs <code>text</code>, while your application and operators need spans, a keyed digest, and pipeline state. The audit log records metadata, never the original value.</p>
     <pre class="code-shell mt-5 overflow-x-auto p-5 text-[13px] leading-[1.7] text-ink-100"><code>{`{
   "text": "Email me at [EMAIL_0000]",
   "spans": [{"start": 12, "end": 29, "type": "EMAIL", "confidence": 1.0}],

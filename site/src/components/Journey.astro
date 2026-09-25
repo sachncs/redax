@@ -24,7 +24,7 @@
           { n: "01", title: "Install locally", body: "Run Redax beside your app with Docker Compose. No account, cloud gateway, or data migration." },
           { n: "02", title: "Redact the request", body: "POST your text to /v1/redact. Structured PII and contextual entities become typed placeholders." },
           { n: "03", title: "Call your model", body: "Send only the safe text to your existing LLM. Keep your provider, prompts, and application flow." },
-          { n: "04", title: "Audit the boundary", body: "Get spans, a digest, latency, and redaction metadata without putting original values in the audit event." },
+          { n: "04", title: "Audit the boundary", body: "Get spans, a keyed digest, latency, and redaction metadata without putting original values in the audit event." },
         ].map((step, i) => (
           <li class={`reveal reveal-delay-${i + 1} card p-6 ${i % 2 === 1 ? "sm:translate-y-5" : ""}`}>
             <div class="flex items-center justify-between">

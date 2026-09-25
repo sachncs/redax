@@ -82,8 +82,11 @@ always `{}` because its keys are original entity values.
 When `use_pipeline=true`, the pipeline applies typed placeholders after span
 fusion and records
 `used_fallback=true` when the model stage's circuit breaker uses its explicit
-fallback behavior. `digest` is a SHA-256 of the input text for correlation;
-the audit log records the digest but never the text itself. Library-level
+fallback behavior. `digest` is a keyed SHA-256 HMAC of the input text for
+correlation; it is only useful to operators who hold the configured
+`REDAX_HASH_SALT`. Keep that salt secret because it prevents offline guessing
+of low-entropy input. The audit log records the digest but never the text
+itself. Library-level
 relexicalization remains available to Python callers, but its original-value
 map is not an HTTP feature. Precedence is: inline `policy`, then
 `entity_types`, then the configured `REDAX_DEFAULT_POLICY`, then the plain
