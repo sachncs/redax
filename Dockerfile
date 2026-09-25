@@ -50,7 +50,7 @@ COPY scripts/download_models.py scripts/download_models.py
 # as root for one RUN instruction only.
 RUN python scripts/download_models.py \
         --model fastino/gliner2-privacy-filter-PII-multi \
-        --revision c153999da5f4c509df4322b0c6a1baf3d2c284d
+        --revision c153999da5f4c509df4322b0c6a1baf3d2c284d7
 
 USER redax
 
