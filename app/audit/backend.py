@@ -30,7 +30,8 @@ class Event:
             on disk under the model cache; it is intentionally not
             shipped in the per-event log.
         direction: ``"egress"`` for outbound redaction, ``"ingress"`` for
-            restoration flows.
+            restoration flows, or ``"detect"`` for the diagnostic endpoint
+            that intentionally returns original text to its caller.
     """
 
     request_id: str

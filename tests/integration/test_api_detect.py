@@ -40,3 +40,11 @@ def test_detect_is_explicitly_raw_and_returns_spans() -> None:
     body = response.json()
     assert body["text"] == "Email alice@example.com"
     assert body["spans"] == [{"start": 6, "end": 23, "type": "EMAIL", "confidence": 1.0}]
+
+
+def test_detect_is_present_in_openapi() -> None:
+    schema = make_app().openapi()
+
+    operation = schema["paths"]["/v1/detect"]["post"]
+    assert operation["operationId"] == "detect_v1_detect_post"
+    assert operation["responses"]["200"]["content"]["application/json"]["schema"]
