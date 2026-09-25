@@ -1,6 +1,6 @@
 """Stage 2: model stage.
 
-Runs the chosen OpenMed-PII encoder (or any ``Detector`` instance) over
+Runs the configured model-backed detector (or any ``Detector`` instance) over
 the text. The stage exposes a synchronous ``detector_sync`` method so the
 circuit breaker can wrap it from a threadpool without leaking asyncio.
 """
@@ -22,7 +22,7 @@ class ModelStage:
 
     Attributes:
         detector: Anything implementing ``detect_sync(text, entity_types)``
-            or ``async detect(text, entity_types)``. The ``OpenMedPIIDetector``
+            or ``async detect(text, entity_types)``. The configured detector
             exposes ``detect_sync`` natively; the ``RegexDetector`` is
             async-only and is wrapped by ``run_async`` as a fallback.
     """

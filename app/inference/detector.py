@@ -1,6 +1,6 @@
 """Detector Protocol and shared Span value object.
 
-Every concrete detector (regex, GLiNER2, OpenMed PII, ...) implements the
+Every concrete detector (regex, GLiNER2, or a downstream adapter) implements the
 ``Detector`` Protocol declared here. ``Span`` is the frozen value object
 that flows through detection, validation, dedupe, and substitution.
 """

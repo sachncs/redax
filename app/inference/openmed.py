@@ -1,4 +1,8 @@
-"""OpenMed-PII-SuperClinical-Large-434M-v1 wrapper.
+"""Legacy OpenMed detector adapter.
+
+This adapter remains available for historical tests and downstream forks, but
+it is not wired into the Redax server and is not part of the supported model
+set. The shipped server model is the pinned local GLiNER2 detector.
 
 This is the winner of the Phase 1 model survey
 (`docs/models-survey.md`). Apache-2.0 licensed DeBERTa-v3-large fine-tune
