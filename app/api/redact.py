@@ -31,6 +31,7 @@ from app.logging import get_logger
 from app.middleware import get_request_id
 from app.observability import CACHE_HITS, REQUEST_LATENCY, REQUESTS
 from app.ratelimit import rate_limit
+from app.redaction.policies import load_policy, parse_policy_dict
 from app.state import State, get_state
 
 
@@ -85,6 +86,17 @@ def idempotency_storage_key(namespace: str, key: str) -> str:
     return f"{namespace}:idem:{digest}"
 
 
+def normalized_policy(raw: dict[str, Any], source: str) -> dict[str, Any]:
+    """Validate a policy and return one canonical shape for execution/cache keys."""
+    parsed = parse_policy_dict(raw, source=source)
+    return {
+        "name": parsed.name,
+        "version": parsed.version,
+        "description": parsed.description,
+        "fields": parsed.fields,
+    }
+
+
 def register(app: FastAPI) -> None:
     """Mount the POST /v1/redact route on ``app``."""
 
@@ -113,6 +125,15 @@ def register(app: FastAPI) -> None:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="413").inc()
                 return payload_too_large(request, f"text exceeds {max_chars} chars")
             policy = body.policy
+            if body.policy is not None and body.entity_types is not None:
+                REQUESTS.labels(endpoint=endpoint, method=method, status="422").inc()
+                return problem_response(
+                    request,
+                    type="https://redax.ai/errors/policy-entity-types-conflict",
+                    title="Policy and Entity Types Conflict",
+                    status=422,
+                    detail="Choose either policy or entity_types; do not send both.",
+                )
             if body.use_pipeline and (body.policy is not None or body.entity_types is not None):
                 REQUESTS.labels(endpoint=endpoint, method=method, status="422").inc()
                 return problem_response(
@@ -125,17 +146,36 @@ def register(app: FastAPI) -> None:
                         "omit policy and entity_types or use the policy redactor path."
                     ),
                 )
-            if policy is None and not body.use_pipeline:
+            if policy is not None:
+                try:
+                    policy = normalized_policy(policy, "<request>")
+                except (TypeError, ValueError) as exc:
+                    REQUESTS.labels(endpoint=endpoint, method=method, status="422").inc()
+                    return problem_response(
+                        request,
+                        type="https://redax.ai/errors/invalid-policy",
+                        title="Invalid Policy",
+                        status=422,
+                        detail=str(exc),
+                    )
+            if policy is None and body.entity_types is None and not body.use_pipeline:
                 default_name = getattr(settings, "default_policy", "") if settings else ""
                 policies_dir = getattr(settings, "policies_dir", "./policies") if settings else None
                 if default_name and policies_dir:
                     from pathlib import Path
 
-                    from app.redaction.policies import load_policy
-
                     policy_path = Path(policies_dir) / f"{default_name}.yaml"
                     if policy_path.exists():
-                        policy = load_policy(policy_path).fields
+                        loaded = load_policy(policy_path)
+                        policy = normalized_policy(
+                            {
+                                "name": loaded.name,
+                                "version": loaded.version,
+                                "description": loaded.description,
+                                "fields": loaded.fields,
+                            },
+                            str(policy_path),
+                        )
             pipeline = state.pipeline
             if body.use_pipeline and pipeline is None:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="422").inc()

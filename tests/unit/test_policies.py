@@ -37,6 +37,16 @@ def test_field_without_strategy_raises() -> None:
         parse_policy_dict({"fields": {"x": {"format": "[X]"}}})
 
 
+def test_unknown_strategy_raises() -> None:
+    with pytest.raises(ValueError, match="unsupported strategy"):
+        parse_policy_dict({"fields": {"x": {"strategy": "unknown"}}})
+
+
+def test_unknown_field_option_raises() -> None:
+    with pytest.raises(ValueError, match="unknown options"):
+        parse_policy_dict({"fields": {"x": {"strategy": "mask", "surprise": True}}})
+
+
 def test_field_must_be_mapping() -> None:
     with pytest.raises(ValueError):
         parse_policy_dict({"fields": {"x": "not a dict"}})

@@ -64,9 +64,11 @@ fusion and records
 fallback behavior. `digest` is a SHA-256 of the input text for correlation;
 the audit log records the digest but never the text itself. Library-level
 relexicalization remains available to Python callers, but its original-value
-map is not an HTTP feature. When `use_pipeline` is omitted, the configured
-default policy is loaded; an inline policy replaces that default. `entity_types`
-is forwarded only when no policy is selected.
+map is not an HTTP feature. Precedence is: inline `policy`, then
+`entity_types`, then the configured `REDAX_DEFAULT_POLICY`, then the plain
+detector path. Sending `policy` and `entity_types` together returns 422.
+Policy strategies and options are validated before execution; unknown
+strategies are rejected.
 
 **Errors**: 413 (oversize), 422 (validation), 429 (rate-limited), 503 (not ready), 504 (timeout).
 

@@ -8,6 +8,11 @@ from typing import Any
 
 import yaml
 
+SUPPORTED_STRATEGIES = frozenset({"passThrough", "mask", "hash", "regex", "autoDeID"})
+SUPPORTED_FIELD_OPTIONS = frozenset(
+    {"strategy", "format", "entity_types", "relex", "multi_pass", "detector", "length"}
+)
+
 
 @dataclass
 class Policy:
@@ -77,6 +82,14 @@ def parse_policy(raw: dict[str, Any], source: str) -> Policy:
             raise ValueError(f"{source}: field {fname!r} must be a mapping")
         if "strategy" not in fcfg:
             raise ValueError(f"{source}: field {fname!r} missing 'strategy'")
+        strategy = fcfg["strategy"]
+        if strategy not in SUPPORTED_STRATEGIES:
+            raise ValueError(f"{source}: field {fname!r} uses unsupported strategy {strategy!r}")
+        unknown_options = set(fcfg) - SUPPORTED_FIELD_OPTIONS
+        if unknown_options:
+            raise ValueError(
+                f"{source}: field {fname!r} has unknown options {sorted(unknown_options)!r}"
+            )
     return Policy(
         name=str(raw.get("name", "default")),
         version=str(raw.get("version", "0.0.0")),
