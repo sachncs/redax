@@ -4,7 +4,33 @@ All notable changes to this project are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/) and this project
 adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.1.0] - 2026-09-25
+
+This first published release establishes the supported HTTP redaction boundary.
+It is pre-1.0 software: the stable integration surface is the versioned HTTP
+API, while model-backed detection, policies, and the browser/WASM package may
+change before 1.0.
+
+### Highlights
+
+- Python 3.13-only runtime with a pinned local GLiNER2 model revision and
+  verified model snapshot digest.
+- `/v1/redact` returns transformed text; `/v1/detect` is the separate
+  cleartext diagnostic endpoint.
+- API-key authentication, Redis-backed rate limiting/idempotency/caching,
+  privacy-aware audit metadata, and explicit readiness checks.
+- Docker, package, documentation, threat-model, benchmark, and product-site
+  contracts are checked in CI.
+
+### Limitations
+
+- Redax does not guarantee detection of every sensitive value and is not a
+  complete DLP system.
+- The browser demo and WASM path are experimental and regex-only.
+- The local JSONL audit backend is not a tamper-proof ledger; operators own
+  retention, access control, telemetry, Redis, and host security.
+
+## [Development history]
 
 ### Added
 
