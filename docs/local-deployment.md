@@ -127,12 +127,14 @@ Override the initial local envelope when needed:
 
 ```bash
 BASE_URL=http://localhost:8000 VUS=20 DURATION=2m \
-  REDAX_API_KEY='your-local-key' k6 run tests/load/basic.js
+  REDAX_API_KEY='your-local-key' TEXT='Synthetic email alice@example.com' \
+  k6 run tests/load/basic.js
 ```
 
-The scenario checks liveness and a synthetic redaction request. Compose also
-limits request and response bodies to 1 MiB by default. Its thresholds are a
-local smoke signal, not a production SLO or capacity guarantee.
+The scenario checks liveness, readiness, metrics, and a configurable synthetic
+redaction request. Compose also limits request and response bodies to 1 MiB by
+default. Its thresholds are a local smoke signal, not a production SLO or
+capacity guarantee.
 
 ## Repeatable local verification
 
@@ -149,6 +151,28 @@ worker job, Prometheus scraping, Grafana health, Loki query delivery, Tempo
 trace delivery, and that the synthetic source marker is absent from the job,
 log, and trace responses. It is a local deployment check, not evidence of
 managed-service failover or public production capacity.
+
+## Validation record
+
+The local contract was last verified on 2026-09-30 from the repository
+checkout with the following results:
+
+| Check | Result |
+|---|---|
+| `docker compose config --quiet` | Pass |
+| `docker compose build --pull=false` | Pass; model snapshot digest verified during image build |
+| `docker compose up -d` and container health | Pass; 9/9 services healthy |
+| `make PYTHON=.venv313/bin/python verify` | Pass; 523 tests passed, 11 skipped |
+| Site `npm run check && npm run build` | Pass; 0 Astro diagnostics, 16 pages built |
+| k6 (`VUS=2`, `DURATION=10s`) | Pass; 140 checks, 0% errors, p95 8.79 ms |
+| Compose verifier | Pass; API, worker, Redis, metrics, logs, and traces |
+| Redis restart persistence | Pass; sentinel value survived `docker compose restart redis` |
+| Failure paths | Pass; Redis 503/recovery, collector fail-open, worker queue/recovery, full down/up recovery |
+
+The k6 and latency numbers are laptop smoke-test observations, not a
+production capacity claim. The model/dependency download requires network
+access during the first image build; runtime inference and telemetry remain
+inside the local Compose network after the image exists.
 
 ## Redis backup and restore
 

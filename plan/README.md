@@ -132,8 +132,8 @@ The local deployment phases are implemented and verified in order:
 | 1. Compose foundation | `docker compose config --quiet`; image build; health-gated startup |
 | 2. Observability | `scripts/verify_local_compose.py` confirms Prometheus, Loki, Tempo, and Grafana paths; the dashboard covers readiness, Redis pool, queue/worker activity, response rejections, and telemetry export failures |
 | 3. Security and persistence | `.env` is ignored; Redis AOF/RDB, named volumes, bounded JSON logs, localhost-only published ports, 1 MiB Compose request/response limits, and a verified Redis value surviving `docker compose restart redis` |
-| 4. Validation | API/worker redaction, Redis-backed job completion, and verification after container restart |
-| 5. Handoff | [`docs/local-deployment.md`](../docs/local-deployment.md), k6 scenario, backup/restore, reset, and troubleshooting instructions |
+| 4. Validation | `make PYTHON=.venv313/bin/python verify`, site check/build, rebuilt images, k6 checks, full-stack verifier, Redis persistence, four failure-path recoveries, and full down/up recovery |
+| 5. Handoff | [`docs/local-deployment.md`](../docs/local-deployment.md) contains the 2026-09-30 pass/fail record, service URLs, backup/restore, reset, k6 usage, troubleshooting, and production-boundary limitations |
 
 The verification is a single-machine local contract check. It does not prove
 managed Redis failover, multi-node availability, public DNS/TLS, or production

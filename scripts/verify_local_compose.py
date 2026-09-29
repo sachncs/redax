@@ -40,6 +40,18 @@ def request_json(
         raise RuntimeError(f"request failed: {method} {url}: {exc}") from exc
 
 
+def request_text(url: str) -> str:
+    """Fetch a local text endpoint without attempting JSON decoding."""
+    if urlsplit(url).scheme != "http":
+        raise RuntimeError(f"only local HTTP URLs are supported: {url}")
+    request = Request(url, headers={"Accept": "text/plain"})  # noqa: S310 - scheme checked above
+    try:
+        with urlopen(request, timeout=15) as response:  # noqa: S310 - scheme checked above
+            return response.read().decode()
+    except (HTTPError, URLError, TimeoutError) as exc:
+        raise RuntimeError(f"request failed: GET {url}: {exc}") from exc
+
+
 def compose_exec(service: str, command: list[str]) -> str:
     result = subprocess.run(
         [*COMPOSE, "exec", "-T", service, *command],
@@ -64,6 +76,9 @@ def verify() -> None:
     ready = request_json(f"{BASE_URL}/readyz")
     if health.get("status") != "ok" or ready.get("status") != "ready":
         raise RuntimeError(f"API is not healthy: health={health!r} ready={ready!r}")
+    metrics = request_text(f"{BASE_URL}/metrics")
+    if "redax_requests_total" not in metrics:
+        raise RuntimeError("metrics response does not expose redax_requests_total")
 
     response = request_json(
         f"{BASE_URL}/v1/redact",
