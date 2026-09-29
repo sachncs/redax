@@ -23,6 +23,13 @@ REQUEST_LATENCY = Histogram(
     registry=REGISTRY,
 )
 
+RESPONSE_SIZE = Histogram(
+    "redax_response_size_bytes",
+    "Size of buffered HTTP responses when a Content-Length is available.",
+    buckets=(256, 1024, 4096, 16384, 65536, 262144, 1048576, 4194304),
+    registry=REGISTRY,
+)
+
 REQUESTS_INFLIGHT = Gauge(
     "redax_requests_inflight",
     "HTTP requests currently admitted to application handlers.",

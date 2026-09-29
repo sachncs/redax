@@ -222,6 +222,7 @@ def test_health_metrics_instrumented() -> None:
     assert 'redax_requests_total{endpoint="GET /metrics",method="GET",status="200"}' in body
     assert 'redax_request_duration_seconds_count{endpoint="GET /healthz",method="GET"}' in body
     assert 'redax_request_duration_seconds_count{endpoint="GET /readyz",method="GET"}' in body
+    assert "redax_response_size_bytes_count" in body
 
 
 def test_stats_endpoint_requires_api_key() -> None:

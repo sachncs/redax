@@ -56,7 +56,7 @@ as each production milestone lands.
 
 | Requirement | Status | Evidence / gap |
 |---|---|---|
-| Actionable RED/USE metrics | PARTIAL | RED metrics, Prometheus alert rules, accepted in-flight job depth, and a Grafana dashboard are checked in; oldest queue age, Redis pool, response-size, and worker-runtime metrics still need implementation/evidence. |
+| Actionable RED/USE metrics | PARTIAL | RED metrics, Prometheus alert rules, accepted in-flight job depth, response-size histogram, and a Grafana dashboard are checked in; oldest queue age, Redis pool, and worker-runtime metrics still need implementation/evidence. |
 | Privacy-safe structured logs/traces | PARTIAL | Access/error/audit paths avoid values and metrics regression exists; trace exporter and all failure paths need canary tests. |
 | Alerts and dashboards | PARTIAL | Checked-in Prometheus alert rules and a Grafana dashboard cover HTTP, audit, dependency, API replica, and worker availability; queue age, retries, and Redis-pool panels remain pending. |
 | Operational runbooks | PARTIAL | Current runbooks in `docs/runbooks/` describe safe response and evidence; they remain bounded by the current in-process job limitations. |

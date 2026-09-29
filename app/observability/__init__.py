@@ -16,6 +16,7 @@ from .metrics import (
     REQUEST_LATENCY,
     REQUESTS,
     REQUESTS_INFLIGHT,
+    RESPONSE_SIZE,
     RequestMetric,
     queue_depth,
 )
@@ -39,6 +40,7 @@ __all__ = [
     "REQUESTS",
     "REQUESTS_INFLIGHT",
     "REQUEST_LATENCY",
+    "RESPONSE_SIZE",
     "RequestMetric",
     "configure_tracing",
     "current_trace_id_hex",

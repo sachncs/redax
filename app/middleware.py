@@ -14,6 +14,7 @@ import asyncio
 import time
 import uuid
 from collections.abc import Awaitable, Callable
+from contextlib import suppress
 from re import fullmatch
 from typing import Any
 
@@ -23,7 +24,7 @@ from fastapi.responses import Response
 
 from app.errors import problem_response
 from app.logging import get_logger
-from app.observability import ADMISSION_REJECTIONS, REQUESTS_INFLIGHT
+from app.observability import ADMISSION_REJECTIONS, REQUESTS_INFLIGHT, RESPONSE_SIZE
 from app.observability.tracing import current_trace_id_hex
 
 
@@ -158,6 +159,10 @@ def register_request_context(app: FastAPI) -> None:
                     state.active_requests += 1
                 REQUESTS_INFLIGHT.inc()
             response = await call_next(request)
+            content_length = response.headers.get("content-length")
+            if content_length is not None:
+                with suppress(ValueError):
+                    RESPONSE_SIZE.observe(float(content_length))
             response.headers.setdefault("X-Content-Type-Options", "nosniff")
             response.headers.setdefault("X-Frame-Options", "DENY")
             response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
