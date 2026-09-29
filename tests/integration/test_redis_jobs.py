@@ -75,6 +75,16 @@ async def crashable_recovery_job(ctx: dict[str, object], marker_key: str) -> str
     return "done"
 
 
+async def graceful_shutdown_job(ctx: dict[str, object], marker_key: str) -> str:
+    """Keep a job active long enough for the parent to send SIGTERM."""
+    client = ctx["pool"]
+    assert isinstance(client, aioredis.Redis)
+    await client.set(f"{marker_key}:started", "1", ex=60)
+    await asyncio.sleep(0.25)
+    await client.set(f"{marker_key}:done", "1", ex=60)
+    return "done"
+
+
 async def run_crashable_worker(redis_url: str, queue_name: str) -> None:
     pool = await create_pool(RedisSettings.from_dsn(redis_url), default_queue_name=queue_name)
     worker = Worker(
@@ -95,6 +105,30 @@ async def run_crashable_worker(redis_url: str, queue_name: str) -> None:
 
 def run_crashable_worker_process(redis_url: str, queue_name: str) -> None:
     asyncio.run(run_crashable_worker(redis_url, queue_name))
+
+
+async def run_graceful_worker(redis_url: str, queue_name: str) -> None:
+    """Run a signal-aware ARQ worker with a bounded active-job drain."""
+    from app.jobs.queue import run_worker
+
+    pool = await create_pool(RedisSettings.from_dsn(redis_url), default_queue_name=queue_name)
+    worker = Worker(
+        [func(graceful_shutdown_job, name="graceful_shutdown_job")],
+        redis_pool=pool,
+        queue_name=queue_name,
+        job_completion_wait=2,
+        poll_delay=0.01,
+        max_tries=1,
+        ctx={"pool": pool},
+    )
+    try:
+        await run_worker(worker)
+    finally:
+        await pool.aclose()
+
+
+def run_graceful_worker_process(redis_url: str, queue_name: str) -> None:
+    asyncio.run(run_graceful_worker(redis_url, queue_name))
 
 
 @pytest.fixture
@@ -388,6 +422,56 @@ async def test_real_redis_job_recovers_after_worker_process_kill(
         )
         replacement.in_progress_timeout_s = 0.2
         await asyncio.wait_for(replacement.async_run(), timeout=3)
+        assert await pool.get(f"{marker_key}:done")
+    finally:
+        await pool.delete(
+            queue_name,
+            f"arq:job:{job_id}",
+            f"arq:retry:{job_id}",
+            f"arq:result:{job_id}",
+            f"arq:in-progress:{job_id}",
+            f"{marker_key}:started",
+            f"{marker_key}:done",
+        )
+        await pool.aclose()
+
+
+@pytest.mark.asyncio
+async def test_real_redis_worker_finishes_active_job_on_sigterm(real_job_store: JobStore) -> None:
+    """Prove a signal-aware worker drains its active job before exiting."""
+    queue_name = f"redax-graceful-queue-{uuid.uuid4().hex[:12]}"
+    job_id = uuid.uuid4().hex
+    marker_key = f"redax-graceful-marker-{uuid.uuid4().hex[:12]}"
+    pool = await create_pool(
+        RedisSettings.from_dsn(real_job_store.url), default_queue_name=queue_name
+    )
+    try:
+        job = await pool.enqueue_job(
+            "graceful_shutdown_job",
+            marker_key,
+            _job_id=job_id,
+            _queue_name=queue_name,
+        )
+        assert job is not None
+        context = multiprocessing.get_context("spawn")
+        process = context.Process(
+            target=run_graceful_worker_process,
+            args=(real_job_store.url, queue_name),
+        )
+        process.start()
+        for _ in range(100):
+            if await pool.get(f"{marker_key}:started"):
+                break
+            await asyncio.sleep(0.02)
+        else:
+            process.kill()
+            process.join(timeout=3)
+            pytest.fail("worker did not claim the job before SIGTERM")
+
+        process.terminate()
+        process.join(timeout=5)
+        assert not process.is_alive()
+        assert process.exitcode in (0, -15, 143)
         assert await pool.get(f"{marker_key}:done")
     finally:
         await pool.delete(

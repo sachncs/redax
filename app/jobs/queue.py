@@ -31,6 +31,14 @@ def shutdown_wait_seconds(settings: Any) -> int:
     return max(1, int(getattr(settings, "shutdown_timeout_seconds", 30.0)))
 
 
+async def run_worker(worker: Worker) -> None:
+    """Run an ARQ worker until normal exit or signal-driven cancellation."""
+    # ARQ cancels its main task after the configured active-job completion
+    # window. That is an expected lifecycle event, not an application error.
+    with contextlib.suppress(asyncio.CancelledError):
+        await worker.async_run()
+
+
 async def process_job(
     ctx: dict[str, Any],
     job_id: str,
@@ -120,11 +128,13 @@ async def worker_main() -> None:
         worker_heartbeat(ctx, worker_id, settings.worker_concurrency)
     )
     try:
-        await worker.async_run()
+        await run_worker(worker)
     finally:
         heartbeat_task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await heartbeat_task
+        with contextlib.suppress(OSError, RuntimeError, TimeoutError, asyncio.CancelledError):
+            await worker.close()
         with contextlib.suppress(OSError, RuntimeError, TimeoutError, ValueError):
             await state.job_store.worker_stop(worker_id)
         await teardown_state(state)
