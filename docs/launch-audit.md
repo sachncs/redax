@@ -67,9 +67,9 @@ DLP program.
 - Browser/WASM model parity and a supported browser package remain experimental
   and regex-only because model packaging, bundle provenance, and parity are not
   yet verified.
-- Durable distributed job execution, signed/tamper-evident audit records,
-  SBOM/signing attestations, and a supported Python SDK remain outside the
-  `0.1.0` contract.
+- Managed Redis HA/failover evidence, durable audit retention, external
+  telemetry collector canaries, SBOM/signing attestations for every future
+  release, and a supported Python SDK remain outside the `0.1.0` contract.
 - A release-grade accuracy/latency benchmark remains deferred until a licensed
   corpus, pinned environment, and reproducible run record are published.
 
@@ -101,8 +101,9 @@ DLP program.
   policy review is part of the security boundary.
 - The default local JSONL audit backend is not a tamper-proof ledger. An opt-in
   bounded Redis audit sink is centralized but still depends on managed Redis
-  durability and is not tamper-proof; in-process jobs are not a durable
-  distributed queue.
+  durability and is not tamper-proof. The durable job path depends on Redis
+  availability and still requires managed failover and production-scale
+  recovery evidence.
 
 ## Verification evidence
 
