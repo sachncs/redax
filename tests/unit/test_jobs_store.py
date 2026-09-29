@@ -115,6 +115,41 @@ def redis_client() -> FakeRedis:
     return FakeRedis()
 
 
+async def test_start_configures_bounded_redis_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    class Client:
+        async def ping(self) -> bool:
+            return True
+
+        async def aclose(self) -> None:
+            return None
+
+    def from_url(url: str, **kwargs: object) -> Client:
+        captured["url"] = url
+        captured.update(kwargs)
+        return Client()
+
+    monkeypatch.setattr("app.jobs.store.aioredis.from_url", from_url)
+    store = JobStore(
+        "redis://redis.example:6379/2",
+        connect_timeout_seconds=0.4,
+        socket_timeout_seconds=0.8,
+        max_connections=12,
+    )
+    await store.start()
+
+    assert captured == {
+        "url": "redis://redis.example:6379/2",
+        "decode_responses": True,
+        "socket_connect_timeout": 0.4,
+        "socket_timeout": 0.8,
+        "max_connections": 12,
+        "health_check_interval": 30,
+        "retry_on_timeout": True,
+    }
+
+
 async def test_create_keeps_ttl_and_tracks_owner(store: JobStore, redis_client: FakeRedis) -> None:
     record = await store.create(owner="k1")
     owner_token = store.owner_token("k1")

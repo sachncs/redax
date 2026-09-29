@@ -47,7 +47,12 @@ async def worker_main() -> None:
     worker = Worker(
         functions=[process_job],
         queue_name=QUEUE_NAME,
-        redis_settings=RedisSettings.from_dsn(settings.redis_url),
+        redis_settings=RedisSettings(
+            **RedisSettings.from_dsn(settings.redis_url).__dict__,
+            conn_timeout=max(1, int(settings.redis_connect_timeout_seconds)),
+            max_connections=settings.redis_max_connections,
+            retry_on_timeout=True,
+        ),
         ctx={"state": state},
         max_jobs=settings.worker_concurrency,
         max_tries=MAX_TRIES,

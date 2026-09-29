@@ -94,11 +94,17 @@ return 1
         ttl_seconds: int = 86_400,
         client: aioredis.Redis | None = None,
         namespace: str = "redax",
+        connect_timeout_seconds: float = 1.0,
+        socket_timeout_seconds: float = 1.0,
+        max_connections: int = 64,
     ) -> None:
         self.url = redis_url
         self.ttl_seconds = ttl_seconds
         self.client = client
         self.namespace = namespace
+        self.connect_timeout_seconds = connect_timeout_seconds
+        self.socket_timeout_seconds = socket_timeout_seconds
+        self.max_connections = max_connections
 
     def _key(self, job_id: str) -> str:
         return self.KEY_TEMPLATE.format(ns=self.namespace, id=job_id)
@@ -122,7 +128,13 @@ return 1
         """
         if self.client is None:
             self.client = aioredis.from_url(  # type: ignore[no-untyped-call]
-                self.url, decode_responses=True
+                self.url,
+                decode_responses=True,
+                socket_connect_timeout=self.connect_timeout_seconds,
+                socket_timeout=self.socket_timeout_seconds,
+                max_connections=self.max_connections,
+                health_check_interval=30,
+                retry_on_timeout=True,
             )
             await self.client.ping()
 

@@ -45,6 +45,9 @@ class Settings(BaseSettings):
 
     redis_url: str = "redis://localhost:6379/0"
     service_name: str = "redax"
+    redis_connect_timeout_seconds: float = Field(default=1.0, ge=0.1)
+    redis_socket_timeout_seconds: float = Field(default=1.0, ge=0.1)
+    redis_max_connections: int = Field(default=64, ge=1)
 
     detector: Literal["gliner2", "regex"] = "gliner2"
     model_cache: str = "./models_cache"

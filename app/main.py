@@ -140,6 +140,9 @@ async def build_state(settings: Settings) -> State:
         settings.redis_url,
         ttl_seconds=settings.job_ttl_seconds,
         namespace=settings.redis_namespace,
+        connect_timeout_seconds=settings.redis_connect_timeout_seconds,
+        socket_timeout_seconds=settings.redis_socket_timeout_seconds,
+        max_connections=settings.redis_max_connections,
     )
     try:
         await store.start()
@@ -231,7 +234,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     state = await build_state(settings)
     if state.job_store is not None:
         try:
-            state.job_queue = await create_pool(RedisSettings.from_dsn(settings.redis_url))
+            redis_settings = RedisSettings.from_dsn(settings.redis_url)
+            redis_settings.conn_timeout = max(1, int(settings.redis_connect_timeout_seconds))
+            redis_settings.max_connections = settings.redis_max_connections
+            redis_settings.retry_on_timeout = True
+            state.job_queue = await create_pool(redis_settings)
         except Exception as exc:
             log.warning("redax.job_queue_unavailable", error=exc.__class__.__name__)
     app.state.state = state
