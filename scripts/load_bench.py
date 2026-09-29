@@ -114,6 +114,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--text", default="Contact alice@example.com for a safe response.")
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--fail-on-error", action="store_true")
+    parser.add_argument("--max-p99-ms", type=float)
     args = parser.parse_args()
     if args.requests < 1 or args.concurrency < 1 or args.duration_seconds < 0:
         parser.error("--requests and --concurrency must be positive; duration cannot be negative")
@@ -150,6 +152,12 @@ def main() -> None:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(rendered, encoding="utf-8")
     print(rendered, end="")
+    status_counts = result["result"]["status_counts"]
+    p99 = result["result"]["latency_ms"]["p99"]
+    if args.fail_on_error and any(status != "200" for status in status_counts):
+        raise SystemExit("load benchmark observed a non-200 response")
+    if args.max_p99_ms is not None and p99 > args.max_p99_ms:
+        raise SystemExit(f"p99 latency {p99}ms exceeds {args.max_p99_ms}ms")
 
 
 if __name__ == "__main__":

@@ -82,3 +82,50 @@ jobs:
         env:
           SITE_URL: ${{ vars.SITE_URL || 'https://sachncs.github.io/redax' }}
         run: npm run build
+
+  performance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install deps from lockfile
+        run: |
+          python -m pip install --upgrade pip
+          pip install --no-deps -r requirements.lock
+          pip install -e . --no-deps
+
+      - name: Run regex API performance gate
+        env:
+          REDAX_ENV: dev
+          REDAX_DETECTOR: regex
+          REDAX_HASH_SALT: ci-load-salt
+          REDAX_RATE_LIMIT_PER_MINUTE: "0"
+          REDAX_AUDIT_PATH: /tmp/redax-ci-audit.jsonl
+        run: |
+          python -m uvicorn app.main:app --host 127.0.0.1 --port 8010 > /tmp/redax-api.log 2>&1 &
+          api_pid=$!
+          trap 'kill "$api_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            curl --fail --silent http://127.0.0.1:8010/healthz && break
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:8010/healthz
+          python scripts/load_bench.py \
+            --url http://127.0.0.1:8010/v1/redact \
+            --requests 100 \
+            --concurrency 10 \
+            --fail-on-error \
+            --max-p99-ms 1000 \
+            --output performance-baseline.json
+
+      - name: Upload performance artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: redax-api-performance-${{ github.sha }}
+          path: performance-baseline.json
