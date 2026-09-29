@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from types import SimpleNamespace
 
 import pytest
 import structlog
@@ -111,6 +112,33 @@ def test_chunked_request_body_is_bounded_before_handler_reads_it() -> None:
     assert response.json()["title"] == "Request body too large"
 
 
+def test_bounded_body_replay_supports_streaming_response() -> None:
+    from collections.abc import AsyncIterator
+
+    from fastapi.responses import StreamingResponse
+
+    app = FastAPI()
+
+    @app.post("/stream")
+    async def stream() -> StreamingResponse:
+        async def events() -> AsyncIterator[str]:
+            yield "data: ready\n\n"
+
+        return StreamingResponse(events(), media_type="text/event-stream")
+
+    app.state.state = SimpleNamespace(
+        settings=SimpleNamespace(max_body_bytes=1024, request_body_timeout_seconds=1.0),
+        request_admission=None,
+    )
+    register_request_context(app)
+
+    with TestClient(app) as client:
+        response = client.post("/stream", json={"text": "safe"})
+
+    assert response.status_code == 200
+    assert response.text == "data: ready\n\n"
+
+
 @pytest.mark.asyncio
 async def test_slow_chunked_request_body_times_out() -> None:
     from app.middleware import read_bounded_body
@@ -146,6 +174,27 @@ def test_request_span_contains_metadata_only(monkeypatch: pytest.MonkeyPatch) ->
         "http.response.status_code": 200,
     }
     assert canary not in repr(span)
+
+
+def test_finish_span_closes_when_stream_context_already_changed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app import middleware as mw
+
+    ended: list[bool] = []
+
+    class Span:
+        def end(self) -> None:
+            ended.append(True)
+
+    def detach(_token: object) -> None:
+        raise ValueError("token belongs to another streaming context")
+
+    monkeypatch.setattr(mw.context, "detach", detach)
+
+    mw.finish_span(Span(), object())  # type: ignore[arg-type]
+
+    assert ended == [True]
 
 
 def capture_access_line(monkeypatch: pytest.MonkeyPatch, captured: dict) -> None:

@@ -273,7 +273,7 @@ def register_request_context(app: FastAPI) -> None:
                 """Replay the bounded body to downstream Starlette consumers."""
                 nonlocal replayed
                 if replayed:
-                    return {"type": "http.request", "body": b"", "more_body": False}
+                    return {"type": "http.disconnect"}
                 replayed = True
                 if disconnect_message is not None:
                     return disconnect_message
@@ -322,5 +322,6 @@ def register_request_context(app: FastAPI) -> None:
 
 def finish_span(span: Span, span_token: Any) -> None:
     """Detach and close a request span without retaining request context."""
-    context.detach(span_token)
+    with suppress(ValueError):
+        context.detach(span_token)
     span.end()
