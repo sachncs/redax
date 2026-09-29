@@ -145,6 +145,28 @@ def test_protected_routes_reject_missing_key(path: str, payload: dict) -> None:
     assert resp.headers["content-type"].startswith("application/problem+json")
 
 
+def test_auth_and_validation_failures_do_not_echo_canary(capsys) -> None:
+    canary = "auth.validation.canary.7f8d@example.com"
+    app = make_app(make_state(api_keys={"test-key"}))
+    with TestClient(app, raise_server_exceptions=False) as client:
+        auth_failure = client.post(
+            "/v1/redact",
+            json={"text": canary},
+            headers={"X-API-Key": canary},
+        )
+        validation_failure = client.post(
+            "/v1/redact",
+            json={"text": {"value": canary}},
+            headers={"X-API-Key": "test-key"},
+        )
+    output = capsys.readouterr().out
+    assert auth_failure.status_code == 401
+    assert validation_failure.status_code == 422
+    assert canary not in auth_failure.text
+    assert canary not in validation_failure.text
+    assert canary not in output
+
+
 def test_jobs_get_rejects_missing_key() -> None:
     app = make_app(make_state(api_keys={"test-key"}))
     with TestClient(app) as client:
