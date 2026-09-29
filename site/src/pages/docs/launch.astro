@@ -1,0 +1,33 @@
+---
+import DocsLayout from "~/layouts/DocsLayout.astro";
+---
+<DocsLayout active="launch" title="Production launch" description="A concise gate for moving Redax from a working deployment to an evidenced production boundary.">
+  <section class="card border-flame-400/20 bg-flame-500/[0.06] p-6 sm:p-8">
+    <div class="text-[11px] uppercase tracking-[0.2em] text-flame-300">Launch principle</div>
+    <p class="mt-4 text-[16px] leading-[1.7] text-ink-100">A green process is not the same as a proven production boundary. Verify the exact image, model, policy, Redis, audit, telemetry, and rollback behavior for the deployment you operate.</p>
+  </section>
+
+  <section>
+    <h2 class="text-[25px] text-ink-0">Before traffic</h2>
+    <div class="mt-4 grid gap-3">
+      {["Pin the release image digest, Python lockfile, model revision, policy, and persisted-schema versions.", "Set production API keys, trusted hosts, unique hash salt, encrypted job-payload key, and independent audit-integrity key in a secret manager.", "Use durable TLS Redis with a unique namespace, bounded pools/timeouts, backups, and a documented failover owner.", "Configure readiness, ingress limits, Prometheus alerts, dashboards, and an OTLP collector with a privacy policy."].map((item) => <div class="card flex gap-3 p-4"><span class="text-sage-400">✓</span><span>{item}</span></div>)}
+    </div>
+  </section>
+
+  <section>
+    <h2 class="text-[25px] text-ink-0">Synthetic canary</h2>
+    <p class="mt-3">Run <code>/healthz</code>, then <code>/readyz</code>, then one authenticated <code>POST /v1/redact</code> with a synthetic value. Confirm the placeholder, idempotency replay, one durable job reaching a terminal state, and audit/telemetry metadata without the original value.</p>
+  </section>
+
+  <section>
+    <h2 class="text-[25px] text-ink-0">Failure and recovery evidence</h2>
+    <div class="mt-4 grid gap-3 sm:grid-cols-2">
+      {[ ["Replica loss", "Traffic continues and idempotency remains correct."], ["Worker loss", "Accepted work retries or reaches the documented dead-letter state."], ["Redis failover", "Readiness, recovery, duplicate completion, audit, and measured RPO/RTO match the policy."], ["10× traffic", "429/503 behavior, memory, tasks, connections, and queue age remain bounded and recover."], ["Rollback", "API and worker drain, return to the known-good digest, and pass the synthetic canary."] ].map(([name, body]) => <div class="card p-5"><div class="text-[15px] font-semibold text-ink-0">{name}</div><p class="mt-2 text-[13.5px] leading-[1.6] text-ink-400">{body}</p></div>)}
+    </div>
+  </section>
+
+  <section class="card border-white/[0.08] bg-white/[0.03] p-6">
+    <h2 class="text-[22px] text-ink-0">Stop conditions</h2>
+    <p class="mt-3">Stop the rollout if readiness fails, raw text appears after an internal error, an accepted job disappears, telemetry contains request values, or measured capacity exceeds the published operating boundary. Keep the deployment unready until the cause is understood.</p>
+  </section>
+</DocsLayout>

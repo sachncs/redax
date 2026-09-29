@@ -21,6 +21,7 @@ export const DOCS = {
   security: "/redax/docs/security",
   dataFlow: "/redax/docs/data-flow",
   status: "/redax/docs/status",
+  launch: "/redax/docs/launch",
 } as const;
 
 export const HERO = {
@@ -243,6 +244,7 @@ export const FOOTER = {
         { label: "Policies", href: DOCS.policies },
         { label: "Deployment", href: DOCS.deployment },
         { label: "Security boundary", href: DOCS.security },
+        { label: "Production launch", href: DOCS.launch },
       ],
     },
     {
