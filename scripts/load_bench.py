@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import json
+import os
 import platform
 import statistics
 import subprocess
@@ -35,6 +37,33 @@ def git_commit() -> str:
         ).strip()
     except (OSError, subprocess.CalledProcessError):
         return "unknown"
+
+
+def sha256_file(path: Path) -> str:
+    """Return a file digest for benchmark provenance, or ``unknown``."""
+    try:
+        digest = hashlib.sha256()
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+    except OSError:
+        return "unknown"
+
+
+def pinned_model_metadata() -> dict[str, str]:
+    """Read the configured model identity and committed manifest digest."""
+    name = os.environ.get("REDAX_MODEL_NAME", "")
+    revision = os.environ.get("REDAX_MODEL_REVISION", "")
+    digest = ""
+    manifest = Path(__file__).resolve().parent.parent / "MODEL_HASHES.txt"
+    if name and revision and manifest.exists():
+        for line in manifest.read_text(encoding="utf-8").splitlines():
+            parts = line.split()
+            if len(parts) == 3 and parts[1] == name and parts[2] == revision:
+                digest = parts[0]
+                break
+    return {"name": name, "revision": revision, "manifest_sha256": digest}
 
 
 async def run_load(
@@ -247,6 +276,10 @@ def main() -> None:
         "measurement_scope": "local_baseline",
         "commit": git_commit(),
         "runtime": {"python": platform.python_version(), "platform": platform.platform()},
+        "provenance": {
+            "lockfile_sha256": sha256_file(Path("requirements.lock")),
+            "model": pinned_model_metadata(),
+        },
         "target": args.url,
         "workload": {
             "mode": args.mode,

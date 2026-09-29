@@ -3,7 +3,13 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from scripts.load_bench import benchmark_text, request_payload, run_job_once, stream_completed
+from scripts.load_bench import (
+    benchmark_text,
+    pinned_model_metadata,
+    request_payload,
+    run_job_once,
+    stream_completed,
+)
 
 
 @pytest.mark.parametrize(
@@ -30,6 +36,17 @@ def test_request_payload_rejects_unknown_mode() -> None:
 def test_benchmark_text_separates_cold_cache_requests() -> None:
     assert benchmark_text("cache-hot", "synthetic", 4) == "synthetic"
     assert benchmark_text("cache-cold", "synthetic", 4) == "synthetic request-4"
+
+
+def test_pinned_model_metadata_reads_committed_identity(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("REDAX_MODEL_NAME", "fastino/gliner2-privacy-filter-PII-multi")
+    monkeypatch.setenv("REDAX_MODEL_REVISION", "c153999da5f4c509df4322b0c6a1baf3d2c284d7")
+
+    metadata = pinned_model_metadata()
+
+    assert metadata["name"] == "fastino/gliner2-privacy-filter-PII-multi"
+    assert metadata["revision"] == "c153999da5f4c509df4322b0c6a1baf3d2c284d7"
+    assert len(metadata["manifest_sha256"]) == 64
 
 
 @pytest.mark.parametrize(

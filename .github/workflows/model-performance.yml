@@ -30,6 +30,8 @@ jobs:
       - name: Download and verify pinned model
         env:
           REDAX_MODEL_CACHE: ${{ runner.temp }}/redax-model-cache
+          REDAX_MODEL_NAME: fastino/gliner2-privacy-filter-PII-multi
+          REDAX_MODEL_REVISION: c153999da5f4c509df4322b0c6a1baf3d2c284d7
         run: python scripts/download_models.py --cache "$REDAX_MODEL_CACHE"
 
       - name: Run warm model benchmark
@@ -37,6 +39,8 @@ jobs:
           REDAX_ENV: dev
           REDAX_DETECTOR: gliner2
           REDAX_MODEL_CACHE: ${{ runner.temp }}/redax-model-cache
+          REDAX_MODEL_NAME: fastino/gliner2-privacy-filter-PII-multi
+          REDAX_MODEL_REVISION: c153999da5f4c509df4322b0c6a1baf3d2c284d7
           REDAX_HASH_SALT: model-benchmark-salt
           REDAX_RATE_LIMIT_PER_MINUTE: "0"
           REDAX_AUDIT_PATH: ${{ runner.temp }}/redax-model-audit.jsonl
