@@ -16,6 +16,8 @@ from arq.connections import RedisSettings
 from arq.constants import in_progress_key_prefix
 from arq.worker import Worker, func
 
+from app.audit.backend import Event
+from app.audit.redis import RedisAudit
 from app.jobs.store import JobStore
 
 
@@ -155,6 +157,40 @@ async def test_real_redis_admission_and_terminal_transitions_are_atomic(
     assert len(dead_letters) == 1
     assert "job-dlq" in dead_letters[0]
     assert "payload" not in dead_letters[0]
+
+
+@pytest.mark.asyncio
+async def test_real_redis_pii_canary_is_absent_from_job_and_audit_values(
+    real_job_store: JobStore,
+) -> None:
+    canary = "redis.canary.7f8d@example.com"
+    audit = RedisAudit(real_job_store.client, namespace=real_job_store.namespace, required=True)
+    await audit.start()
+    record = await real_job_store.create(owner=canary)
+    await real_job_store.set_result(record.id, {"text": "Email [REDACTED]"})
+    await audit.record(
+        Event(
+            request_id="redis-canary",
+            ts="",
+            policy_version="default-1.0.0",
+            text_chars=len(canary),
+            principal_id="principal-canary",
+            entities_detected=[{"type": "EMAIL", "count": 1, "confidence_avg": 1.0}],
+        )
+    )
+
+    client = real_job_store.client
+    assert client is not None
+    persisted: list[object] = []
+    async for key in client.scan_iter(match=f"{real_job_store.namespace}:*"):
+        kind = await client.type(key)
+        if kind == "hash":
+            persisted.append(await client.hgetall(key))
+        elif kind == "list":
+            persisted.append(await client.lrange(key, 0, -1))
+        else:
+            persisted.append(await client.get(key))
+    assert canary not in repr(persisted)
 
 
 @pytest.mark.asyncio
