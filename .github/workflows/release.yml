@@ -77,6 +77,12 @@ jobs:
             --output dist/RELEASE-METADATA.json \
             --image-digest "${{ steps.push.outputs.digest }}"
 
+      - name: Verify metadata binds the published image
+        env:
+          EXPECTED_DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          test "$(python -c 'import json; print(json.load(open("dist/RELEASE-METADATA.json"))["container_image_digest"])')" = "$EXPECTED_DIGEST"
+
       - name: Generate artifact checksums
         run: sha256sum dist/* > dist/SHA256SUMS
 
