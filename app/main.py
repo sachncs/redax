@@ -50,6 +50,7 @@ from app.observability import (
     configure_tracing,
 )
 from app.redaction.circuit.breaker import Breaker
+from app.redaction.circuit.shared import SharedBreaker
 from app.redaction.pipeline import Pipeline
 from app.redaction.redactor import Redactor
 from app.redaction.stages.gate import Gate
@@ -171,6 +172,15 @@ async def build_state(settings: Settings) -> State:
         log.warning(
             "redax.cache_disabled",
             note="idempotency and response caches skipped until Redis recovers",
+        )
+
+    if pipeline is not None and job_store is not None and job_store.client is not None:
+        pipeline.shared_model_breaker = SharedBreaker(
+            job_store.client,
+            namespace=settings.redis_namespace,
+            name="model",
+            threshold=settings.pipeline_breaker_threshold,
+            cooldown_s=settings.pipeline_breaker_cooldown_s,
         )
 
     audit: Backend

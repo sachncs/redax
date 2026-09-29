@@ -106,3 +106,25 @@ def test_pipeline_recovers_after_circuit_cooldown() -> None:
     time.sleep(0.06)
     second = run_async_coro(pipeline("hi there"))
     assert not second.used_fallback
+
+
+def test_pipeline_uses_shared_breaker_when_configured() -> None:
+    class SharedStub:
+        def __init__(self) -> None:
+            self.successes = 0
+
+        async def allow(self) -> tuple[bool, bool]:
+            return True, False
+
+        async def success(self, _was_probe: bool) -> None:
+            self.successes += 1
+
+        async def failure(self, _was_probe: bool) -> None:
+            raise AssertionError("successful model call must not record failure")
+
+    pipeline = build_test_pipeline()
+    shared = SharedStub()
+    pipeline.shared_model_breaker = shared  # type: ignore[assignment]
+    result = run_async_coro(pipeline("hi there"))
+    assert not result.used_fallback
+    assert shared.successes == 1

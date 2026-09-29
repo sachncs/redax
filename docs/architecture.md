@@ -66,6 +66,7 @@ separate and does not claim model or policy parity with the server.
 | `app/redaction/offsets.py` | `validate_offsets` |
 | `app/redaction/relex.py` | Hash-deterministic HIPS relexicalizer |
 | `app/redaction/policies.py` | YAML policy loader |
+| `app/redaction/circuit/shared.py` | Redis-coordinated model circuit-breaker state |
 | `app/audit/` | `AuditBackend` Protocol + local-file implementation |
 | `app/jobs/store.py` | Redis-backed job lifecycle store and admission counters |
 | `app/jobs/queue.py` | ARQ worker entry point and retry policy |

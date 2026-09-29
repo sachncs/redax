@@ -19,6 +19,7 @@ from arq.worker import Worker, func
 from app.audit.backend import Event
 from app.audit.redis import RedisAudit
 from app.jobs.store import JobStore
+from app.redaction.circuit.shared import SharedBreaker
 
 
 def free_tcp_port() -> int:
@@ -169,6 +170,42 @@ async def test_real_redis_job_claim_allows_one_duplicate_delivery(
     stored = await real_job_store.get(record.id)
     assert stored is not None
     assert stored.status == "running"
+
+
+@pytest.mark.asyncio
+async def test_real_redis_shared_breaker_coordinates_replicas(
+    real_job_store: JobStore,
+) -> None:
+    client = real_job_store.client
+    assert client is not None
+    first = SharedBreaker(
+        client,
+        real_job_store.namespace,
+        "model",
+        threshold=2,
+        cooldown_s=0.1,
+        ttl_seconds=60,
+    )
+    second = SharedBreaker(
+        client,
+        real_job_store.namespace,
+        "model",
+        threshold=2,
+        cooldown_s=0.1,
+        ttl_seconds=60,
+    )
+    assert await asyncio.gather(first.allow(), second.allow()) == [(True, False), (True, False)]
+    await first.failure(False)
+    await second.failure(False)
+    assert await first.allow() == (False, False)
+    await asyncio.sleep(0.11)
+    probes = await asyncio.gather(first.allow(), second.allow())
+    assert sorted(probes) == [(False, False), (True, True)]
+    if probes[0] == (True, True):
+        await first.success(True)
+    else:
+        await second.success(True)
+    assert await first.allow() == (True, False)
 
 
 @pytest.mark.asyncio

@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from app.inference.detector import Span
 from app.redaction.apply import apply_spans
 from app.redaction.circuit.breaker import Breaker, OpenError
+from app.redaction.circuit.shared import SharedBreaker
 from app.redaction.stages.consensus import fuse
 from app.redaction.stages.fallback import from_regex_only
 from app.redaction.stages.gate import Gate
@@ -62,6 +63,7 @@ class Pipeline:
     model_stage: ModelStage
     model_breaker: Breaker
     digest_salt: str = ""
+    shared_model_breaker: SharedBreaker | None = None
 
     async def __call__(self, text: str) -> PipelineResult:
         if not isinstance(text, str):
@@ -153,7 +155,40 @@ class Pipeline:
             return tuple(self.model_stage.detector_sync(text, []))
 
         try:
-            spans = await asyncio.to_thread(self.model_breaker.call, sync_call)
+            if self.shared_model_breaker is None:
+                spans = await asyncio.to_thread(self.model_breaker.call, sync_call)
+            else:
+                try:
+                    allowed, was_probe = await self.shared_model_breaker.allow()
+                except (OSError, RuntimeError, TimeoutError) as exc:
+                    log.warning(
+                        "redax.shared_breaker_unavailable",
+                        extra={"error": exc.__class__.__name__},
+                    )
+                    spans = await asyncio.to_thread(self.model_breaker.call, sync_call)
+                else:
+                    if not allowed:
+                        raise OpenError("shared model circuit is open")
+                    try:
+                        spans = await asyncio.to_thread(sync_call)
+                    except BaseException as exc:
+                        if isinstance(exc, Exception):
+                            try:
+                                await self.shared_model_breaker.failure(was_probe)
+                            except (OSError, RuntimeError, TimeoutError) as breaker_exc:
+                                log.warning(
+                                    "redax.shared_breaker_update_failed",
+                                    extra={"error": breaker_exc.__class__.__name__},
+                                )
+                        raise
+                    else:
+                        try:
+                            await self.shared_model_breaker.success(was_probe)
+                        except (OSError, RuntimeError, TimeoutError) as exc:
+                            log.warning(
+                                "redax.shared_breaker_update_failed",
+                                extra={"error": exc.__class__.__name__},
+                            )
         except OpenError:
             return Outcome(
                 name="model_stage",
