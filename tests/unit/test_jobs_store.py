@@ -67,13 +67,19 @@ class FakeRedis:
     async def eval(
         self, _script: str, _numkeys: int, job_key: str, owner_key: str, total_key: str, *args: str
     ) -> int:
-        if len(args) == 5:
-            status, result, error, ttl, updated_at = args
+        if len(args) == 6:
+            status, result, error, ttl, updated_at, schema_version = args
             record = self.records.get(job_key, {})
             if record.get("status") not in {"queued", "running"}:
                 return 0
             record.update(
-                {"status": status, "result": result, "error": error, "updated_at": updated_at}
+                {
+                    "status": status,
+                    "result": result,
+                    "error": error,
+                    "updated_at": updated_at,
+                    "schema_version": schema_version,
+                }
             )
             await self.expire(job_key, int(ttl))
             owner = record.get("owner", "")
@@ -89,7 +95,18 @@ class FakeRedis:
             else:
                 await self.decr(total_key)
             return 1
-        job_id, status, result, error, owner, ttl, max_total, max_owner, updated_at = args
+        (
+            job_id,
+            status,
+            result,
+            error,
+            owner,
+            ttl,
+            max_total,
+            max_owner,
+            updated_at,
+            schema_version,
+        ) = args
         total = self.counter.get(total_key, 0)
         owner_count = self.counter.get(owner_key, 0)
         if total >= int(max_total) or (owner and owner_count >= int(max_owner)):
@@ -103,6 +120,7 @@ class FakeRedis:
                 "error": error,
                 "owner": owner,
                 "updated_at": updated_at,
+                "schema_version": schema_version,
             },
         )
         await self.expire(job_key, int(ttl))
@@ -163,6 +181,7 @@ async def test_create_keeps_ttl_and_tracks_owner(store: JobStore, redis_client: 
     record = await store.create(owner="k1")
     owner_token = store.owner_token("k1")
     assert redis_client.records[f"redax:job:{record.id}"]["owner"] == owner_token
+    assert redis_client.records[f"redax:job:{record.id}"]["schema_version"] == "1"
     assert redis_client.counter[f"redax:jobs:{owner_token}"] == 1
     assert (f"redax:job:{record.id}", 60) in redis_client.expires
     assert (f"redax:jobs:{owner_token}", 60) in redis_client.expires
@@ -251,6 +270,7 @@ async def test_set_record_with_none_result_writes_empty_field(
     await store.set_record(record)
     stored = redis_client.records["redax:job:abc"]
     assert stored["result"] == ""
+    assert stored["schema_version"] == "1"
 
 
 async def test_set_record_with_falsy_but_non_none_result_writes_value(

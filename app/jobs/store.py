@@ -56,6 +56,7 @@ class JobStore:
     """
 
     KEY_TEMPLATE = "{ns}:job:{id}"
+    JOB_SCHEMA_VERSION = 1
     COUNT_KEY_TEMPLATE = "{ns}:jobs:{owner}"
     TOTAL_COUNT_KEY_TEMPLATE = "{ns}:jobs:inflight"
     ADMIT_SCRIPT = """
@@ -64,6 +65,7 @@ local owner = tonumber(redis.call('GET', KEYS[2]) or '0')
 if total >= tonumber(ARGV[7]) then return 0 end
 if ARGV[5] ~= '' and owner >= tonumber(ARGV[8]) then return 0 end
 redis.call('HSET', KEYS[1], 'id', ARGV[1], 'status', ARGV[2], 'result', ARGV[3], 'error', ARGV[4], 'owner', ARGV[5], 'updated_at', ARGV[9])
+redis.call('HSET', KEYS[1], 'schema_version', ARGV[10])
 redis.call('EXPIRE', KEYS[1], ARGV[6])
 redis.call('INCR', KEYS[3])
 redis.call('EXPIRE', KEYS[3], ARGV[6])
@@ -76,7 +78,7 @@ return 1
     TERMINAL_SCRIPT = """
 local status = redis.call('HGET', KEYS[1], 'status')
 if status ~= 'queued' and status ~= 'running' then return 0 end
-redis.call('HSET', KEYS[1], 'status', ARGV[1], 'result', ARGV[2], 'error', ARGV[3], 'updated_at', ARGV[5])
+redis.call('HSET', KEYS[1], 'status', ARGV[1], 'result', ARGV[2], 'error', ARGV[3], 'updated_at', ARGV[5], 'schema_version', ARGV[6])
 redis.call('EXPIRE', KEYS[1], ARGV[4])
 local owner = redis.call('HGET', KEYS[1], 'owner')
 if owner ~= false and owner ~= '' then
@@ -203,6 +205,7 @@ return 1
             str(max_inflight),
             str(max_jobs_per_key),
             str(time.time()),
+            str(self.JOB_SCHEMA_VERSION),
         )
         if int(result) != 1:
             return None
@@ -236,6 +239,8 @@ return 1
         raw = await client.hgetall(self._key(job_id))  # type: ignore[misc]
         if not raw:
             return None
+        if raw.get("schema_version") != str(self.JOB_SCHEMA_VERSION):
+            return None
         result_raw = raw.get("result")
         error_raw = raw.get("error")
         return JobRecord(
@@ -253,7 +258,12 @@ return 1
             raise RuntimeError("JobStore.start() must run before set_status()")
         key = self._key(job_id)
         await client.hset(  # type: ignore[misc]
-            key, mapping={"status": status, "updated_at": str(time.time())}
+            key,
+            mapping={
+                "status": status,
+                "updated_at": str(time.time()),
+                "schema_version": str(self.JOB_SCHEMA_VERSION),
+            },
         )
         await client.expire(key, self.ttl_seconds)
 
@@ -349,6 +359,7 @@ return 1
                 "error": record.error or "",
                 "owner": record.owner,
                 "updated_at": str(time.time()),
+                "schema_version": str(self.JOB_SCHEMA_VERSION),
             },
         )
         await client.expire(key, self.ttl_seconds)
@@ -378,6 +389,7 @@ async def set_terminal(
         error,
         str(ttl_seconds),
         str(time.time()),
+        str(JobStore.JOB_SCHEMA_VERSION),
     )
 
 
