@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 from typing import Literal
 
 from cryptography.fernet import Fernet
@@ -228,6 +229,16 @@ class Settings(BaseSettings):
             raise ValueError(
                 "REDAX_JOB_PAYLOAD_ENCRYPTION_KEY must be configured when REDAX_ENV=prod"
             )
+        if self.env == "prod":
+            from app.redaction.policies import load_policy
+
+            policy_path = Path(self.policies_dir) / f"{self.default_policy}.yaml"
+            try:
+                load_policy(policy_path)
+            except Exception as exc:
+                raise ValueError(
+                    "REDAX_DEFAULT_POLICY must point to a readable, valid policy in production"
+                ) from exc
         if self.detector == "regex":
             # Explicit opt-in only; regex is the boot-time fallback path.
             return

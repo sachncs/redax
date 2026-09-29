@@ -52,6 +52,25 @@ def test_validate_accepts_real_secrets() -> None:
     s.verify()
 
 
+def test_production_requires_a_valid_default_policy(tmp_path) -> None:
+    settings = Settings(
+        api_keys="k1",
+        hash_salt="a-strong-secret",
+        trusted_hosts="localhost",
+        policies_dir=str(tmp_path),
+        job_payload_encryption_key="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+    )
+    with pytest.raises(ValueError, match="REDAX_DEFAULT_POLICY"):
+        settings.verify()
+
+    (tmp_path / "default.yaml").write_text(
+        "name: default\nversion: 1.0.0\nfields:\n  email:\n    strategy: unsupported\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="REDAX_DEFAULT_POLICY"):
+        settings.verify()
+
+
 def test_validate_refuses_dev_key() -> None:
     s = Settings(api_keys="dev-key", hash_salt="a-strong-secret")
     with pytest.raises(ValueError, match="REDAX_API_KEYS"):

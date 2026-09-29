@@ -121,6 +121,9 @@ All settings read from environment variables prefixed with `REDAX_`. See
 
 - Set `REDAX_ENV=prod`, `REDAX_API_KEYS`, and `REDAX_TRUSTED_HOSTS`
 - Set `REDAX_HASH_SALT` to a per-deployment random value
+- Keep the configured `${REDAX_POLICIES_DIR}/${REDAX_DEFAULT_POLICY}.yaml`
+  readable and valid; production startup rejects a missing or malformed default
+  policy rather than serving with an implicit fallback
 - Mount `REDAX_AUDIT_PATH` to durable storage (e.g. an EBS volume or a
   log shipper tail)
 - Set `REDAX_REDIS_URL` to a stable Redis (jobs and rate limit depend on it)
