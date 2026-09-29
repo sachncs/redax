@@ -9,8 +9,9 @@ Before applying it:
 2. Create the `redax-redis` Secret with a TLS Redis URL and the `redax-api`
    Secret with `REDAX_*` keys, a unique hash salt, and a generated Fernet job
    payload key.
-3. Provision an RWX storage class for `redax-audit` or replace the local audit
-   backend with the organisation's durable audit sink.
+3. The reference topology uses Redis-backed audit events so multiple API
+   replicas share one bounded audit stream. If file audit is selected instead,
+   provide organisation-managed durable storage and its retention/backup policy.
 4. Configure an ingress with TLS, request-body limits, timeouts, and the
    service's `/readyz` endpoint as its readiness target.
 5. Label the ingress-controller namespace with

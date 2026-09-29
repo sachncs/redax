@@ -4,7 +4,6 @@ namespace: redax
 resources:
   - namespace.yaml
   - configmap.yaml
-  - audit-pvc.yaml
   - api-deployment.yaml
   - worker-deployment.yaml
   - service.yaml

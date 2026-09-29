@@ -9,7 +9,8 @@ data:
   REDAX_DETECTOR: gliner2
   REDAX_MODEL_CACHE: /models
   REDAX_POLICIES_DIR: /policies
-  REDAX_AUDIT_PATH: /var/lib/redax/audit.jsonl
+  REDAX_AUDIT_BACKEND: redis
+  REDAX_AUDIT_REDIS_MAX_EVENTS: "100000"
   REDAX_AUDIT_REQUIRED: "true"
   REDAX_TRUSTED_HOSTS: redax.example.com
   REDAX_CORS_ORIGINS: https://app.example.com

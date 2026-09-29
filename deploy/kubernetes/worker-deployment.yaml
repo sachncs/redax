@@ -67,11 +67,7 @@ spec:
             timeoutSeconds: 3
             failureThreshold: 3
           volumeMounts:
-            - {name: audit, mountPath: /var/lib/redax}
             - {name: tmp, mountPath: /tmp}
       volumes:
-        - name: audit
-          persistentVolumeClaim:
-            claimName: redax-audit
         - name: tmp
           emptyDir: {}
