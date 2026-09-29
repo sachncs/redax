@@ -3,6 +3,7 @@ from __future__ import annotations
 from importlib import import_module
 
 import pytest
+from opentelemetry.sdk.trace.export import SpanExportResult
 
 from app.observability import tracing
 from app.observability.metrics import TRACING_EXPORT_FAILURES
@@ -71,4 +72,40 @@ def test_flush_tracing_contains_exporter_failure(monkeypatch: pytest.MonkeyPatch
     after = sum(
         sample.value for metric in TRACING_EXPORT_FAILURES.collect() for sample in metric.samples
     )
+    assert after == before + 1
+
+
+def test_counting_exporter_counts_rejected_batch() -> None:
+    class Exporter:
+        def export(self, _spans: object) -> SpanExportResult:
+            return SpanExportResult.FAILURE
+
+    before = sum(
+        sample.value for metric in TRACING_EXPORT_FAILURES.collect() for sample in metric.samples
+    )
+
+    result = tracing.CountingSpanExporter(Exporter()).export([])
+
+    after = sum(
+        sample.value for metric in TRACING_EXPORT_FAILURES.collect() for sample in metric.samples
+    )
+    assert result is SpanExportResult.FAILURE
+    assert after == before + 1
+
+
+def test_counting_exporter_converts_export_exception_to_failure() -> None:
+    class Exporter:
+        def export(self, _spans: object) -> SpanExportResult:
+            raise RuntimeError("collector unavailable")
+
+    before = sum(
+        sample.value for metric in TRACING_EXPORT_FAILURES.collect() for sample in metric.samples
+    )
+
+    result = tracing.CountingSpanExporter(Exporter()).export([])
+
+    after = sum(
+        sample.value for metric in TRACING_EXPORT_FAILURES.collect() for sample in metric.samples
+    )
+    assert result is SpanExportResult.FAILURE
     assert after == before + 1

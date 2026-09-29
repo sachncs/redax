@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from opentelemetry import trace
 from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExporter, SpanExportResult
 
 from app.observability.metrics import TRACING_EXPORT_FAILURES
 
@@ -13,6 +15,30 @@ OTLP_MAX_QUEUE_SIZE = 2_048
 OTLP_MAX_EXPORT_BATCH_SIZE = 512
 OTLP_SCHEDULE_DELAY_MILLIS = 5_000.0
 OTLP_EXPORT_TIMEOUT_MILLIS = 30_000.0
+
+
+class CountingSpanExporter(SpanExporter):
+    """Count OTLP export failures while preserving fail-open telemetry."""
+
+    def __init__(self, exporter: SpanExporter) -> None:
+        self.exporter = exporter
+
+    def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
+        """Export spans and count a rejected batch without raising."""
+        try:
+            result = self.exporter.export(spans)
+        except Exception:
+            TRACING_EXPORT_FAILURES.inc()
+            return SpanExportResult.FAILURE
+        if result is not SpanExportResult.SUCCESS:
+            TRACING_EXPORT_FAILURES.inc()
+        return result
+
+    def shutdown(self) -> None:
+        """Release the wrapped exporter during provider shutdown."""
+        shutdown = getattr(self.exporter, "shutdown", None)
+        if callable(shutdown):
+            shutdown()
 
 
 class Tracing:
@@ -54,7 +80,7 @@ class Tracing:
 
                 provider.add_span_processor(
                     BatchSpanProcessor(
-                        OTLPSpanExporter(endpoint=otlp_endpoint),
+                        CountingSpanExporter(OTLPSpanExporter(endpoint=otlp_endpoint)),
                         max_queue_size=OTLP_MAX_QUEUE_SIZE,
                         max_export_batch_size=OTLP_MAX_EXPORT_BATCH_SIZE,
                         schedule_delay_millis=OTLP_SCHEDULE_DELAY_MILLIS,
