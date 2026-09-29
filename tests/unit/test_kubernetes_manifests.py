@@ -57,3 +57,22 @@ def test_monitoring_assets_cover_queue_age_retries_and_job_latency() -> None:
     expressions = {target["expr"] for target in job_panel["targets"]}
     assert any("redax_job_duration_seconds_bucket" in expression for expression in expressions)
     assert any("redax_job_retries_total" in expression for expression in expressions)
+
+
+def test_hpas_use_concurrency_and_durable_queue_signals() -> None:
+    root = Path(__file__).parents[2]
+    documents = list(yaml.safe_load_all((root / "deploy/kubernetes/hpa.yaml").read_text()))
+    api, worker = documents
+
+    api_metrics = {
+        metric["type"]: metric for metric in api["spec"]["metrics"] if metric["type"] == "Pods"
+    }
+    assert api_metrics["Pods"]["pods"]["metric"]["name"] == "redax_requests_inflight"
+    assert api_metrics["Pods"]["pods"]["target"]["averageValue"] == "80"
+
+    external_names = {
+        metric["external"]["metric"]["name"]
+        for metric in worker["spec"]["metrics"]
+        if metric["type"] == "External"
+    }
+    assert external_names == {"redax_queue_depth", "redax_queue_oldest_age_seconds"}

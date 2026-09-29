@@ -19,9 +19,23 @@ Before applying it:
    ingress and restrict API/worker egress to cluster DNS, HTTPS, and Redis
    ports; adjust the policy when the managed Redis endpoint uses a different
    port or the ingress controller uses a different namespace.
+6. Configure the Prometheus Adapter (or an equivalent custom-metrics adapter)
+   to expose `redax_requests_inflight` as a per-pod metric and
+   `redax_queue_depth` plus `redax_queue_oldest_age_seconds` as external
+   metrics. The HPA combines these signals with CPU and scales on the highest
+   recommendation; CPU alone is not a safe proxy for model or queue pressure.
 
 The manifests intentionally do not deploy Redis. Redis persistence, failover,
 backup, restore, and RPO/RTO are operator-owned production requirements.
+
+The API HPA starts at three replicas and targets 80 admitted requests per pod.
+The worker HPA starts at two replicas and targets a queue depth of 10 or an
+oldest queued job age of 30 seconds. These are conservative starting points,
+not measured production capacity limits: validate them with the benchmark
+matrix in [`docs/scaling.md`](../../docs/scaling.md), then change them with a
+recorded load-test result. Keep worker scale-down stabilization and the worker
+PDB in place so active jobs get the configured termination grace period and
+ARQ completion window.
 
 ```bash
 kubectl create namespace redax

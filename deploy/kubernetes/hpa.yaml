@@ -19,6 +19,15 @@ spec:
         target:
           type: Utilization
           averageUtilization: 70
+    # Prometheus Adapter must expose this per-pod metric from the
+    # redax_requests_inflight series. HPA takes the highest recommendation.
+    - type: Pods
+      pods:
+        metric:
+          name: redax_requests_inflight
+        target:
+          type: AverageValue
+          averageValue: "80"
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -38,3 +47,19 @@ spec:
         target:
           type: Utilization
           averageUtilization: 70
+    # These external metrics keep queue latency bounded when CPU is low but
+    # jobs are waiting on a saturated model or dependency.
+    - type: External
+      external:
+        metric:
+          name: redax_queue_depth
+        target:
+          type: Value
+          value: "10"
+    - type: External
+      external:
+        metric:
+          name: redax_queue_oldest_age_seconds
+        target:
+          type: Value
+          value: "30"
