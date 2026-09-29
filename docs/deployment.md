@@ -77,6 +77,7 @@ All settings read from environment variables prefixed with `REDAX_`. See
 | `REDAX_MAX_BATCH_CHARS` | `1000000` | aggregate character budget across one batch; excess returns 413 |
 | `REDAX_API_KEYS` | `""` | comma-separated; required when `REDAX_ENV=prod` |
 | `REDAX_API_KEY_SCOPES` | `""` | optional JSON object mapping each configured key to scopes such as `redact`, `detect`, `jobs`, `policies:read`, and `metrics:read`; omitted means legacy full access |
+| `REDAX_API_KEY_REVOCATIONS` | `""` | comma-separated configured keys rejected at startup; supports controlled revocation while replacement keys overlap during rotation |
 | `REDAX_RATE_LIMIT_PER_MINUTE` | `60` | per API key; 0 disables |
 | `REDAX_RATE_LIMIT_FAIL_OPEN` | `false` | allow authenticated traffic when Redis rate limiting is unavailable |
 | `REDAX_CACHE_TTL_SECONDS` | `3600` | response cache TTL |

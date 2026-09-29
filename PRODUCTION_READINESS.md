@@ -25,7 +25,7 @@ as each production milestone lands.
 | Requirement | Status | Evidence / gap |
 |---|---|---|
 | Production configuration fails securely | PASS | `Settings.verify()`, `tests/unit/test_config.py`, and production API-key/trusted-host/hash-salt checks. |
-| Scoped authorization | PARTIAL | Optional JSON scopes enforce redact, detect, jobs, policies, and metrics endpoints; external rotation/revocation and a control-plane audit are pending. |
+| Scoped authorization | PARTIAL | Optional JSON scopes enforce redact, detect, jobs, policies, and metrics endpoints; overlapping active keys and deployment-native revocation are supported, while external rotation/control-plane audit remain pending. |
 | Secrets stay out of telemetry | PARTIAL | Error, audit, cache, idempotency, metrics, detector-failure log, metadata-only request/stream trace, and real-Redis job/audit canaries exist; auth, failure, and exporter coverage remains incomplete. |
 | Automated PII leak suite | PARTIAL | Canaries cover synchronous response, metrics, audit, detector-failure logs, streaming response/audit/traces/cancellation, durable-job output/store/audit, and real-Redis persisted values; the complete auth, validation, job-cancellation, and audit-failure matrix is pending. |
 | No silent raw pass-through after internal failure | PARTIAL | Model fallback, audit-required rejection, error handlers, and stream cancellation are tested; policy, shutdown, and full failure-matrix coverage remain. |

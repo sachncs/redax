@@ -21,8 +21,10 @@ affected principal's rate limit or block it at the ingress.
 Confirm the old key is rejected, the new key is accepted only for its intended
 scope, and metrics contain identifiers rather than secrets. Record the rotation
 time and deployment version. Scoped authorization is configured with
-`REDAX_API_KEY_SCOPES`; changing or revoking a key requires a controlled config
-rollout until an external principal control plane is added.
+`REDAX_API_KEY_SCOPES`; use `REDAX_API_KEY_REVOCATIONS` to deny a configured key
+without removing it during an overlap window. Changing keys or revocations
+requires a controlled config rollout until an external principal control plane
+is added.
 
 ## Release supply-chain gate
 

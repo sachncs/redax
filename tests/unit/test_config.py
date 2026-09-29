@@ -90,6 +90,37 @@ def test_api_key_set_strips_blanks() -> None:
     assert s.api_key_set() == {"a", "b"}
 
 
+def test_api_key_revocation_removes_key_from_authentication_set() -> None:
+    s = Settings(api_keys="a,b", api_key_revocations=" b ")
+    assert s.configured_api_key_set() == {"a", "b"}
+    assert s.api_key_revoked_set() == {"b"}
+    assert s.api_key_set() == {"a"}
+
+
+def test_api_key_revocation_must_reference_configured_key() -> None:
+    s = Settings(
+        api_keys="a",
+        api_key_revocations="b",
+        hash_salt="a-strong-secret",
+        trusted_hosts="localhost",
+        job_payload_encryption_key="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+    )
+    with pytest.raises(ValueError, match="configured API keys only"):
+        s.verify()
+
+
+def test_production_cannot_revoke_every_api_key() -> None:
+    s = Settings(
+        api_keys="a,b",
+        api_key_revocations="a,b",
+        hash_salt="a-strong-secret",
+        trusted_hosts="localhost",
+        job_payload_encryption_key="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+    )
+    with pytest.raises(ValueError, match="every production API key"):
+        s.verify()
+
+
 def test_api_key_scopes_parse_json() -> None:
     s = Settings(
         api_keys="k1,k2",

@@ -96,6 +96,27 @@ def test_require_api_key_valid_returns_key() -> None:
     assert require_api_key(state=state, x_api_key="k1") == "k1"
 
 
+def test_multiple_active_keys_support_rotation_overlap() -> None:
+    state = make_state(api_keys={"old-key", "new-key"})
+    assert require_api_key(state=state, x_api_key="old-key") == "old-key"
+    assert require_api_key(state=state, x_api_key="new-key") == "new-key"
+
+
+def test_revoked_key_is_rejected_while_replacement_remains_valid() -> None:
+    from app.config import Settings
+
+    state = make_state(api_keys={"placeholder"})
+    state.settings = Settings(
+        env="dev",
+        api_keys="old-key,new-key",
+        api_key_revocations="old-key",
+    )
+    with pytest.raises(HTTPException) as exc_info:
+        require_api_key(state=state, x_api_key="old-key")
+    assert exc_info.value.status_code == 401
+    assert require_api_key(state=state, x_api_key="new-key") == "new-key"
+
+
 def test_require_api_key_disabled_passthrough() -> None:
     state = make_state(api_keys=set())
     assert require_api_key(state=state) == "anonymous"

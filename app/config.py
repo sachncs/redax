@@ -76,6 +76,7 @@ class Settings(BaseSettings):
 
     api_keys: str = ""
     api_key_scopes: str = ""
+    api_key_revocations: str = ""
 
     rate_limit_per_minute: int = Field(default=60, ge=0)
     rate_limit_fail_open: bool = False
@@ -112,7 +113,15 @@ class Settings(BaseSettings):
 
     def api_key_set(self) -> set[str]:
         """Parse ``api_keys`` (comma-separated) into a deduped set of trimmed keys."""
+        return self.configured_api_key_set() - self.api_key_revoked_set()
+
+    def configured_api_key_set(self) -> set[str]:
+        """Return every configured key before deployment revocations apply."""
         return {k.strip() for k in self.api_keys.split(",") if k.strip()}
+
+    def api_key_revoked_set(self) -> set[str]:
+        """Parse the deployment-provided comma-separated revocation denylist."""
+        return {k.strip() for k in self.api_key_revocations.split(",") if k.strip()}
 
     def api_key_scope_map(self) -> dict[str, set[str]]:
         """Parse optional JSON API-key scopes without exposing key values."""
@@ -172,7 +181,11 @@ class Settings(BaseSettings):
                 "the placeholder (change-me) seeds the hash strategy and "
                 "cache key and is unsafe regardless of REDAX_API_KEYS."
             )
-        keys = self.api_key_set()
+        keys = self.configured_api_key_set()
+        revoked = self.api_key_revoked_set()
+        unknown_revocations = revoked - keys
+        if unknown_revocations:
+            raise ValueError("REDAX_API_KEY_REVOCATIONS must reference configured API keys only")
         scope_map = self.api_key_scope_map()
         if scope_map and set(scope_map) != keys:
             raise ValueError("REDAX_API_KEY_SCOPES must define exactly the configured API keys")
@@ -199,6 +212,8 @@ class Settings(BaseSettings):
                 "REDAX_API_KEYS must be configured when REDAX_ENV=prod; "
                 "use REDAX_ENV=dev only for local unauthenticated development."
             )
+        if self.env == "prod" and not self.api_key_set():
+            raise ValueError("REDAX_API_KEY_REVOCATIONS cannot revoke every production API key")
         if self.env == "prod" and not self.trusted_host_list():
             raise ValueError("REDAX_TRUSTED_HOSTS must be configured when REDAX_ENV=prod.")
         if self.job_payload_encryption_key:
