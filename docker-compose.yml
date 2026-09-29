@@ -256,6 +256,15 @@ services:
     depends_on:
       loki:
         condition: service_healthy
+    healthcheck:
+      # The Promtail image is intentionally minimal and has no wget/curl.
+      # Process liveness is the portable health signal; Loki delivery is
+      # verified by the local Compose contract check.
+      test: ["CMD", "/bin/sh", "-c", "kill -0 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     restart: unless-stopped
     logging:
       driver: json-file
