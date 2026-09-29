@@ -42,6 +42,7 @@ async def run_load(
     total: int | None,
     concurrency: int,
     text: str,
+    mode: str = "redact",
     duration_seconds: float = 0.0,
 ) -> dict[str, Any]:
     """Issue bounded concurrent requests and return aggregate measurements."""
@@ -60,7 +61,7 @@ async def run_load(
             async with semaphore:
                 request_started = time.perf_counter()
                 try:
-                    response = await client.post(url, json={"text": text})
+                    response = await client.post(url, json=request_payload(mode, text))
                     status = str(response.status_code)
                 except httpx.HTTPError:
                     status = "transport_error"
@@ -100,6 +101,17 @@ async def run_load(
     }
 
 
+def request_payload(mode: str, text: str) -> dict[str, Any]:
+    """Build one of the supported synthetic, non-sensitive benchmark payloads."""
+    if mode == "redact":
+        return {"text": text}
+    if mode == "batch":
+        return {"items": [{"text": text}, {"text": text}]}
+    if mode == "stream":
+        return {"text": text, "chunk_chars": 100}
+    raise ValueError(f"unsupported benchmark mode: {mode}")
+
+
 def parse_args() -> argparse.Namespace:
     """Parse the intentionally small load-test CLI."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -113,6 +125,7 @@ def parse_args() -> argparse.Namespace:
         help="sustain concurrent waves for this duration; overrides --requests when positive",
     )
     parser.add_argument("--text", default="Contact alice@example.com for a safe response.")
+    parser.add_argument("--mode", choices=("redact", "batch", "stream"), default="redact")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--fail-on-error", action="store_true")
     parser.add_argument("--max-p99-ms", type=float)
@@ -143,6 +156,7 @@ def main() -> None:
                 args.requests if args.duration_seconds == 0 else None,
                 args.concurrency,
                 args.text,
+                args.mode,
                 args.duration_seconds,
             )
         ),

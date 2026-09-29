@@ -119,12 +119,29 @@ jobs:
           for concurrency in 10 40 80; do
             python scripts/load_bench.py \
               --url http://127.0.0.1:8010/v1/redact \
+              --mode redact \
               --requests 500 \
               --concurrency "$concurrency" \
               --fail-on-error \
               --max-p99-ms 1000 \
               --output "performance-${concurrency}.json"
           done
+          python scripts/load_bench.py \
+            --url http://127.0.0.1:8010/v1/redact/batch \
+            --mode batch \
+            --requests 200 \
+            --concurrency 10 \
+            --fail-on-error \
+            --max-p99-ms 1000 \
+            --output performance-batch.json
+          python scripts/load_bench.py \
+            --url http://127.0.0.1:8010/v1/redact/stream \
+            --mode stream \
+            --requests 200 \
+            --concurrency 10 \
+            --fail-on-error \
+            --max-p99-ms 1000 \
+            --output performance-stream.json
 
       - name: Upload performance artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
