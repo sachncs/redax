@@ -32,6 +32,11 @@ jobs:
         run: |
           test "${GITHUB_REF_NAME#v}" = "$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
 
+      - name: Generate release metadata
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+        run: python scripts/release_metadata.py --output dist/RELEASE-METADATA.json
+
       - name: Generate artifact checksums
         run: sha256sum dist/* > dist/SHA256SUMS
 
@@ -95,6 +100,7 @@ jobs:
             dist/*.whl
             dist/*.tar.gz
             dist/SHA256SUMS
+            dist/RELEASE-METADATA.json
             dist/sbom-*.cdx.json
 
       - name: Create GitHub release
@@ -104,4 +110,4 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             --title "Redax $GITHUB_REF_NAME" \
             --generate-notes \
-            dist/*.whl dist/*.tar.gz dist/SHA256SUMS
+            dist/*.whl dist/*.tar.gz dist/SHA256SUMS dist/RELEASE-METADATA.json

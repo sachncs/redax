@@ -7,15 +7,17 @@ redaction, job-state errors, or a security regression.
 
 ## Diagnose
 
-Compare release commit, dependency lock, model revision/digest, policy schema,
-Redis schema version, and audit schema. Use synthetic canaries and dashboards;
-do not replay production request bodies into debugging tools.
+Download `RELEASE-METADATA.json` with the release assets and compare its commit,
+dependency-lock digest, model manifest digest/revisions, and persisted schema
+versions with the running image. Use synthetic canaries and dashboards; do not
+replay production request bodies into debugging tools.
 
 ## Immediate mitigation
 
 Stop rollout, remove unhealthy replicas from service, and route to the last
 known-good immutable image digest. Preserve Redis and audit data. Do not roll back
-across an untested persisted-schema migration.
+across an untested persisted-schema migration. Verify the matching `SHA256SUMS`
+entry before trusting the metadata file.
 
 ## Recovery and verification
 
