@@ -362,6 +362,20 @@ def test_running_job_cannot_be_cancelled(app_with_state):
     assert response.status_code == 409
 
 
+def test_cancelled_job_does_not_leak_canary(app_with_state, capsys):
+    canary = "job.cancel.canary.7f8d@example.com"
+    app_with_state.state.state.job_queue = PassiveJobQueue()
+    with TestClient(app_with_state) as client:
+        sub = client.post("/v1/jobs", json={"text": canary}, headers={"X-API-Key": "test-key"})
+        job_id = sub.json()["id"]
+        response = client.delete(f"/v1/jobs/{job_id}", headers={"X-API-Key": "test-key"})
+
+    assert response.status_code == 200
+    assert canary not in response.text
+    assert canary not in repr(app_with_state.state.state.job_store.records)
+    assert canary not in capsys.readouterr().out
+
+
 @pytest.fixture
 def app_with_no_redactor():
     test_state = State()
@@ -523,6 +537,18 @@ def test_failed_job_does_not_leak_internal_error(app_with_no_redactor):
             time.sleep(0.05)
     assert body["status"] == "failed"
     assert body["error"] == "job failed"
+
+
+def test_failed_job_does_not_leak_canary(app_with_no_redactor, capsys):
+    canary = "job.failure.canary.7f8d@example.com"
+    with TestClient(app_with_no_redactor) as client:
+        sub = client.post("/v1/jobs", json={"text": canary}, headers={"X-API-Key": "test-key"})
+        job_id = sub.json()["id"]
+        body = client.get(f"/v1/jobs/{job_id}", headers={"X-API-Key": "test-key"}).json()
+    assert body["status"] == "failed"
+    assert canary not in repr(body)
+    assert canary not in repr(app_with_no_redactor.state.state.job_store.records)
+    assert canary not in capsys.readouterr().out
 
 
 @pytest.fixture
