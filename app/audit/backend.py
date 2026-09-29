@@ -23,6 +23,7 @@ class Event:
         ts: ISO-8601 timestamp; empty until the backend stamps it.
         policy_version: Logical version of the policy that was applied.
         text_chars: Length of the input text.
+        principal_id: Keyed, non-secret identifier for the authenticated caller.
         entities_detected: Per-type counts and mean confidences.
         inference_ms: Wall-clock inference time.
         redactor_version: The redax release that processed this request.
@@ -40,6 +41,7 @@ class Event:
     ts: str
     policy_version: str
     text_chars: int
+    principal_id: str = ""
     entities_detected: list[dict[str, Any]] = field(default_factory=list)
     inference_ms: int = 0
     redactor_version: str = "0.1.0"

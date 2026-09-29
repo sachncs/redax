@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field
 
 from app.api.policy import default_policy, policy_version
 from app.audit.backend import Event, span_summary
-from app.auth import require_scope
+from app.auth import principal_id, require_scope
 from app.errors import (
     TRANSIENT_EXC,
     internal_error,
@@ -119,6 +119,7 @@ def register(app: FastAPI) -> None:
                     record.id,
                     queue_payload,
                     request_id,
+                    principal_identifier=principal_id(api_key, getattr(settings, "hash_salt", "")),
                     _job_id=record.id,
                     _queue_name="redax:jobs",
                 )
@@ -179,6 +180,7 @@ async def run_job(
     store: JobStore,
     request_id: str,
     state: State,
+    principal_identifier: str = "",
     *,
     mark_failure: bool = True,
 ) -> bool:
@@ -235,6 +237,7 @@ async def run_job(
             await audit.record(
                 Event(
                     request_id=request_id,
+                    principal_id=principal_identifier,
                     ts="",
                     policy_version=policy_version(policy),
                     text_chars=len(payload["text"]),

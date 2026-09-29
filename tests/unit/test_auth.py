@@ -11,7 +11,7 @@ from app.api import (
     register_redact,
     register_stream,
 )
-from app.auth import require_api_key
+from app.auth import principal_id, require_api_key
 from app.errors import install_error_handlers
 from app.state import State
 
@@ -74,6 +74,14 @@ def test_require_api_key_missing_rejected() -> None:
     with pytest.raises(HTTPException) as exc_info:
         require_api_key(state=state)
     assert exc_info.value.status_code == 401
+
+
+def test_principal_id_is_stable_and_does_not_include_api_key() -> None:
+    identifier = principal_id("secret-api-key", "deployment-salt")
+    assert identifier == principal_id("secret-api-key", "deployment-salt")
+    assert len(identifier) == 24
+    assert "secret-api-key" not in identifier
+    assert identifier != principal_id("other-api-key", "deployment-salt")
 
 
 def test_require_api_key_invalid_rejected() -> None:

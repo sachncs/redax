@@ -23,14 +23,26 @@ MAX_TRIES = 5
 
 
 async def process_job(
-    ctx: dict[str, Any], job_id: str, payload: dict[str, Any], request_id: str
+    ctx: dict[str, Any],
+    job_id: str,
+    payload: dict[str, Any],
+    request_id: str,
+    principal_identifier: str = "",
 ) -> None:
     """Run one job attempt and ask ARQ to retry transient failures."""
     state = ctx["state"]
     payload = JobPayloadCipher(
         getattr(getattr(state, "settings", None), "job_payload_encryption_key", "")
     ).decode(payload)
-    success = await run_job(job_id, payload, state.job_store, request_id, state, mark_failure=False)
+    success = await run_job(
+        job_id,
+        payload,
+        state.job_store,
+        request_id,
+        state,
+        principal_identifier,
+        mark_failure=False,
+    )
     if success:
         return
     if int(ctx.get("job_try", 1)) < MAX_TRIES:

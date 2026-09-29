@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, FastAPI, Request
 from pydantic import BaseModel, Field
 
 from app.audit.backend import Event, span_summary
-from app.auth import require_scope
+from app.auth import principal_id, require_scope
 from app.errors import TRANSIENT_EXC, internal_error, payload_too_large, timeout_error
 from app.logging import get_logger
 from app.middleware import get_request_id
@@ -81,6 +81,7 @@ def register(app: FastAPI) -> None:
                         ts="",
                         policy_version="detect",
                         text_chars=len(body.text),
+                        principal_id=principal_id(api_key, getattr(settings, "hash_salt", "")),
                         entities_detected=span_summary(spans),
                         trace_id=current_trace_id_hex() or "",
                         direction="detect",

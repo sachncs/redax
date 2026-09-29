@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 
 from app.api.policy import default_policy, policy_version
 from app.audit.backend import Event, span_summary
-from app.auth import require_scope
+from app.auth import principal_id, require_scope
 from app.errors import TRANSIENT_EXC, internal_error, payload_too_large
 from app.logging import get_logger
 from app.middleware import get_request_id
@@ -130,6 +130,7 @@ def register(app: FastAPI) -> None:
                             ts="",
                             policy_version=policy_version(policy),
                             text_chars=len(text),
+                            principal_id=principal_id(api_key, getattr(settings, "hash_salt", "")),
                             entities_detected=span_summary(all_spans),
                             inference_ms=inference_ms,
                             trace_id=current_trace_id_hex() or "",

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import secrets
 from collections.abc import Awaitable, Callable
 from typing import Annotated
@@ -10,6 +12,15 @@ from fastapi import Depends, Header, HTTPException
 
 from app.ratelimit import rate_limit
 from app.state import State, get_state
+
+
+def principal_id(api_key: str, hash_salt: str) -> str:
+    """Return a stable, non-secret identifier for an authenticated principal."""
+    return hmac.new(
+        hash_salt.encode("utf-8", errors="replace"),
+        api_key.encode("utf-8", errors="replace"),
+        hashlib.sha256,
+    ).hexdigest()[:24]
 
 
 def require_api_key(
@@ -95,4 +106,4 @@ def require_scope(scope: str) -> Callable[..., Awaitable[str]]:
     return dependency
 
 
-__all__ = ["require_api_key", "require_api_key_and_rate_limit", "require_scope"]
+__all__ = ["principal_id", "require_api_key", "require_api_key_and_rate_limit", "require_scope"]

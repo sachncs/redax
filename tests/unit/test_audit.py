@@ -30,6 +30,7 @@ async def test_writes_jsonl_line(tmp_path: Path) -> None:
     assert len(lines) == 1
     obj = json.loads(lines[0])
     assert obj["schema_version"] == 1
+    assert obj["principal_id"] == ""
     assert obj["request_id"] == "req-1"
     assert obj["text_chars"] == 42
     assert obj["entities_detected"][0]["type"] == "PERSON"

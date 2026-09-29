@@ -26,7 +26,7 @@ as each production milestone lands.
 |---|---|---|
 | Production configuration fails securely | PASS | `Settings.verify()`, `tests/unit/test_config.py`, and production API-key/trusted-host/hash-salt checks. |
 | Scoped authorization | PARTIAL | Optional JSON scopes enforce redact, detect, jobs, policies, and metrics endpoints; external rotation/revocation and a control-plane audit are pending. |
-| Secrets stay out of telemetry | PARTIAL | Error, audit, cache, idempotency, metrics, and detector-failure log canaries exist; full traces/Redis/jobs/failure coverage is pending. |
+| Secrets stay out of telemetry | PARTIAL | Error, audit, cache, idempotency, metrics, and detector-failure log canaries exist; audit attribution uses keyed non-secret principal IDs, while full traces/Redis/jobs/failure coverage is pending. |
 | Automated PII leak suite | PARTIAL | `tests/integration/test_api_redact.py` covers response, audit, metrics, and detector-failure logs; the complete release-blocking failure matrix is pending. |
 | No silent raw pass-through after internal failure | PARTIAL | Model fallback, audit-required rejection, and error handlers are tested; policy, cancellation, stream disconnect, and full failure-matrix coverage remain. |
 | Threat model matches implementation | PASS | `docs/threat-model.md`, `docs/data-flow.md`, and `docs/failure-modes.md`; update when the worker/audit architecture lands. |
@@ -56,7 +56,7 @@ as each production milestone lands.
 
 | Requirement | Status | Evidence / gap |
 |---|---|---|
-| Actionable RED/USE metrics | PARTIAL | RED metrics, Prometheus alert rules, accepted in-flight job depth, response-size histogram, and a Grafana dashboard are checked in; oldest queue age, Redis pool, and worker-runtime metrics still need implementation/evidence. |
+| Actionable RED/USE metrics | PARTIAL | RED metrics, Prometheus alert rules, accepted in-flight job depth, response-size histogram, versioned audit records with non-secret principal IDs, and a Grafana dashboard are checked in; oldest queue age, Redis pool, and worker-runtime metrics still need implementation/evidence. |
 | Privacy-safe structured logs/traces | PARTIAL | Access/error/audit paths avoid values and metrics regression exists; trace exporter and all failure paths need canary tests. |
 | Alerts and dashboards | PARTIAL | Checked-in Prometheus alert rules and a Grafana dashboard cover HTTP, audit, dependency, API replica, and worker availability; queue age, retries, and Redis-pool panels remain pending. |
 | Operational runbooks | PARTIAL | Current runbooks in `docs/runbooks/` describe safe response and evidence; they remain bounded by the current in-process job limitations. |

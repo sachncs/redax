@@ -27,7 +27,7 @@ from app.api.idempotency import release as release_idempotency
 from app.api.idempotency import reserve as reserve_idempotency
 from app.api.policy import effective_policy, policy_version
 from app.audit.backend import Event, span_summary
-from app.auth import require_scope
+from app.auth import principal_id, require_scope
 from app.errors import (
     TRANSIENT_EXC,
     internal_error,
@@ -330,6 +330,7 @@ def register(app: FastAPI) -> None:
                         ts="",
                         policy_version=policy_version(policy),
                         text_chars=len(body.text),
+                        principal_id=principal_id(api_key, getattr(settings, "hash_salt", "")),
                         entities_detected=span_summary(spans),
                         inference_ms=inference_ms,
                         trace_id=current_trace_id_hex() or "",
