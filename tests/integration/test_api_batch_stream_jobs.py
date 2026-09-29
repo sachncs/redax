@@ -351,6 +351,20 @@ def test_queued_job_can_be_cancelled(app_with_state):
     assert repeated.status_code == 200
 
 
+def test_unknown_job_id_is_not_echoed_in_error_responses(app_with_state):
+    canary = "job-id.canary.7f8d@example.com"
+    with TestClient(app_with_state, raise_server_exceptions=False) as client:
+        status = client.get(f"/v1/jobs/{canary}", headers={"X-API-Key": "test-key"})
+        cancellation = client.delete(f"/v1/jobs/{canary}", headers={"X-API-Key": "test-key"})
+
+    assert status.status_code == 404
+    assert cancellation.status_code == 404
+    assert status.json()["detail"] == "No matching job was found"
+    assert cancellation.json()["detail"] == "No matching job was found"
+    assert canary not in status.text
+    assert canary not in cancellation.text
+
+
 def test_running_job_cannot_be_cancelled(app_with_state):
     app_with_state.state.state.job_queue = PassiveJobQueue()
     with TestClient(app_with_state) as client:

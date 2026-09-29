@@ -162,7 +162,7 @@ def register(app: FastAPI) -> None:
                 type="https://redax.ai/errors/job-not-found",
                 title="Job not found",
                 status=404,
-                detail=f"No job with id {job_id!r}",
+                detail="No matching job was found",
             )
         REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
         return {
@@ -195,7 +195,7 @@ def register(app: FastAPI) -> None:
                     type="https://redax.ai/errors/job-not-found",
                     title="Job not found",
                     status=404,
-                    detail=f"No job with id {job_id!r}",
+                    detail="No matching job was found",
                 )
             if record.status == "cancelled":
                 REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
