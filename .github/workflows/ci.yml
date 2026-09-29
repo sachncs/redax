@@ -10,6 +10,7 @@ on:
 jobs:
   lint-typecheck-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     services:
       redis:
         image: redis:7.2-alpine
@@ -60,6 +61,7 @@ jobs:
 
   site-check:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: site
@@ -86,6 +88,7 @@ jobs:
 
   kubernetes-manifests:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -121,6 +124,7 @@ jobs:
   kubernetes-smoke:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     permissions:
       contents: read
     steps:
@@ -237,6 +241,7 @@ jobs:
 
   performance:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     services:
       redis:
         image: redis:7.2-alpine
@@ -361,6 +366,7 @@ jobs:
 
   redis-reliability:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     services:
       redis:
         image: redis:7.2-alpine
