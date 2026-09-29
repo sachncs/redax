@@ -211,7 +211,7 @@ export const DEPLOY = [
     title: "From source",
     badge: "Dev-friendly",
     body: "Install pinned deps from the lockfile and run Redax in a virtualenv. Best for hacking on the engine.",
-    code: ["python3 -m venv .venv", "source .venv/bin/activate", "pip install -r requirements.lock", "pip install -e '.[dev]'", "make dev"],
+    code: ["python3.13 -m venv .venv", "source .venv/bin/activate", "pip install -r requirements.lock", "pip install -e '.[dev]'", "make dev"],
   },
   {
     title: "WASM bundle",
