@@ -169,6 +169,21 @@ def test_stream_emits_events(app_with_state):
     assert any("[DONE]" in c for c in chunks)
 
 
+def test_stream_canary_is_absent_from_response_and_audit(app_with_state):
+    canary = "stream.canary.7f8d@example.com"
+    with TestClient(app_with_state) as client:
+        resp = client.post(
+            "/v1/redact/stream",
+            json={"text": f"Email {canary}", "chunk_chars": 1000},
+            headers={"X-API-Key": "test-key"},
+        )
+        assert resp.status_code == 200
+        chunks = list(resp.iter_lines())
+
+    assert canary not in "\n".join(chunks)
+    assert canary not in repr(app_with_state.state.state.audit.records)
+
+
 def stream_latency_count() -> float:
     """Read the current value of the redax_request_duration_seconds_count histogram for the stream endpoint."""
     from app.observability import REQUEST_LATENCY
