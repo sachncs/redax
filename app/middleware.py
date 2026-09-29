@@ -116,6 +116,19 @@ def emit_access_line(
     )
 
 
+def safe_access_path(request: Request) -> str:
+    """Return a route template without copying user-controlled path data.
+
+    FastAPI/Starlette attaches the matched route after ``call_next`` returns.
+    Logging that template preserves useful endpoint visibility while avoiding
+    identifiers embedded in a concrete URL path. Unmatched requests use a
+    fixed marker rather than falling back to the raw path.
+    """
+    route = request.scope.get("route")
+    route_path = getattr(route, "path", None)
+    return route_path if isinstance(route_path, str) else "<unmatched>"
+
+
 def register_request_context(app: FastAPI) -> None:
     """Carry a request_id across each request and log one access line.
 
@@ -297,7 +310,7 @@ def register_request_context(app: FastAPI) -> None:
                 admission.release()
             emit_access_line(
                 method=request.method,
-                path=request.url.path,
+                path=safe_access_path(request),
                 status=status,
                 duration_ms=int((time.perf_counter() - start) * 1000),
                 request_id=request_id,

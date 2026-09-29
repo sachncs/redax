@@ -177,6 +177,40 @@ def test_access_log_line_carries_request_fields(monkeypatch: pytest.MonkeyPatch)
     assert captured["duration_ms"] >= 0
 
 
+def test_access_log_uses_route_template_for_identifier_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict = {}
+    capture_access_line(monkeypatch, captured)
+    app = FastAPI()
+
+    @app.get("/users/{user_id}")
+    def user(user_id: str) -> dict[str, str]:
+        return {"user_id": user_id}
+
+    register_request_context(app)
+    with TestClient(app) as client:
+        response = client.get("/users/email-alice@example.com")
+
+    assert response.status_code == 200
+    assert captured["path"] == "/users/{user_id}"
+    assert "email-alice@example.com" not in repr(captured)
+
+
+def test_access_log_uses_fixed_path_for_unmatched_request(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict = {}
+    capture_access_line(monkeypatch, captured)
+    app = make_app_with_probe({})
+    with TestClient(app) as client:
+        response = client.get("/missing/email-alice@example.com")
+
+    assert response.status_code == 404
+    assert captured["path"] == "<unmatched>"
+    assert "email-alice@example.com" not in repr(captured)
+
+
 def test_access_log_line_records_500_on_unhandled_exception(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
