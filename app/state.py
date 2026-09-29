@@ -26,7 +26,7 @@ Attributes:
         successful ``/v1/redact`` records counts/durations only,
         never input or output text.
     settings: The validated pydantic-settings ``Settings`` instance.
-    job_store: ``JobStore`` for the in-process job queue; ``None``
+    job_store: ``JobStore`` for the Redis-backed durable job system; ``None``
         when Redis is unavailable.
     extras: Extension point for downstream deployments to stash
         arbitrary objects on the shared state.

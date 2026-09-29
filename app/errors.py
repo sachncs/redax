@@ -93,7 +93,7 @@ def problem_response(
 
 
 def queue_full(request: Request, detail: str = "Job queue is full") -> JSONResponse:
-    """RFC 7807 429 problem when the in-process job queue has no room."""
+    """RFC 7807 429 problem when durable job admission has no room."""
     return problem_response(
         request,
         type="https://redax.ai/errors/queue-full",

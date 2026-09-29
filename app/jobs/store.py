@@ -1,7 +1,7 @@
 """Redis-backed job lifecycle + result store for ``/v1/jobs``.
 
 The store is shared across the ``/v1/jobs`` submission, ``/v1/jobs/{id}``
-poll, and background-task worker. Records are kept as Redis hashes with a
+poll, and separate ARQ worker process. Records are kept as Redis hashes with a
 configurable TTL; the per-key in-flight counter is incremented on submit
 and decremented on terminal transitions.
 """
