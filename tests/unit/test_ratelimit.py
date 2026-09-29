@@ -44,8 +44,9 @@ class DisconnectedStore:
 
 
 class FakeSettings:
-    def __init__(self, rate_limit_per_minute: int = 5) -> None:
+    def __init__(self, rate_limit_per_minute: int = 5, *, fail_open: bool = False) -> None:
         self.rate_limit_per_minute = rate_limit_per_minute
+        self.rate_limit_fail_open = fail_open
 
 
 def build_state(*, store: FakeStore | None, settings: FakeSettings | None) -> State:
@@ -77,6 +78,18 @@ async def test_disconnected_job_store_fails_closed_503() -> None:
     state = build_state(store=DisconnectedStore(), settings=FakeSettings(5))
     with pytest.raises(RateLimitUnavailable):
         await rate_limit("key-1", state)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("store", [None, DisconnectedStore()])
+async def test_fail_open_rate_limit_bypass_is_observable(store) -> None:
+    from app.observability import RATE_LIMIT_UNAVAILABLE
+
+    before = RATE_LIMIT_UNAVAILABLE._value.get()
+    state = build_state(store=store, settings=FakeSettings(5, fail_open=True))
+
+    assert await rate_limit("key-1", state) == "key-1"
+    assert RATE_LIMIT_UNAVAILABLE._value.get() == before + 1
 
 
 @pytest.mark.asyncio

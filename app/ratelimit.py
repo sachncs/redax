@@ -23,6 +23,17 @@ class RateLimitUnavailable(RuntimeError):  # noqa: N818 (intentional name, tests
     """
 
 
+def allow_without_rate_limit(api_key: str, reason: str) -> str:
+    """Allow an explicitly configured fail-open request and record the bypass."""
+    get_logger("redax.ratelimit").warning(
+        "redax.ratelimit_unavailable",
+        error=reason,
+        fail_open=True,
+    )
+    RATE_LIMIT_UNAVAILABLE.inc()
+    return api_key
+
+
 RATE_LIMIT_SCRIPT = """
 local count = redis.call('INCR', KEYS[1])
 if count == 1 then
@@ -69,15 +80,12 @@ async def rate_limit(api_key: str, state: State) -> str:
     job_store = state.job_store
     if job_store is None:
         if fail_open:
-            return api_key
+            return allow_without_rate_limit(api_key, "job_store_missing")
         raise RateLimitUnavailable()
     client = job_store.client
     if client is None:
         if fail_open:
-            get_logger("redax.ratelimit").warning(
-                "redax.ratelimit_unavailable", error="redis_client_missing"
-            )
-            return api_key
+            return allow_without_rate_limit(api_key, "redis_client_missing")
         raise RateLimitUnavailable()
     key_digest = hashlib.sha256(api_key.encode("utf-8")).hexdigest()[:32]
     bucket = f"{getattr(settings, 'redis_namespace', 'redax')}:rl:{key_digest}:{minute_bucket()}"
