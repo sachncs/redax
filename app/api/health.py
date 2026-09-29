@@ -84,7 +84,14 @@ def register(app: FastAPI) -> None:
                         redis_ready = False
                 elif redis_ready:
                     redis_ready = False
-            if state.ready and getattr(state, "redactor", None) is not None and redis_ready:
+            audit_required = bool(getattr(state.audit, "required", False))
+            audit_ready = not (audit_required and bool(getattr(state.audit, "failed", False)))
+            if (
+                state.ready
+                and getattr(state, "redactor", None) is not None
+                and redis_ready
+                and audit_ready
+            ):
                 REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
                 return {"status": "ready"}
             REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
@@ -95,7 +102,7 @@ def register(app: FastAPI) -> None:
                 status=503,
                 detail=(
                     "Required dependencies are not ready"
-                    if redis_required and not redis_ready
+                    if (redis_required and not redis_ready) or (audit_required and not audit_ready)
                     else "Service has not finished initializing"
                 ),
             )

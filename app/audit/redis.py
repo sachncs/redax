@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 
 import redis.asyncio as aioredis
+from redis.exceptions import RedisError
 
 from app.audit.backend import Event, event_to_dict
 from app.logging import get_logger
@@ -26,11 +27,13 @@ class RedisAudit:
         self.max_events = max_events
         self.required = required
         self.backend_label = "redis"
+        self.failed = False
 
     async def start(self) -> None:
         """Verify that the shared Redis client is available."""
         if self.client is None:
             raise RuntimeError("Redis audit backend requires a connected Redis client")
+        self.failed = False
 
     async def stop(self) -> None:
         """Leave the shared Redis client open for the owning job store."""
@@ -43,7 +46,9 @@ class RedisAudit:
         try:
             await self.client.rpush(self.key, payload)  # type: ignore[misc]
             await self.client.ltrim(self.key, -self.max_events, -1)  # type: ignore[misc]
-        except (OSError, RuntimeError, TimeoutError, ValueError) as exc:
+            self.failed = False
+        except (OSError, RedisError, RuntimeError, TimeoutError, ValueError) as exc:
+            self.failed = True
             AUDIT_WRITE_FAILED.labels(backend=self.backend_label).inc()
             get_logger("redax.audit").warning(
                 "redax.audit_write_failed",

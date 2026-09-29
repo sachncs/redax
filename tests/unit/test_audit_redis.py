@@ -56,6 +56,7 @@ async def test_required_redis_audit_fails_closed_on_write_error() -> None:
 
     with pytest.raises(RuntimeError, match="audit backend is unavailable"):
         await backend.record(Event(request_id="req", ts="", policy_version="p", text_chars=1))
+    assert backend.failed is True
 
 
 async def test_optional_redis_audit_drops_failed_write() -> None:

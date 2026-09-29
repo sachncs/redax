@@ -174,6 +174,24 @@ def test_readyz_fails_when_required_redis_loses_connectivity() -> None:
     assert response.json()["detail"] == "Required dependencies are not ready"
 
 
+def test_readyz_fails_when_required_audit_is_unavailable() -> None:
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from app.api.health import register
+    from app.state import State
+
+    audit = type("Audit", (), {"required": True, "failed": True})()
+    test_state = State(ready=True, redactor=object(), audit=audit)
+    app = FastAPI()
+    app.state.state = test_state
+    register(app)
+    with TestClient(app) as client:
+        response = client.get("/readyz")
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Required dependencies are not ready"
+
+
 def test_request_admission_rejects_when_saturated() -> None:
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
