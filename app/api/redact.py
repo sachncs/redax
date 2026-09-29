@@ -15,6 +15,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, FastAPI, Header, Request
 from pydantic import BaseModel, Field
+from redis.exceptions import RedisError
 
 from app.api.cache import (
     cache_envelope,
@@ -65,6 +66,11 @@ class RedactResponse(BaseModel):
 
 
 _CACHE_SKIPPED_LOGGED: set[str] = set()
+CACHE_TRANSIENT_EXC: tuple[type[BaseException], ...] = (
+    OSError,
+    RedisError,
+    TimeoutError,
+)
 
 
 def request_fingerprint(body: RedactRequest, policy: dict[str, Any] | None) -> str:
@@ -246,13 +252,22 @@ def register(app: FastAPI) -> None:
                     _log_cache_skipped("response")
                 else:
                     ns = getattr(settings, "redis_namespace", "redax")
-                    cache_raw = await job_store.client.get(f"{ns}:cache:{cache_key}")
-                    if cache_raw:
-                        cached_response = decode_cache_envelope(cache_raw)
-                        if cached_response is not None:
-                            CACHE_HITS.labels(cache="response").inc()
-                            REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
-                            return cached_response
+                    try:
+                        cache_raw = await job_store.client.get(f"{ns}:cache:{cache_key}")
+                    except CACHE_TRANSIENT_EXC as exc:
+                        _log_cache_skipped("response")
+                        get_logger("redax.api").warning(
+                            "redax.cache_read_failed", error=exc.__class__.__name__
+                        )
+                    else:
+                        if cache_raw:
+                            cached_response = decode_cache_envelope(cache_raw)
+                            if cached_response is not None:
+                                CACHE_HITS.labels(cache="response").inc()
+                                REQUESTS.labels(
+                                    endpoint=endpoint, method=method, status="200"
+                                ).inc()
+                                return cached_response
 
                 inference_start = time.perf_counter()
                 used_pipeline = False
@@ -323,11 +338,17 @@ def register(app: FastAPI) -> None:
                 ttl = getattr(settings, "cache_ttl_seconds", 3600)
                 if job_store is not None:
                     ns = getattr(settings, "redis_namespace", "redax")
-                    await job_store.client.set(
-                        f"{ns}:cache:{cache_key}",
-                        json.dumps(cache_envelope(response_body)),
-                        ex=ttl,
-                    )
+                    try:
+                        await job_store.client.set(
+                            f"{ns}:cache:{cache_key}",
+                            json.dumps(cache_envelope(response_body)),
+                            ex=ttl,
+                        )
+                    except CACHE_TRANSIENT_EXC as exc:
+                        _log_cache_skipped("response")
+                        get_logger("redax.api").warning(
+                            "redax.cache_write_failed", error=exc.__class__.__name__
+                        )
                     if x_idempotency_key:
                         idem_ttl = getattr(settings, "idempotency_ttl_seconds", 86_400)
                         if idempotency_storage is None or idempotency_token is None:

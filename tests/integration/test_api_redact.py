@@ -85,6 +85,25 @@ class FailingRedis:
         raise RedisError("redis unavailable")
 
 
+class CacheFailingRedis:
+    """Redis double that fails only response-cache operations."""
+
+    def __init__(self, *, fail_on: str) -> None:
+        self.fail_on = fail_on
+
+    async def get(self, key: str):
+        del key
+        if self.fail_on == "get":
+            raise RedisError("cache read unavailable")
+        return None
+
+    async def set(self, key: str, value: str, *, ex: int):
+        del key, value, ex
+        if self.fail_on == "set":
+            raise RedisError("cache write unavailable")
+        return True
+
+
 @pytest.fixture
 def app_with_redactor():
     test_state = State()
@@ -218,6 +237,26 @@ def test_redis_failure_rejects_request_without_leaking_canary(app_with_redactor,
 
     output = capsys.readouterr().out
     assert response.status_code == 500
+    assert canary not in response.text
+    assert canary not in output
+
+
+@pytest.mark.parametrize("fail_on", ["get", "set"])
+def test_response_cache_failure_recomputes_without_leaking_canary(
+    app_with_redactor, capsys, fail_on
+):
+    """The response cache is optional and cannot change redaction semantics."""
+    canary = f"cache.{fail_on}.7f8d@example.com"
+
+    class Store:
+        client = CacheFailingRedis(fail_on=fail_on)
+
+    app_with_redactor.state.state.job_store = Store()
+    with TestClient(app_with_redactor, raise_server_exceptions=False) as client:
+        response = client.post("/v1/redact", json={"text": f"Email {canary}"})
+
+    output = capsys.readouterr().out
+    assert response.status_code == 200
     assert canary not in response.text
     assert canary not in output
 
