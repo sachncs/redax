@@ -9,6 +9,7 @@ from typing import Any
 import yaml
 
 SUPPORTED_STRATEGIES = frozenset({"passThrough", "mask", "hash", "regex", "autoDeID"})
+SUPPORTED_POLICY_KEYS = frozenset({"name", "version", "description", "fields"})
 SUPPORTED_FIELD_OPTIONS = frozenset(
     {"strategy", "format", "entity_types", "relex", "multi_pass", "detector", "length"}
 )
@@ -83,6 +84,9 @@ def parse_policy(raw: dict[str, Any], source: str) -> Policy:
     """
     if not isinstance(raw, dict):
         raise ValueError(f"{source}: policy must be a mapping")
+    unknown_policy_keys = set(raw) - SUPPORTED_POLICY_KEYS
+    if unknown_policy_keys:
+        raise ValueError(f"{source}: unknown policy options {sorted(unknown_policy_keys)!r}")
     fields_raw = raw.get("fields", {}) or {}
     if not isinstance(fields_raw, dict):
         raise ValueError(f"{source}: 'fields' must be a mapping")
@@ -155,9 +159,11 @@ def parse_policy(raw: dict[str, Any], source: str) -> Policy:
             )
     for metadata in ("name", "version", "description"):
         value = raw.get(metadata)
-        if value is not None and len(str(value)) > MAX_POLICY_STRING_CHARS:
+        if value is not None and (
+            not isinstance(value, str) or len(value) > MAX_POLICY_STRING_CHARS
+        ):
             raise ValueError(
-                f"{source}: {metadata!r} must be at most {MAX_POLICY_STRING_CHARS} characters"
+                f"{source}: {metadata!r} must be a string of at most {MAX_POLICY_STRING_CHARS} characters"
             )
     return Policy(
         name=str(raw.get("name", "default")),

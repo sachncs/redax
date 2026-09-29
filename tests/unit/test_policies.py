@@ -62,6 +62,16 @@ def test_policy_root_must_be_mapping() -> None:
         parse_policy_dict("oops")  # type: ignore[arg-type]
 
 
+def test_policy_rejects_unknown_top_level_options() -> None:
+    with pytest.raises(ValueError, match="unknown policy options"):
+        parse_policy_dict({"fields": {}, "unexpected": True})
+
+
+def test_policy_metadata_must_be_bounded_strings() -> None:
+    with pytest.raises(ValueError, match=r"version.*string"):
+        parse_policy_dict({"version": 1, "fields": {}})
+
+
 def test_policy_rejects_too_many_fields() -> None:
     fields = {f"field_{index}": {"strategy": "passThrough"} for index in range(129)}
     with pytest.raises(ValueError, match="at most 128 entries"):

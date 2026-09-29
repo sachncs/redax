@@ -163,9 +163,9 @@ at `REDAX_STREAM_CHUNK_BYTES` (default 4096) bytes and defaults to
 `REDAX_STREAM_CHUNK_CHARS` characters when `chunk_chars` is omitted.
 When `policy` and `entity_types` are omitted, each chunk uses the configured
 `REDAX_DEFAULT_POLICY`; an explicit policy or entity-type selection overrides
-that default. Inline policies are validated by the same bounded policy parser
-as `/v1/redact`; malformed or unsupported policy fields return a generic 422
-`invalid-policy` problem and are never treated as an empty policy. `policy`
+that default. Inline policies are validated by the same closed, bounded policy
+parser as `/v1/redact`; malformed, unsupported, or unknown policy fields return
+a generic 422 `invalid-policy` problem and are never treated as an empty policy. `policy`
 and `entity_types` cannot be combined.
 Emits one audit event per request.
 
