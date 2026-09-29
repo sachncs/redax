@@ -25,8 +25,8 @@ as each production milestone lands.
 | Requirement | Status | Evidence / gap |
 |---|---|---|
 | Production configuration fails securely | PASS | `Settings.verify()`, `tests/unit/test_config.py`, and production API-key/trusted-host/hash-salt checks. |
-| Secrets stay out of telemetry | PARTIAL | Error, audit, cache, idempotency, and metrics regressions exist; full traces/Redis/jobs/failure canary suite is pending. |
-| Automated PII leak suite | FAIL | `tests/integration/test_api_redact.py` covers audit/metrics behavior, but every failure path in the brief is not yet exercised by a release-blocking canary. |
+| Secrets stay out of telemetry | PARTIAL | Error, audit, cache, idempotency, metrics, and detector-failure log canaries exist; full traces/Redis/jobs/failure coverage is pending. |
+| Automated PII leak suite | PARTIAL | `tests/integration/test_api_redact.py` covers response, audit, metrics, and detector-failure logs; the complete release-blocking failure matrix is pending. |
 | No silent raw pass-through after internal failure | PARTIAL | Model fallback and error handlers are tested; audit, policy, cancellation, stream disconnect, and job recovery semantics need the failure matrix and tests. |
 | Threat model matches implementation | PASS | `docs/threat-model.md`, `docs/data-flow.md`, and `docs/failure-modes.md`; update when the worker/audit architecture lands. |
 | High/critical vulnerability gate | FAIL | No dependency or container vulnerability scan is required by CI. |

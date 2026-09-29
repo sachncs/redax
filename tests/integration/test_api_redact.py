@@ -52,6 +52,11 @@ class MemoryAuditBackend(Backend):
         self.records.append(event)
 
 
+class FailingRedactor:
+    async def redact(self, text: str, policy=None, entity_types=None):
+        raise RuntimeError(f"detector failure for {text}")
+
+
 @pytest.fixture
 def app_with_redactor():
     test_state = State()
@@ -103,6 +108,37 @@ def test_redacted_value_does_not_appear_in_metrics(app_with_redactor):
     assert response.status_code == 200
     assert metrics.status_code == 200
     assert secret not in metrics.text
+
+
+def test_pii_canary_is_absent_from_audit_and_failure_logs(app_with_redactor, capsys):
+    """Operational sinks must not receive original values or exception text."""
+    canary = "canary.person.7f8d@example.com"
+    with TestClient(app_with_redactor) as client:
+        response = client.post("/v1/redact", json={"text": f"Email {canary}"})
+        metrics = client.get("/metrics")
+
+    assert response.status_code == 200
+    assert canary not in response.text
+    assert canary not in metrics.text
+    assert canary not in repr(app_with_redactor.state.state.audit.records)
+
+    failing_state = State(
+        settings=type(
+            "S", (), {"max_text_chars": 1000, "hash_salt": "x", "api_key_set": lambda self: set()}
+        )(),
+        redactor=FailingRedactor(),
+        audit=MemoryAuditBackend(),
+        ready=True,
+    )
+    failing_app = FastAPI()
+    failing_app.state.state = failing_state
+    register(failing_app)
+    with TestClient(failing_app, raise_server_exceptions=False) as client:
+        failed = client.post("/v1/redact", json={"text": canary})
+    output = capsys.readouterr().out
+    assert failed.status_code == 500
+    assert canary not in failed.text
+    assert canary not in output
 
 
 def test_regex_mode_default_policy_redacts_structured_aliases() -> None:
