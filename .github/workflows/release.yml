@@ -39,7 +39,7 @@ jobs:
         run: docker build -t ghcr.io/${{ github.repository }}:${{ github.ref_name }} .
 
       - name: Generate image SBOM
-        uses: anchore/sbom-action@v0.20.5
+        uses: anchore/sbom-action@v0.24.2
         with:
           image: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
           format: cyclonedx-json
@@ -47,7 +47,7 @@ jobs:
           artifact-name: sbom-${{ github.ref_name }}.cdx.json
 
       - name: Scan release image
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
           scan-type: image
@@ -73,7 +73,7 @@ jobs:
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
 
       - name: Install Cosign
-        uses: sigstore/cosign-installer@v3.8.1
+        uses: sigstore/cosign-installer@v4.1.2
 
       - name: Sign release image
         env:
