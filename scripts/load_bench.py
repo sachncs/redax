@@ -234,9 +234,11 @@ def main() -> None:
         "runtime": {"python": platform.python_version(), "platform": platform.platform()},
         "target": args.url,
         "workload": {
+            "mode": args.mode,
             "requests": args.requests if args.duration_seconds == 0 else None,
             "concurrency": args.concurrency,
             "duration_seconds": args.duration_seconds or None,
+            "job_poll_timeout_seconds": args.job_poll_timeout if args.mode == "job" else None,
         },
         "result": asyncio.run(
             run_load(
