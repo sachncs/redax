@@ -38,10 +38,8 @@ export const HERO = {
 
 export const NAV = [
   { label: "Product", href: "/redax/#product" },
-  { label: "How it works", href: "/redax/#how-it-works" },
-  { label: "Benchmarks", href: "/redax/#benchmarks" },
-  { label: "Deploy", href: "/redax/#deploy" },
-  { label: "Security", href: DOCS.security },
+  { label: "Live demo", href: "/redax/#demo" },
+  { label: "Pipeline", href: "/redax/#pipeline" },
   { label: "Docs", href: DOCS.api },
   { label: "GitHub", href: SITE.repo, external: true },
 ] as const;
@@ -228,11 +226,10 @@ export const FOOTER = {
     {
       title: "Product",
       links: [
-        { label: "Features", href: "/redax/#product" },
-        { label: "How it works", href: "/redax/#how-it-works" },
+        { label: "Product doctrine", href: "/redax/#product" },
+        { label: "Live demonstration", href: "/redax/#demo" },
         { label: "Pipeline", href: "/redax/#pipeline" },
-        { label: "Benchmarks", href: "/redax/#benchmarks" },
-        { label: "Deployment", href: "/redax/#deploy" },
+        { label: "Start locally", href: "/redax/#start" },
       ],
     },
     {
