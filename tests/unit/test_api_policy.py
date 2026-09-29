@@ -41,3 +41,14 @@ def test_configured_default_policy_failure_is_explicit(tmp_path) -> None:
 
     with pytest.raises(PolicyUnavailableError):
         default_policy(settings)
+
+
+def test_malformed_configured_default_policy_is_unavailable(tmp_path) -> None:
+    (tmp_path / "default.yaml").write_text(
+        "name: broken\nversion: 1\nfields:\n  email:\n    strategy: unsupported\n",
+        encoding="utf-8",
+    )
+    settings = type("Settings", (), {"default_policy": "default", "policies_dir": str(tmp_path)})()
+
+    with pytest.raises(PolicyUnavailableError):
+        default_policy(settings)

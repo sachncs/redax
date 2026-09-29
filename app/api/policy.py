@@ -34,17 +34,17 @@ def default_policy(settings: Any) -> dict[str, Any] | None:
         raise PolicyUnavailableError("configured default policy is missing")
     try:
         loaded = load_policy(path)
+        return normalized_policy(
+            {
+                "name": loaded.name,
+                "version": loaded.version,
+                "description": loaded.description,
+                "fields": loaded.fields,
+            },
+            str(path),
+        )
     except (OSError, TypeError, ValueError) as exc:
         raise PolicyUnavailableError("configured default policy is invalid") from exc
-    return normalized_policy(
-        {
-            "name": loaded.name,
-            "version": loaded.version,
-            "description": loaded.description,
-            "fields": loaded.fields,
-        },
-        str(path),
-    )
 
 
 def effective_policy(
