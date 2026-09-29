@@ -76,6 +76,11 @@ def register(app: FastAPI) -> None:
                 if len(item.text) > max_chars:
                     REQUESTS.labels(endpoint=endpoint, method=method, status="413").inc()
                     return payload_too_large(request, f"item exceeds {max_chars} chars")
+            total_chars = sum(len(item.text) for item in body.items)
+            max_batch_chars = int(getattr(settings, "max_batch_chars", 1_000_000))
+            if total_chars > max_batch_chars:
+                REQUESTS.labels(endpoint=endpoint, method=method, status="413").inc()
+                return payload_too_large(request, f"batch exceeds {max_batch_chars} chars")
             timeout_seconds = getattr(settings, "request_timeout_seconds", 30.0)
             inference_concurrency = max(1, int(getattr(settings, "inference_concurrency", 2)))
             semaphore = asyncio.Semaphore(inference_concurrency)

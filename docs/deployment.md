@@ -71,6 +71,7 @@ All settings read from environment variables prefixed with `REDAX_`. See
 | `REDAX_AUDIT_REQUIRED` | `true` | fail redaction requests closed when audit is uninitialized, unavailable, or saturated |
 | `REDAX_HASH_SALT` | `change-me` | rejected at startup; set a unique random value |
 | `REDAX_MAX_TEXT_CHARS` | `100000` | reject inputs longer than this |
+| `REDAX_MAX_BATCH_CHARS` | `1000000` | aggregate character budget across one batch; excess returns 413 |
 | `REDAX_API_KEYS` | `""` | comma-separated; required when `REDAX_ENV=prod` |
 | `REDAX_API_KEY_SCOPES` | `""` | optional JSON object mapping each configured key to scopes such as `redact`, `detect`, `jobs`, `policies:read`, and `metrics:read`; omitted means legacy full access |
 | `REDAX_RATE_LIMIT_PER_MINUTE` | `60` | per API key; 0 disables |

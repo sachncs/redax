@@ -46,6 +46,7 @@ class FakeStore:
 
 class StubSettings:
     max_text_chars = 1000
+    max_batch_chars = 1500
 
     def __init__(
         self,
@@ -138,6 +139,22 @@ def test_batch_payload_too_large_returns_413() -> None:
         )
     assert resp.status_code == 413
     assert resp.headers["content-type"].startswith("application/problem+json")
+
+
+def test_batch_aggregate_payload_too_large_returns_413() -> None:
+    app = build_app(
+        redactor=FastRedactor(),
+        client=FakeClient([1]),
+        settings=StubSettings(5),
+    )
+    with TestClient(app) as client:
+        resp = client.post(
+            "/v1/redact/batch",
+            json={"items": [{"text": "x" * 900}, {"text": "y" * 900}]},
+            headers={"X-API-Key": "limited-key"},
+        )
+    assert resp.status_code == 413
+    assert resp.json()["detail"] == "batch exceeds 1500 chars"
 
 
 def test_stream_timeout_yields_504_event() -> None:

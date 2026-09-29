@@ -69,6 +69,7 @@ class Settings(BaseSettings):
 
     hash_salt: str = "change-me"
     max_text_chars: int = Field(default=100_000, ge=1)
+    max_batch_chars: int = Field(default=1_000_000, ge=1)
 
     api_keys: str = ""
     api_key_scopes: str = ""
