@@ -22,3 +22,16 @@ async def test_required_audit_rejects_after_write_failure(tmp_path) -> None:
 
     with pytest.raises(RuntimeError, match="unavailable"):
         await backend.record(Event(request_id="req", ts="", policy_version="p", text_chars=1))
+
+
+@pytest.mark.asyncio
+async def test_required_audit_recovers_after_backend_restart(tmp_path) -> None:
+    path = tmp_path / "audit.jsonl"
+    backend = FileAudit(str(path), required=True)
+    backend.failed = True
+
+    await backend.start()
+    await backend.record(Event(request_id="req", ts="", policy_version="p", text_chars=1))
+    await backend.stop()
+
+    assert path.read_text().count('"request_id": "req"') == 1

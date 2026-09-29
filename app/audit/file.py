@@ -76,6 +76,7 @@ class FileAudit:
 
     async def start(self) -> None:
         """Open the destination file and start the background flusher."""
+        self.failed = False
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.path.touch(exist_ok=True)
         self.loop = asyncio.get_running_loop()
