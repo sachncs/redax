@@ -7,6 +7,11 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
+OTLP_MAX_QUEUE_SIZE = 2_048
+OTLP_MAX_EXPORT_BATCH_SIZE = 512
+OTLP_SCHEDULE_DELAY_MILLIS = 5_000.0
+OTLP_EXPORT_TIMEOUT_MILLIS = 30_000.0
+
 
 class Tracing:
     """Process-wide OpenTelemetry tracer configuration.
@@ -46,7 +51,13 @@ class Tracing:
                 )
 
                 provider.add_span_processor(
-                    BatchSpanProcessor(OTLPSpanExporter(endpoint=otlp_endpoint))
+                    BatchSpanProcessor(
+                        OTLPSpanExporter(endpoint=otlp_endpoint),
+                        max_queue_size=OTLP_MAX_QUEUE_SIZE,
+                        max_export_batch_size=OTLP_MAX_EXPORT_BATCH_SIZE,
+                        schedule_delay_millis=OTLP_SCHEDULE_DELAY_MILLIS,
+                        export_timeout_millis=OTLP_EXPORT_TIMEOUT_MILLIS,
+                    )
                 )
             trace.set_tracer_provider(provider)
             Tracing.initialized = True
