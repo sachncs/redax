@@ -88,14 +88,16 @@ def register(app: FastAPI) -> None:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
                 return job_store_unavailable(request, "durable job queue not initialized")
             max_inflight = getattr(settings, "max_inflight", 32)
-            if await store.count_inflight() >= max_inflight:
-                REQUESTS.labels(endpoint=endpoint, method=method, status="429").inc()
-                return queue_full(request)
             max_jobs_per_key = getattr(settings, "max_jobs_per_key", 50)
-            if await store.count_for_key(api_key) >= max_jobs_per_key:
-                REQUESTS.labels(endpoint=endpoint, method=method, status="429").inc()
-                return job_limit(request)
             try:
+                record = await store.create_admitted(api_key, max_inflight, max_jobs_per_key)
+            except AttributeError:
+                if await store.count_inflight() >= max_inflight:
+                    REQUESTS.labels(endpoint=endpoint, method=method, status="429").inc()
+                    return queue_full(request)
+                if await store.count_for_key(api_key) >= max_jobs_per_key:
+                    REQUESTS.labels(endpoint=endpoint, method=method, status="429").inc()
+                    return job_limit(request)
                 record = await store.create(owner=api_key)
             except (OSError, RuntimeError, ValueError, KeyError, TimeoutError) as exc:
                 get_logger("redax.api").error(
@@ -103,6 +105,9 @@ def register(app: FastAPI) -> None:
                 )
                 REQUESTS.labels(endpoint=endpoint, method=method, status="500").inc()
                 return internal_error(request, "job counter write failed")
+            if record is None:
+                REQUESTS.labels(endpoint=endpoint, method=method, status="429").inc()
+                return queue_full(request)
             try:
                 queued = await queue.enqueue_job(
                     "process_job",

@@ -57,6 +57,21 @@ class JobStore:
     KEY_TEMPLATE = "{ns}:job:{id}"
     COUNT_KEY_TEMPLATE = "{ns}:jobs:{owner}"
     TOTAL_COUNT_KEY_TEMPLATE = "{ns}:jobs:inflight"
+    ADMIT_SCRIPT = """
+local total = tonumber(redis.call('GET', KEYS[3]) or '0')
+local owner = tonumber(redis.call('GET', KEYS[2]) or '0')
+if total >= tonumber(ARGV[7]) then return 0 end
+if ARGV[5] ~= '' and owner >= tonumber(ARGV[8]) then return 0 end
+redis.call('HSET', KEYS[1], 'id', ARGV[1], 'status', ARGV[2], 'result', ARGV[3], 'error', ARGV[4], 'owner', ARGV[5])
+redis.call('EXPIRE', KEYS[1], ARGV[6])
+redis.call('INCR', KEYS[3])
+redis.call('EXPIRE', KEYS[3], ARGV[6])
+if ARGV[5] ~= '' then
+  redis.call('INCR', KEYS[2])
+  redis.call('EXPIRE', KEYS[2], ARGV[6])
+end
+return 1
+"""
 
     def __init__(
         self,
@@ -131,6 +146,34 @@ class JobStore:
         await client.incr(self._total_count_key())
         await client.expire(self._total_count_key(), self.ttl_seconds)
         return record
+
+    async def create_admitted(
+        self, owner: str, max_inflight: int, max_jobs_per_key: int
+    ) -> JobRecord | None:
+        """Atomically admit and persist a job, or return ``None`` when full."""
+        client = self.client
+        if client is None:
+            raise RuntimeError("JobStore.start() must run before create_admitted()")
+        job_id = uuid.uuid4().hex
+        owner_token = self.owner_token(owner) if owner else ""
+        result = await client.eval(  # type: ignore[misc]
+            self.ADMIT_SCRIPT,
+            3,
+            self._key(job_id),
+            self._count_key(owner),
+            self._total_count_key(),
+            job_id,
+            "queued",
+            "",
+            "",
+            owner_token,
+            str(self.ttl_seconds),
+            str(max_inflight),
+            str(max_jobs_per_key),
+        )
+        if int(result) != 1:
+            return None
+        return JobRecord(job_id, "queued", None, None, owner_token)
 
     async def count_for_key(self, owner: str) -> int:
         """Return the number of in-flight jobs for ``owner``; 0 if the counter is missing."""

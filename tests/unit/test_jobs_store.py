@@ -50,6 +50,32 @@ class FakeRedis:
     async def delete(self, key: str) -> None:
         self.counter.pop(key, None)
 
+    async def eval(
+        self, _script: str, _numkeys: int, job_key: str, owner_key: str, total_key: str, *args: str
+    ) -> int:
+        job_id, status, result, error, owner, ttl, max_total, max_owner = args
+        total = self.counter.get(total_key, 0)
+        owner_count = self.counter.get(owner_key, 0)
+        if total >= int(max_total) or (owner and owner_count >= int(max_owner)):
+            return 0
+        await self.hset(
+            job_key,
+            mapping={
+                "id": job_id,
+                "status": status,
+                "result": result,
+                "error": error,
+                "owner": owner,
+            },
+        )
+        await self.expire(job_key, int(ttl))
+        await self.incr(total_key)
+        await self.expire(total_key, int(ttl))
+        if owner:
+            await self.incr(owner_key)
+            await self.expire(owner_key, int(ttl))
+        return 1
+
 
 @pytest.fixture
 def store(redis_client: FakeRedis) -> JobStore:
@@ -77,6 +103,18 @@ async def test_count_for_key_reads_counter(store: JobStore, redis_client: FakeRe
     assert await store.count_for_key("k1") == 2
     assert await store.count_for_key("k2") == 1
     assert await store.count_for_key("missing") == 0
+
+
+async def test_create_admitted_reserves_shared_and_owner_slots_atomically(
+    store: JobStore,
+    redis_client: FakeRedis,
+) -> None:
+    first = await store.create_admitted("k1", max_inflight=1, max_jobs_per_key=1)
+    second = await store.create_admitted("k1", max_inflight=1, max_jobs_per_key=1)
+    assert first is not None
+    assert second is None
+    assert await store.count_inflight() == 1
+    assert await store.count_for_key("k1") == 1
 
 
 async def test_terminal_transition_releases_owner_slot(
