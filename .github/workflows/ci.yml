@@ -7,6 +7,12 @@ on:
   pull_request:
     branches: [master]
 
+# Only the newest change on a branch should consume the finite CI runner pool.
+# Release tags remain independent because their exact-commit gates are immutable.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint-typecheck-test:
     runs-on: ubuntu-latest
