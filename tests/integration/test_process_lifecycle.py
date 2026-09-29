@@ -93,3 +93,71 @@ def test_sigterm_drains_an_active_http_request_within_deadline(tmp_path: Path) -
         if process.poll() is None:
             process.kill()
             process.wait(timeout=2)
+
+
+def test_sigterm_cancels_an_active_stream_within_deadline(tmp_path: Path) -> None:
+    """Exercise bounded shutdown while a streaming response is backpressured."""
+    port = free_tcp_port()
+    environment = os.environ.copy()
+    environment.update(
+        {
+            "REDAX_ENV": "dev",
+            "REDAX_DETECTOR": "regex",
+            "REDAX_HASH_SALT": "stream-lifecycle-test-salt",
+            "REDAX_AUDIT_PATH": str(tmp_path / "audit.jsonl"),
+            "REDAX_MAX_TEXT_CHARS": "2000000",
+            "REDAX_SHUTDOWN_TIMEOUT_SECONDS": "0.5",
+            "REDAX_REDIS_CONNECT_TIMEOUT_SECONDS": "0.2",
+            "REDAX_REDIS_SOCKET_TIMEOUT_SECONDS": "0.2",
+        }
+    )
+    process = subprocess.Popen(
+        [
+            sys.executable,
+            "-m",
+            "uvicorn",
+            "app.main:app",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            str(port),
+            "--timeout-graceful-shutdown",
+            "1",
+            "--log-level",
+            "info",
+        ],
+        cwd=Path(__file__).parents[2],
+        env=environment,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
+    client_socket: socket.socket | None = None
+    try:
+        wait_until_ready(port)
+        text = "x" * 500_000
+        body = ('{"text":"' + text + '","chunk_chars":100}').encode()
+        client_socket = socket.create_connection(("127.0.0.1", port), timeout=2)
+        client_socket.sendall(
+            b"POST /v1/redact/stream HTTP/1.1\r\n"
+            b"Host: 127.0.0.1\r\n"
+            b"Content-Type: application/json\r\n"
+            + f"Content-Length: {len(body)}\r\n".encode()
+            + b"Connection: close\r\n\r\n"
+            + body
+        )
+        response_headers = b""
+        while b"\r\n\r\n" not in response_headers:
+            response_headers += client_socket.recv(4096)
+        started = time.monotonic()
+        process.send_signal(signal.SIGTERM)
+        return_code = process.wait(timeout=5)
+        output = process.stdout.read().decode() if process.stdout is not None else ""
+        assert return_code in {0, -signal.SIGTERM, 128 + signal.SIGTERM}
+        assert "Application shutdown complete." in output
+        assert time.monotonic() - started < 4
+    finally:
+        if client_socket is not None:
+            client_socket.close()
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=2)
