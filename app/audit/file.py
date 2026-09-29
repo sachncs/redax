@@ -108,6 +108,29 @@ class FileAudit:
             return
         if self.failed and self.required:
             raise RuntimeError("audit backend is unavailable")
+        if self.required:
+            assert self.loop is not None
+            line = json.dumps(event_to_dict(with_timestamp(event))) + "\n"
+            try:
+                await self.loop.run_in_executor(
+                    None,
+                    append_line,
+                    self.path,
+                    line,
+                    self.fsync,
+                    self.max_bytes,
+                    self.rotation_backups,
+                )
+            except (OSError, RuntimeError, ValueError) as exc:
+                self.failed = True
+                get_logger("redax.audit").warning(
+                    "redax.audit_write_failed",
+                    backend=self.backend_label,
+                    error=exc.__class__.__name__,
+                )
+                AUDIT_WRITE_FAILED.labels(backend=self.backend_label).inc()
+                raise RuntimeError("audit backend write failed") from exc
+            return
         try:
             self.queue.put_nowait(event)
         except asyncio.QueueFull as exc:

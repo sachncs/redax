@@ -25,6 +25,25 @@ async def test_required_audit_rejects_after_write_failure(tmp_path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_required_audit_propagates_first_write_failure(tmp_path, monkeypatch) -> None:
+    backend = FileAudit(str(tmp_path / "audit.jsonl"), required=True)
+    await backend.start()
+
+    def fail_write(*_args) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr("app.audit.file.append_line", fail_write)
+
+    with pytest.raises(RuntimeError, match="write failed"):
+        await backend.record(Event(request_id="req", ts="", policy_version="p", text_chars=1))
+
+    assert backend.failed
+    with pytest.raises(RuntimeError, match="unavailable"):
+        await backend.record(Event(request_id="req-2", ts="", policy_version="p", text_chars=1))
+    await backend.stop()
+
+
+@pytest.mark.asyncio
 async def test_required_audit_recovers_after_backend_restart(tmp_path) -> None:
     path = tmp_path / "audit.jsonl"
     backend = FileAudit(str(path), required=True)
