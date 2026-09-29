@@ -32,7 +32,7 @@ from app.jobs.payload import JobPayloadCipher
 from app.jobs.store import JobStore
 from app.logging import get_logger
 from app.middleware import get_request_id
-from app.observability import ERRORS, JOB_DURATION, REQUESTS
+from app.observability import ERRORS, JOB_DURATION, QUEUE_DEPTH, REQUESTS
 from app.ratelimit import rate_limit
 from app.state import State, get_state
 
@@ -109,6 +109,7 @@ def register(app: FastAPI) -> None:
             if record is None:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="429").inc()
                 return queue_full(request)
+            QUEUE_DEPTH.inc()
             try:
                 queue_payload = JobPayloadCipher(
                     getattr(settings, "job_payload_encryption_key", "")
@@ -214,7 +215,7 @@ async def run_job(
                 entity_types=entity_types,
             )
         inference_ms = int((time.perf_counter() - start) * 1000)
-        await store.set_result(
+        terminalized = await store.set_result(
             job_id,
             {
                 "text": result.text,
@@ -225,6 +226,8 @@ async def run_job(
                 "inference_ms": inference_ms,
             },
         )
+        if terminalized is not False:
+            QUEUE_DEPTH.dec()
         audit = state.audit
         if audit is not None:
             from app.observability.tracing import current_trace_id_hex
@@ -260,7 +263,9 @@ async def run_job(
 async def record_failure(job_id: str, store: JobStore, logger: Any, *, attempts: int = 1) -> None:
     """Mark a job as failed in the JobStore; logs and counts write failures."""
     try:
-        await store.set_error(job_id, JOB_FAILED)
+        terminalized = await store.set_error(job_id, JOB_FAILED)
+        if terminalized is not False:
+            QUEUE_DEPTH.dec()
         try:
             await store.record_dead_letter(job_id, JOB_FAILED, attempts)
         except (OSError, TimeoutError, RuntimeError):

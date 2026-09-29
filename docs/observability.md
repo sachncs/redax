@@ -2,8 +2,11 @@
 
 Redax exposes RED metrics on `/metrics`: request rate and status,
 end-to-end latency histograms, detector latency, durable job duration and
-retry counters, cache hits, error types, audit failures, and rate-limit
-dependency failures. Do not add request text,
+retry counters, accepted in-flight job depth, cache hits, error types, audit
+failures, and rate-limit dependency failures. `redax_queue_depth` is a
+per-process gauge of accepted non-terminal jobs; use it with replica count
+and Redis-backed admission limits rather than treating one replica's value
+as global queue depth. Do not add request text,
 entity values, API keys, or Redis keys as labels.
 
 The checked-in assets are:

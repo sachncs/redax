@@ -287,12 +287,12 @@ return 1
                 reaped += 1
         return reaped
 
-    async def set_result(self, job_id: str, result: dict[str, Any]) -> None:
+    async def set_result(self, job_id: str, result: dict[str, Any]) -> bool:
         """Atomically mark the job done, store its result, and release capacity."""
         client = self.client
         if client is None:
             raise RuntimeError("JobStore.start() must run before set_result()")
-        await set_terminal(
+        return await set_terminal(
             client,
             self._key(job_id),
             self._total_count_key(),
@@ -303,12 +303,12 @@ return 1
             self.ttl_seconds,
         )
 
-    async def set_error(self, job_id: str, error: str) -> None:
+    async def set_error(self, job_id: str, error: str) -> bool:
         """Atomically mark the job failed, record the error, and release capacity."""
         client = self.client
         if client is None:
             raise RuntimeError("JobStore.start() must run before set_error()")
-        await set_terminal(
+        return await set_terminal(
             client,
             self._key(job_id),
             self._total_count_key(),
@@ -374,11 +374,11 @@ async def set_terminal(
     result: str,
     error: str,
     ttl_seconds: int,
-) -> None:
+) -> bool:
     """Atomically complete a job and release its admission counters."""
     owner = await client.hget(job_key, "owner")  # type: ignore[misc]
     owner_key = JobStore.COUNT_KEY_TEMPLATE.format(ns=namespace, owner=owner or "")
-    await client.eval(  # type: ignore[misc]
+    result_value = await client.eval(  # type: ignore[misc]
         JobStore.TERMINAL_SCRIPT,
         3,
         job_key,
@@ -391,6 +391,7 @@ async def set_terminal(
         str(time.time()),
         str(JobStore.JOB_SCHEMA_VERSION),
     )
+    return bool(result_value)
 
 
 async def release_owner_count(

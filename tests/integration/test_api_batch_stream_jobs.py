@@ -90,10 +90,12 @@ class InMemoryJobStore(JobStore):
     async def set_result(self, job_id, result):
         self.records[job_id].result = result
         self.records[job_id].status = "done"
+        return True
 
     async def set_error(self, job_id, error):
         self.records[job_id].error = error
         self.records[job_id].status = "failed"
+        return True
 
 
 class InMemoryJobQueue:
@@ -199,7 +201,10 @@ def test_stream_records_end_to_end_request_latency(app_with_state):
 
 
 def test_job_lifecycle(app_with_state):
+    from app.observability.metrics import queue_depth
+
     canary = "job.canary.7f8d@example.com"
+    before_depth = queue_depth()
     with TestClient(app_with_state) as client:
         sub = client.post(
             "/v1/jobs", json={"text": f"hi {canary}"}, headers={"X-API-Key": "test-key"}
@@ -221,6 +226,7 @@ def test_job_lifecycle(app_with_state):
     assert canary not in body["result"]["text"]
     assert canary not in repr(app_with_state.state.state.job_store.records)
     assert canary not in repr(app_with_state.state.state.audit.records)
+    assert queue_depth() == before_depth
 
 
 @pytest.fixture
