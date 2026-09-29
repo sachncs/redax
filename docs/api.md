@@ -153,7 +153,7 @@ When `policy` and `entity_types` are omitted, each chunk uses the configured
 that default.
 Emits one audit event per request.
 
-## POST /v1/jobs, GET /v1/jobs/{id}
+## POST /v1/jobs, GET /v1/jobs/{id}, DELETE /v1/jobs/{id}
 
 Submit an async redaction; poll the result. Useful for long documents or
 high-throughput pipelines. Both endpoints require an API key when configured;
@@ -187,6 +187,13 @@ exception string. A job whose redaction exceeds `request_timeout_seconds` fails
 the same way (recorded as `redax_errors_total{type="job_timeout"}`). Completed
 jobs are recorded in the audit log; job records expire after
 `job_ttl_seconds`.
+
+`DELETE /v1/jobs/{id}` cancels a queued job atomically and releases its
+admission slots. Cancellation is idempotent for an already-cancelled job;
+running, completed, and failed jobs return 409 because the worker or terminal
+state is already authoritative. A worker delivery racing with cancellation
+either claims the job first (409) or observes the cancelled terminal state and
+does no redaction work.
 
 ## GET /v1/policies
 

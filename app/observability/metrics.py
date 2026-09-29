@@ -168,6 +168,11 @@ def queue_depth() -> float:
     return 0.0
 
 
+def decrement_queue_depth() -> None:
+    """Decrement the process-local admission gauge without going negative."""
+    QUEUE_DEPTH.set(max(0.0, queue_depth() - 1.0))
+
+
 class RequestMetric:
     """Context manager that wraps the per-request metrics boilerplate.
 

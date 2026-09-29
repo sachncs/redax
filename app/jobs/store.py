@@ -24,7 +24,7 @@ class JobRecord:
 
     Attributes:
         id: Server-assigned 32-char hex identifier.
-        status: One of ``queued``, ``running``, ``done``, ``failed``.
+        status: One of ``queued``, ``running``, ``done``, ``failed``, ``cancelled``.
         result: The serialized redaction output on success; ``None`` while
             the job is still queued or running.
         error: Human-readable failure reason; ``None`` unless ``status``
@@ -101,6 +101,19 @@ if status ~= 'queued' then return 0 end
 if redis.call('HGET', KEYS[1], 'schema_version') ~= ARGV[3] then return 0 end
 redis.call('HSET', KEYS[1], 'status', 'running', 'updated_at', ARGV[2], 'schema_version', ARGV[3])
 redis.call('EXPIRE', KEYS[1], ARGV[1])
+return 1
+"""
+    CANCEL_SCRIPT = """
+local status = redis.call('HGET', KEYS[1], 'status')
+if status ~= 'queued' then return 0 end
+if redis.call('HGET', KEYS[1], 'schema_version') ~= ARGV[5] then return 0 end
+redis.call('HSET', KEYS[1], 'status', 'cancelled', 'error', ARGV[1], 'updated_at', ARGV[2], 'schema_version', ARGV[5])
+redis.call('EXPIRE', KEYS[1], ARGV[3])
+redis.call('ZREM', KEYS[4], ARGV[4])
+local owner_count = tonumber(redis.call('GET', KEYS[2]) or '0')
+if owner_count <= 1 then redis.call('DEL', KEYS[2]) else redis.call('DECR', KEYS[2]) end
+local total = tonumber(redis.call('GET', KEYS[3]) or '0')
+if total <= 1 then redis.call('DEL', KEYS[3]) else redis.call('DECR', KEYS[3]) end
 return 1
 """
 
@@ -364,6 +377,29 @@ return 1
             self._key(job_id),
             str(self.ttl_seconds),
             str(time.time()),
+            str(self.JOB_SCHEMA_VERSION),
+        )
+        return bool(result)
+
+    async def cancel(self, job_id: str) -> bool:
+        """Atomically cancel a queued job and release its admission slots."""
+        client = self.client
+        if client is None:
+            raise RuntimeError("JobStore.start() must run before cancel()")
+        job_key = self._key(job_id)
+        owner = await client.hget(job_key, "owner")  # type: ignore[misc]
+        owner_key = self.COUNT_KEY_TEMPLATE.format(ns=self.namespace, owner=owner or "")
+        result = await client.eval(  # type: ignore[misc]
+            self.CANCEL_SCRIPT,
+            4,
+            job_key,
+            owner_key,
+            self._total_count_key(),
+            self._queue_index_key(),
+            "job cancelled",
+            str(time.time()),
+            str(self.ttl_seconds),
+            job_id,
             str(self.JOB_SCHEMA_VERSION),
         )
         return bool(result)

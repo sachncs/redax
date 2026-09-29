@@ -97,6 +97,27 @@ class FakeRedis:
             await self.expire(job_key, int(ttl))
             return 1
         owner_key, total_key, queue_key, *args = rest
+        if len(args) == 5:
+            error, updated_at, ttl, job_id, schema_version = args
+            record = self.records.get(job_key, {})
+            if record.get("status") != "queued" or record.get("schema_version") != schema_version:
+                return 0
+            record.update({"status": "cancelled", "error": error, "updated_at": updated_at})
+            await self.expire(job_key, int(ttl))
+            await self.zrem(queue_key, job_id)
+            owner = record.get("owner", "")
+            if owner:
+                count = self.counter.get(owner_key, 0)
+                if count <= 1:
+                    await self.delete(owner_key)
+                else:
+                    await self.decr(owner_key)
+            count = self.counter.get(total_key, 0)
+            if count <= 1:
+                await self.delete(total_key)
+            else:
+                await self.decr(total_key)
+            return 1
         if len(args) == 8:
             status, result, error, ttl, updated_at, schema_version, expected_schema, job_id = args
             record = self.records.get(job_key, {})
@@ -282,6 +303,18 @@ async def test_claim_is_single_delivery_transition(store: JobStore) -> None:
     record = await store.create(owner="k1")
     assert await store.claim(record.id) is True
     assert await store.claim(record.id) is False
+
+
+async def test_cancel_queued_job_releases_admission_slots(
+    store: JobStore, redis_client: FakeRedis
+) -> None:
+    record = await store.create(owner="k1")
+
+    assert await store.cancel(record.id) is True
+    assert (await store.get(record.id)).status == "cancelled"  # type: ignore[union-attr]
+    assert await store.count_inflight() == 0
+    assert await store.count_for_key("k1") == 0
+    assert await store.cancel(record.id) is False
 
 
 async def test_reap_stale_job_fails_record_and_releases_capacity(

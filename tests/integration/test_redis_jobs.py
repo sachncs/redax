@@ -173,6 +173,19 @@ async def test_real_redis_job_claim_allows_one_duplicate_delivery(
 
 
 @pytest.mark.asyncio
+async def test_real_redis_queued_job_can_be_cancelled(real_job_store: JobStore) -> None:
+    record = await real_job_store.create(owner="tenant-a")
+
+    assert await real_job_store.cancel(record.id) is True
+    cancelled = await real_job_store.get(record.id)
+    assert cancelled is not None
+    assert cancelled.status == "cancelled"
+    assert await real_job_store.count_inflight() == 0
+    assert await real_job_store.count_for_key("tenant-a") == 0
+    assert await real_job_store.claim(record.id) is False
+
+
+@pytest.mark.asyncio
 async def test_real_redis_shared_breaker_coordinates_replicas(
     real_job_store: JobStore,
 ) -> None:

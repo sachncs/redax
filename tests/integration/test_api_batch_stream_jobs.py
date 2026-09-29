@@ -108,6 +108,13 @@ class InMemoryJobStore(JobStore):
         self.records[job_id].status = "failed"
         return True
 
+    async def cancel(self, job_id):
+        record = self.records[job_id]
+        if record.status != "queued":
+            return False
+        record.status = "cancelled"
+        return True
+
 
 class InMemoryJobQueue:
     def __init__(self, state: State) -> None:
@@ -117,6 +124,16 @@ class InMemoryJobQueue:
         from app.api.jobs import run_job
 
         await run_job(job_id, payload, self.state.job_store, request_id, self.state)
+        return object()
+
+    async def close(self):
+        return None
+
+
+class PassiveJobQueue:
+    """Queue stub that leaves an admitted job queued for cancellation tests."""
+
+    async def enqueue_job(self, *_args, **_kwargs):
         return object()
 
     async def close(self):
@@ -314,6 +331,35 @@ def test_job_lifecycle(app_with_state):
     assert canary not in repr(app_with_state.state.state.job_store.records)
     assert canary not in repr(app_with_state.state.state.audit.records)
     assert queue_depth() == before_depth
+
+
+def test_queued_job_can_be_cancelled(app_with_state):
+    app_with_state.state.state.job_queue = PassiveJobQueue()
+    with TestClient(app_with_state) as client:
+        sub = client.post(
+            "/v1/jobs",
+            json={"text": "Email cancel.canary@example.com"},
+            headers={"X-API-Key": "test-key"},
+        )
+        assert sub.status_code == 202
+        job_id = sub.json()["id"]
+        cancelled = client.delete(f"/v1/jobs/{job_id}", headers={"X-API-Key": "test-key"})
+        repeated = client.delete(f"/v1/jobs/{job_id}", headers={"X-API-Key": "test-key"})
+
+    assert cancelled.status_code == 200
+    assert cancelled.json() == {"id": job_id, "status": "cancelled"}
+    assert repeated.status_code == 200
+
+
+def test_running_job_cannot_be_cancelled(app_with_state):
+    app_with_state.state.state.job_queue = PassiveJobQueue()
+    with TestClient(app_with_state) as client:
+        sub = client.post("/v1/jobs", json={"text": "queued"}, headers={"X-API-Key": "test-key"})
+        job_id = sub.json()["id"]
+        app_with_state.state.state.job_store.records[job_id].status = "running"
+        response = client.delete(f"/v1/jobs/{job_id}", headers={"X-API-Key": "test-key"})
+
+    assert response.status_code == 409
 
 
 @pytest.fixture

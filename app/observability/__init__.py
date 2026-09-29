@@ -23,6 +23,7 @@ from .metrics import (
     REQUESTS_INFLIGHT,
     RESPONSE_SIZE,
     RequestMetric,
+    decrement_queue_depth,
     queue_depth,
 )
 from .tracing import configure_tracing, current_trace_id_hex
@@ -54,5 +55,6 @@ __all__ = [
     "RequestMetric",
     "configure_tracing",
     "current_trace_id_hex",
+    "decrement_queue_depth",
     "queue_depth",
 ]

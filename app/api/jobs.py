@@ -32,7 +32,7 @@ from app.jobs.payload import JobPayloadCipher
 from app.jobs.store import JobStore
 from app.logging import get_logger
 from app.middleware import get_request_id
-from app.observability import ERRORS, JOB_DURATION, QUEUE_DEPTH, REQUESTS
+from app.observability import ERRORS, JOB_DURATION, QUEUE_DEPTH, REQUESTS, decrement_queue_depth
 from app.ratelimit import rate_limit
 from app.state import State, get_state
 
@@ -48,7 +48,7 @@ class JobSubmit(BaseModel):
 
 
 def register(app: FastAPI) -> None:
-    """Mount the POST /v1/jobs and GET /v1/jobs/{id} routes on ``app``."""
+    """Mount the async job submission, polling, and cancellation routes."""
 
     router = APIRouter()
 
@@ -171,6 +171,66 @@ def register(app: FastAPI) -> None:
             "error": JOB_FAILED if record.status == "failed" else None,
         }
 
+    @router.delete("/v1/jobs/{job_id}", response_model=None)
+    async def cancel_job(
+        job_id: str,
+        request: Request,
+        state: Annotated[State, Depends(get_state)],
+        api_key: Annotated[str, Depends(require_scope("jobs"))],
+    ) -> dict[str, Any] | JSONResponse:
+        """Cancel queued work; running jobs remain owned by the worker."""
+        endpoint = "DELETE /v1/jobs/{id}"
+        method = "DELETE"
+        store: JobStore | None = state.job_store
+        if store is None:
+            REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
+            return job_store_unavailable(request, "job store not initialized")
+        try:
+            record = await store.get(job_id)
+            if record is None or record.owner != store.owner_token(api_key):
+                REQUESTS.labels(endpoint=endpoint, method=method, status="404").inc()
+                return problem_response(
+                    request,
+                    type="https://redax.ai/errors/job-not-found",
+                    title="Job not found",
+                    status=404,
+                    detail=f"No job with id {job_id!r}",
+                )
+            if record.status == "cancelled":
+                REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
+                return {"id": record.id, "status": record.status}
+            if record.status != "queued":
+                REQUESTS.labels(endpoint=endpoint, method=method, status="409").inc()
+                return problem_response(
+                    request,
+                    type="https://redax.ai/errors/job-not-cancellable",
+                    title="Job cannot be cancelled",
+                    status=409,
+                    detail="Only queued jobs can be cancelled; running or terminal jobs are immutable.",
+                )
+            cancel = getattr(store, "cancel", None)
+            if cancel is None or not await cancel(job_id):
+                current = await store.get(job_id)
+                if current is not None and current.status == "cancelled":
+                    REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
+                    return {"id": current.id, "status": current.status}
+                REQUESTS.labels(endpoint=endpoint, method=method, status="409").inc()
+                return problem_response(
+                    request,
+                    type="https://redax.ai/errors/job-not-cancellable",
+                    title="Job cannot be cancelled",
+                    status=409,
+                    detail="The job was claimed before cancellation completed.",
+                )
+            decrement_queue_depth()
+            REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
+            return {"id": job_id, "status": "cancelled"}
+        except TRANSIENT_EXC as exc:
+            ERRORS.labels(type="job_cancel_failed").inc()
+            get_logger("redax.api").error("redax.job_cancel_failed", error=exc.__class__.__name__)
+            REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
+            return job_store_unavailable(request, "durable job queue unavailable")
+
     app.include_router(router)
 
 
@@ -197,7 +257,12 @@ async def run_job(
             await store.set_status(job_id, "running")
         if not claimed:
             existing = await store.get(job_id)
-            return existing is not None and existing.status in {"running", "done", "failed"}
+            return existing is not None and existing.status in {
+                "running",
+                "done",
+                "failed",
+                "cancelled",
+            }
     except (OSError, TimeoutError, RuntimeError) as exc:
         ERRORS.labels(type="job_store_unavailable").inc()
         logger.error("redax.job_store_unavailable", job_id=job_id, error=exc.__class__.__name__)
@@ -235,7 +300,7 @@ async def run_job(
             },
         )
         if terminalized is not False:
-            QUEUE_DEPTH.dec()
+            decrement_queue_depth()
         audit = state.audit
         if audit is not None:
             from app.observability.tracing import current_trace_id_hex
@@ -274,7 +339,7 @@ async def record_failure(job_id: str, store: JobStore, logger: Any, *, attempts:
     try:
         terminalized = await store.set_error(job_id, JOB_FAILED)
         if terminalized is not False:
-            QUEUE_DEPTH.dec()
+            decrement_queue_depth()
         try:
             await store.record_dead_letter(job_id, JOB_FAILED, attempts)
         except (OSError, TimeoutError, RuntimeError):
