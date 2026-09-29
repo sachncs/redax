@@ -103,6 +103,7 @@ All settings read from environment variables prefixed with `REDAX_`. See
 | `REDAX_AUDIT_ROTATION_BACKUPS` | `5` | keep this many rotated audit files; 0 truncates instead |
 | `REDAX_AUDIT_RETENTION_SECONDS` | `7776000` | drop audit lines older than this at startup |
 | `REDAX_REQUEST_TIMEOUT_SECONDS` | `30` | per-request and job inference timeout |
+| `REDAX_REQUEST_BODY_TIMEOUT_SECONDS` | `30` | maximum time to receive a chunked request body before returning 408 |
 | `REDAX_SHUTDOWN_TIMEOUT_SECONDS` | `30` | total budget for dependency cleanup after readiness drops |
 | `REDAX_INFERENCE_CONCURRENCY` | `2` | concurrent model detector calls |
 | `REDAX_MULTI_PASS_MAX` | `3` | maximum detector passes for `multi_pass` policies |

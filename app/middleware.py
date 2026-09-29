@@ -23,6 +23,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import Response
 from opentelemetry import context, trace
 from opentelemetry.trace import Span
+from starlette.types import Message, Receive
 
 from app.errors import problem_response
 from app.logging import get_logger
@@ -34,6 +35,34 @@ request_tracer = trace.get_tracer("redax.http")
 
 class RequestBodyTooLargeError(Exception):
     """Raised when a streamed request exceeds the configured byte budget."""
+
+
+async def read_bounded_body(
+    receive: Receive,
+    *,
+    max_body_bytes: int,
+    timeout_seconds: float,
+) -> tuple[list[bytes], dict[str, Any] | None]:
+    """Read a request body with byte and wall-clock limits."""
+    body_chunks: list[bytes] = []
+    received_body_bytes = 0
+    disconnect_message: dict[str, Any] | None = None
+    async with asyncio.timeout(timeout_seconds):
+        while True:
+            message: Message = await receive()
+            if message.get("type") == "http.disconnect":
+                disconnect_message = dict(message)
+                break
+            if message.get("type") != "http.request":
+                break
+            chunk = bytes(message.get("body", b""))
+            received_body_bytes += len(chunk)
+            if received_body_bytes > max_body_bytes:
+                raise RequestBodyTooLargeError
+            body_chunks.append(chunk)
+            if not message.get("more_body", False):
+                break
+    return body_chunks, disconnect_message
 
 
 def safe_request_id(value: str | None) -> str:
@@ -190,24 +219,18 @@ def register_request_context(app: FastAPI) -> None:
                     state.active_requests += 1
                 REQUESTS_INFLIGHT.inc()
             original_receive = request._receive
-            body_chunks: list[bytes] = []
-            received_body_bytes = 0
-            disconnect_message: dict[str, Any] | None = None
             try:
-                while True:
-                    message = await original_receive()
-                    if message.get("type") == "http.disconnect":
-                        disconnect_message = dict(message)
-                        break
-                    if message.get("type") != "http.request":
-                        break
-                    chunk = bytes(message.get("body", b""))
-                    received_body_bytes += len(chunk)
-                    if received_body_bytes > max_body_bytes:
-                        raise RequestBodyTooLargeError
-                    body_chunks.append(chunk)
-                    if not message.get("more_body", False):
-                        break
+                body_chunks, disconnect_message = await read_bounded_body(
+                    original_receive,
+                    max_body_bytes=max_body_bytes,
+                    timeout_seconds=float(
+                        getattr(
+                            getattr(state, "settings", None),
+                            "request_body_timeout_seconds",
+                            30.0,
+                        )
+                    ),
+                )
             except RequestBodyTooLargeError:
                 ADMISSION_REJECTIONS.labels(reason="body_too_large").inc()
                 response = problem_response(
@@ -216,6 +239,17 @@ def register_request_context(app: FastAPI) -> None:
                     title="Request body too large",
                     status=413,
                     detail=f"request body exceeds {max_body_bytes} bytes",
+                )
+                status = response.status_code
+                return response
+            except TimeoutError:
+                ADMISSION_REJECTIONS.labels(reason="body_timeout").inc()
+                response = problem_response(
+                    request,
+                    type="https://redax.ai/errors/request-body-timeout",
+                    title="Request body timeout",
+                    status=408,
+                    detail="request body was not received within the configured time limit",
                 )
                 status = response.status_code
                 return response

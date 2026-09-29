@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 import structlog
 from fastapi import FastAPI, Request
@@ -107,6 +109,18 @@ def test_chunked_request_body_is_bounded_before_handler_reads_it() -> None:
     assert response.status_code == 413
     assert response.headers["content-type"].startswith("application/problem+json")
     assert response.json()["title"] == "Request body too large"
+
+
+@pytest.mark.asyncio
+async def test_slow_chunked_request_body_times_out() -> None:
+    from app.middleware import read_bounded_body
+
+    async def slow_receive() -> dict[str, object]:
+        await asyncio.sleep(0.05)
+        return {"type": "http.request", "body": b"a", "more_body": False}
+
+    with pytest.raises(TimeoutError):
+        await read_bounded_body(slow_receive, max_body_bytes=1024, timeout_seconds=0.01)  # type: ignore[arg-type]
 
 
 def test_request_span_contains_metadata_only(monkeypatch: pytest.MonkeyPatch) -> None:
