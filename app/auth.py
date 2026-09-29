@@ -61,9 +61,15 @@ def require_api_key(
     valid = settings.api_key_set()
     if not valid:
         return "anonymous"
-    if x_api_key is None or not any(
-        secrets.compare_digest(x_api_key, candidate) for candidate in valid
-    ):
+    if x_api_key is None:
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")
+    matched = False
+    for candidate in valid:
+        # Evaluate every configured key so rotation order does not reveal
+        # which key matched through an early return.
+        if secrets.compare_digest(x_api_key, candidate):
+            matched = True
+    if not matched:
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
     return x_api_key
 

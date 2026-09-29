@@ -116,6 +116,20 @@ def test_multiple_active_keys_support_rotation_overlap() -> None:
     assert require_api_key(state=state, x_api_key="new-key") == "new-key"
 
 
+def test_api_key_comparison_checks_all_rotation_keys(monkeypatch: pytest.MonkeyPatch) -> None:
+    state = make_state(api_keys={"old-key", "new-key", "future-key"})
+    compared: list[str] = []
+
+    def compare_digest(left: str, right: str) -> bool:
+        compared.append(right)
+        return left == right
+
+    monkeypatch.setattr("app.auth.secrets.compare_digest", compare_digest)
+
+    assert require_api_key(state=state, x_api_key="old-key") == "old-key"
+    assert sorted(compared) == ["future-key", "new-key", "old-key"]
+
+
 def test_revoked_key_is_rejected_while_replacement_remains_valid() -> None:
     from app.config import Settings
 
