@@ -18,7 +18,7 @@ as each production milestone lands.
 | Redis failure behavior is explicit | PASS | `docs/failure-modes.md`, typed Redis exception handling in API/jobs/readiness, `app/ratelimit.py`, `tests/integration/test_api_redact.py::test_response_cache_failure_recomputes_without_leaking_canary`, and configuration tests define current cache/job/rate-limit degradation. Durable-job and managed-Redis failover behavior remain pending. |
 | Graceful shutdown is verified | PASS | Readiness drops before teardown; process-level Uvicorn SIGTERM tests cover a held HTTP request and a backpressured active stream, while a real-Redis ARQ test verifies SIGTERM stops pickup and drains an active job within the configured deadline. |
 | Overload is bounded | PARTIAL | Declared and chunked request-body bytes plus a bounded chunked-body receive timeout, text, aggregate batch, chunk, total stream duration, HTTP, inference, and job admission limits exist; Redis-pool, worker queue, and sustained overload recovery evidence remain. |
-| Dependency recovery works | PARTIAL | Real-Redis worker lease recovery, disposable Redis restart/reconnect, and required Redis-audit write recovery after an outage are tested; managed Redis failover evidence remains missing. |
+| Dependency recovery works | PARTIAL | Real-Redis worker lease recovery, disposable Redis restart/reconnect, required Redis-audit write recovery after an outage, and `tests/unit/test_main_recovery.py::test_refresh_job_metrics_reconnects_store_and_queue` cover recovery behavior; managed Redis failover evidence remains missing. |
 
 ## Security and privacy
 

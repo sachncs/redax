@@ -26,8 +26,10 @@ Attributes:
         successful ``/v1/redact`` records counts/durations only,
         never input or output text.
     settings: The validated pydantic-settings ``Settings`` instance.
-    job_store: ``JobStore`` for the Redis-backed durable job system; ``None``
-        when Redis is unavailable.
+    job_store: ``JobStore`` for the Redis-backed durable job system. The
+        handle is retained across a transient Redis outage so the lifespan
+        recovery task can reconnect it; routes still fail closed while the
+        backing connection is unavailable.
     extras: Extension point for downstream deployments to stash
         arbitrary objects on the shared state.
     pipeline: The multi-stage redaction ``Pipeline`` (regex gate +

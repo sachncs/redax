@@ -19,6 +19,7 @@ from arq.connections import RedisSettings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from redis.exceptions import RedisError
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api import (
@@ -72,8 +73,9 @@ async def build_state(settings: Settings) -> State:
     Wires the regex detector, GLiNER2 detector, redactor, optional
     pipeline, audit backend, and Redis job store. Failures during
     detector loading propagate (the app refuses to start); Redis being
-    unavailable is logged and downgraded to ``job_store=None`` so the
-    HTTP surface still serves traffic.
+    unavailable is logged while the store is retained for background
+    reconnect so the HTTP surface can serve traffic and durable jobs can
+    recover without a process restart.
 
     Args:
         settings: The validated pydantic-settings ``Settings``.
@@ -158,9 +160,10 @@ async def build_state(settings: Settings) -> State:
         max_connections=settings.redis_max_connections,
         dead_letter_max=settings.job_dead_letter_max,
     )
+    redis_started = False
     try:
         await store.start()
-        job_store: JobStore | None = store
+        redis_started = True
         try:
             reaped = await store.reap_stale_jobs(settings.job_stale_seconds)
             if reaped:
@@ -169,8 +172,8 @@ async def build_state(settings: Settings) -> State:
             log.warning("redax.stale_jobs_recovery_failed", error=exc.__class__.__name__)
     except Exception as exc:
         log.warning("redax.redis_unavailable", error=exc.__class__.__name__)
-        job_store = None
-    if job_store is None:
+    job_store: JobStore = store
+    if not redis_started:
         log.warning(
             "redax.cache_disabled",
             note="idempotency and response caches skipped until Redis recovers",
@@ -187,7 +190,7 @@ async def build_state(settings: Settings) -> State:
 
     audit: Backend
     if settings.audit_backend == "redis":
-        if job_store is None:
+        if not redis_started:
             raise RuntimeError("REDAX_AUDIT_BACKEND=redis requires Redis to be available")
         audit = RedisAudit(
             job_store.client,
@@ -283,19 +286,41 @@ async def refresh_job_metrics(state: State) -> None:
     while True:
         if state.job_store is not None:
             try:
+                client = state.job_store.client
+                if client is None:
+                    await state.job_store.start()
+                else:
+                    ping = getattr(client, "ping", None)
+                    if callable(ping):
+                        await ping()
+            except (OSError, RedisError, RuntimeError, TimeoutError, ValueError) as exc:
+                get_logger("redax.lifespan").warning(
+                    "redax.redis_reconnect_failed", error=exc.__class__.__name__
+                )
+                with suppress(OSError, RedisError, RuntimeError, TimeoutError, ValueError):
+                    await state.job_store.stop()
+            if state.job_queue is None and state.job_store.client is not None:
+                try:
+                    assert state.settings is not None
+                    state.job_queue = await create_job_queue(state.settings)
+                except (OSError, RedisError, RuntimeError, TimeoutError, ValueError) as exc:
+                    get_logger("redax.lifespan").warning(
+                        "redax.job_queue_reconnect_failed", error=exc.__class__.__name__
+                    )
+            try:
                 age = await state.job_store.oldest_job_age_seconds()
-            except (OSError, RuntimeError, TimeoutError, ValueError):
+            except (OSError, RedisError, RuntimeError, TimeoutError, ValueError):
                 age = 0.0
             QUEUE_OLDEST_AGE.set(age)
             try:
                 ACTIVE_WORKERS.set(await state.job_store.active_worker_count())
-            except (OSError, RuntimeError, TimeoutError, ValueError):
+            except (OSError, RedisError, RuntimeError, TimeoutError, ValueError):
                 ACTIVE_WORKERS.set(0)
             try:
                 capacity = await state.job_store.worker_capacity()
                 WORKER_JOBS_ACTIVE.set(capacity["active"])
                 WORKER_JOBS_CAPACITY.set(capacity["max"])
-            except (OSError, RuntimeError, TimeoutError, ValueError):
+            except (OSError, RedisError, RuntimeError, TimeoutError, ValueError):
                 WORKER_JOBS_ACTIVE.set(0)
                 WORKER_JOBS_CAPACITY.set(0)
             pool = state.job_store.pool_stats()
@@ -303,6 +328,15 @@ async def refresh_job_metrics(state: State) -> None:
             REDIS_POOL_AVAILABLE.set(pool["available"])
             REDIS_POOL_MAX.set(pool["max"])
         await asyncio.sleep(5.0)
+
+
+async def create_job_queue(settings: Settings) -> Any:
+    """Create the ARQ enqueue pool from the validated Redis settings."""
+    redis_settings = RedisSettings.from_dsn(settings.redis_url)
+    redis_settings.conn_timeout = max(1, int(settings.redis_connect_timeout_seconds))
+    redis_settings.max_connections = settings.redis_max_connections
+    redis_settings.retry_on_timeout = True
+    return await create_pool(redis_settings)
 
 
 @asynccontextmanager
@@ -324,11 +358,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     state = await build_state(settings)
     if state.job_store is not None:
         try:
-            redis_settings = RedisSettings.from_dsn(settings.redis_url)
-            redis_settings.conn_timeout = max(1, int(settings.redis_connect_timeout_seconds))
-            redis_settings.max_connections = settings.redis_max_connections
-            redis_settings.retry_on_timeout = True
-            state.job_queue = await create_pool(redis_settings)
+            state.job_queue = await create_job_queue(settings)
         except Exception as exc:
             log.warning("redax.job_queue_unavailable", error=exc.__class__.__name__)
     app.state.state = state
@@ -341,7 +371,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         detector=state.detector.name if state.detector is not None else "",
         model=settings.model_name,
         revision=settings.model_revision,
-        redis=state.job_store is not None,
+        redis=state.job_store is not None and state.job_store.client is not None,
     )
     state.ready = True
     try:
