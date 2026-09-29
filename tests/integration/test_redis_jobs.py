@@ -28,9 +28,11 @@ async def real_job_store() -> JobStore:
     try:
         yield store
     finally:
-        async for key in client.scan_iter(match=f"{store.namespace}:*"):
-            await client.delete(key)
-        await client.aclose()
+        cleanup_client = store.client
+        if cleanup_client is not None:
+            async for key in cleanup_client.scan_iter(match=f"{store.namespace}:*"):
+                await cleanup_client.delete(key)
+            await cleanup_client.aclose()
 
 
 @pytest.mark.asyncio
@@ -58,4 +60,22 @@ async def test_real_redis_admission_and_terminal_transitions_are_atomic(
         real_job_store.set_error(admitted[0].id, "duplicate failure"),
         real_job_store.set_result(admitted[0].id, {"text": "safe"}),
     )
+    assert await real_job_store.count_inflight() == 0
+
+    await real_job_store.record_dead_letter("job-dlq", "job failed", attempts=5)
+    dead_letters = await real_job_store.client.lrange(
+        f"{real_job_store.namespace}:jobs:dead-letter", 0, -1
+    )
+    assert len(dead_letters) == 1
+    assert "job-dlq" in dead_letters[0]
+    assert "payload" not in dead_letters[0]
+
+
+@pytest.mark.asyncio
+async def test_real_redis_client_recovers_after_connection_close(
+    real_job_store: JobStore,
+) -> None:
+    client = real_job_store.client
+    assert client is not None
+    await client.aclose()
     assert await real_job_store.count_inflight() == 0
