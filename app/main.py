@@ -7,6 +7,7 @@ redactor, optional pipeline, audit backend, and Redis job store into
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from importlib.metadata import PackageNotFoundError
@@ -198,21 +199,28 @@ async def teardown_state(state: State) -> None:
     state.ready = False
     # Readiness must drop before any dependency is closed so a load balancer
     # can stop routing new work while the process drains existing work.
-    try:
-        if state.job_queue is not None:
-            await state.job_queue.close()
-    except Exception as exc:
-        log.warning("redax.job_queue_stop_failed", error=exc.__class__.__name__)
-    try:
-        if state.audit is not None:
-            await state.audit.stop()
-    except Exception as exc:
-        log.warning("redax.audit_stop_failed", error=exc.__class__.__name__)
-    try:
-        if state.job_store is not None:
-            await state.job_store.stop()
-    except Exception as exc:
-        log.warning("redax.job_store_stop_failed", error=exc.__class__.__name__)
+    timeout_seconds = float(getattr(state.settings, "shutdown_timeout_seconds", 30.0))
+    deadline = asyncio.get_running_loop().time() + timeout_seconds
+
+    async def close_component(name: str, close: Any) -> None:
+        remaining = deadline - asyncio.get_running_loop().time()
+        if remaining <= 0:
+            log.warning("redax.shutdown_timeout", component=name)
+            return
+        try:
+            async with asyncio.timeout(remaining):
+                await close()
+        except TimeoutError:
+            log.warning("redax.shutdown_timeout", component=name)
+        except Exception as exc:
+            log.warning(f"redax.{name}_stop_failed", error=exc.__class__.__name__)
+
+    if state.job_queue is not None:
+        await close_component("job_queue", state.job_queue.close)
+    if state.audit is not None:
+        await close_component("audit", state.audit.stop)
+    if state.job_store is not None:
+        await close_component("job_store", state.job_store.stop)
 
 
 @asynccontextmanager

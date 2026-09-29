@@ -83,6 +83,7 @@ class Settings(BaseSettings):
     job_ttl_seconds: int = Field(default=86_400, ge=1)
     job_stale_seconds: int = Field(default=300, ge=1)
     request_timeout_seconds: float = Field(default=30.0, ge=0.1)
+    shutdown_timeout_seconds: float = Field(default=30.0, ge=0.1)
     stream_chunk_bytes: int = Field(default=4096, ge=64)
     stream_chunk_chars: int = Field(default=2000, ge=100, le=50_000)
 

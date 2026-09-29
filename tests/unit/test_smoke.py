@@ -49,6 +49,20 @@ def test_teardown_marks_unready_before_closing_queue() -> None:
     assert state.ready is False
 
 
+def test_teardown_bounds_hanging_dependency() -> None:
+    from app.main import teardown_state
+    from app.state import State
+
+    class HangingQueue:
+        async def close(self) -> None:
+            await asyncio.sleep(10)
+
+    state = State(ready=True, settings=type("S", (), {"shutdown_timeout_seconds": 0.01})())
+    state.job_queue = HangingQueue()
+    asyncio.run(teardown_state(state))
+    assert state.ready is False
+
+
 def test_healthz(client) -> None:
     from app.api.health import register
 
