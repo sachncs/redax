@@ -59,9 +59,22 @@ async def process_job(
     state = ctx["state"]
     ctx["active_jobs"] = int(ctx.get("active_jobs", 0)) + 1
     try:
-        payload = JobPayloadCipher(
-            getattr(getattr(state, "settings", None), "job_payload_encryption_key", "")
-        ).decode(payload)
+        try:
+            payload = JobPayloadCipher(
+                getattr(getattr(state, "settings", None), "job_payload_encryption_key", "")
+            ).decode(payload)
+        except ValueError as exc:
+            JOB_PERMANENT_FAILURES.inc()
+            get_logger("redax.jobs").error(
+                "redax.job_payload_rejected", error=exc.__class__.__name__
+            )
+            await record_failure(
+                job_id,
+                state.job_store,
+                get_logger("redax.jobs"),
+                attempts=int(ctx.get("job_try", 1)),
+            )
+            return
         success = await run_job(
             job_id,
             payload,

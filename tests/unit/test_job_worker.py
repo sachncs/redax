@@ -96,3 +96,30 @@ async def test_process_job_records_failure_after_final_attempt(monkeypatch):
     assert calls == ["failed"]
     after = next(iter(JOB_PERMANENT_FAILURES.collect())).samples[0].value
     assert after == before + 1
+
+
+@pytest.mark.asyncio
+async def test_process_job_rejects_malformed_payload_without_retry(monkeypatch):
+    before = next(iter(JOB_PERMANENT_FAILURES.collect())).samples[0].value
+    calls: list[str] = []
+
+    def reject_payload(_self, _payload):
+        raise ValueError("invalid job payload envelope")
+
+    async def failure(*_args, **_kwargs):
+        calls.append("failed")
+
+    async def unexpected_run(*_args, **_kwargs):
+        raise AssertionError("malformed payload must not reach redaction")
+
+    monkeypatch.setattr(queue.JobPayloadCipher, "decode", reject_payload)
+    monkeypatch.setattr(queue, "record_failure", failure)
+    monkeypatch.setattr(queue, "run_job", unexpected_run)
+
+    ctx = {"state": State(), "job_try": 1, "active_jobs": 0}
+    await queue.process_job(ctx, "job-1", {"text": "x"}, "request-1")
+
+    assert calls == ["failed"]
+    assert ctx["active_jobs"] == 0
+    after = next(iter(JOB_PERMANENT_FAILURES.collect())).samples[0].value
+    assert after == before + 1

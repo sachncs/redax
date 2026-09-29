@@ -6,8 +6,7 @@ from typing import Annotated
 
 from pydantic import Field
 
-MAX_ENTITY_TYPES = 128
-MAX_ENTITY_TYPE_CHARS = 128
+from app.limits import MAX_ENTITY_TYPE_CHARS, MAX_ENTITY_TYPES
 
 EntityType = Annotated[str, Field(min_length=1, max_length=MAX_ENTITY_TYPE_CHARS)]
 EntityTypes = Annotated[list[EntityType], Field(max_length=MAX_ENTITY_TYPES)]

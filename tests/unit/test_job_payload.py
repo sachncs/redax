@@ -29,3 +29,17 @@ def test_empty_key_preserves_local_development_behavior() -> None:
     payload = {"text": "local-only"}
     assert JobPayloadCipher().encode(payload) == payload
     assert JobPayloadCipher().decode(payload) == payload
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"text": "x", "entity_types": "EMAIL"},
+        {"text": "x", "entity_types": ["EMAIL"] * 129},
+        {"text": "x", "policy": []},
+        {"text": 42},
+    ],
+)
+def test_job_payload_rejects_invalid_structure(payload: dict) -> None:
+    with pytest.raises(ValueError, match="invalid job payload"):
+        JobPayloadCipher().decode(payload)
