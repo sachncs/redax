@@ -28,6 +28,7 @@ from app.errors import (
     problem_response,
     queue_full,
 )
+from app.jobs.payload import JobPayloadCipher
 from app.jobs.store import JobStore
 from app.logging import get_logger
 from app.middleware import get_request_id
@@ -109,10 +110,13 @@ def register(app: FastAPI) -> None:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="429").inc()
                 return queue_full(request)
             try:
+                queue_payload = JobPayloadCipher(
+                    getattr(settings, "job_payload_encryption_key", "")
+                ).encode(body.model_dump())
                 queued = await queue.enqueue_job(
                     "process_job",
                     record.id,
-                    body.model_dump(),
+                    queue_payload,
                     request_id,
                     _job_id=record.id,
                     _queue_name="redax:jobs",

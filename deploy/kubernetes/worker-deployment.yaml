@@ -43,6 +43,11 @@ spec:
                 secretKeyRef:
                   name: redax-redis
                   key: url
+            - name: REDAX_JOB_PAYLOAD_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: redax-api
+                  key: job_payload_encryption_key
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

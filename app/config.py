@@ -13,6 +13,7 @@ import json
 import os
 from typing import Literal
 
+from cryptography.fernet import Fernet
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -80,6 +81,7 @@ class Settings(BaseSettings):
     inference_concurrency: int = Field(default=2, ge=1)
     worker_concurrency: int = Field(default=1, ge=1)
     job_retry_jitter_seconds: float = Field(default=1.0, ge=0.0, le=30.0)
+    job_payload_encryption_key: str = ""
     job_dead_letter_max: int = Field(default=1000, ge=1)
     max_inflight: int = Field(default=32, ge=1)
     max_jobs_per_key: int = Field(default=50, ge=1)
@@ -191,6 +193,17 @@ class Settings(BaseSettings):
             )
         if self.env == "prod" and not self.trusted_host_list():
             raise ValueError("REDAX_TRUSTED_HOSTS must be configured when REDAX_ENV=prod.")
+        if self.job_payload_encryption_key:
+            try:
+                Fernet(self.job_payload_encryption_key.encode("ascii"))
+            except (ValueError, UnicodeError) as exc:
+                raise ValueError(
+                    "REDAX_JOB_PAYLOAD_ENCRYPTION_KEY must be a valid Fernet key"
+                ) from exc
+        elif self.env == "prod":
+            raise ValueError(
+                "REDAX_JOB_PAYLOAD_ENCRYPTION_KEY must be configured when REDAX_ENV=prod"
+            )
         if self.detector == "regex":
             # Explicit opt-in only; regex is the boot-time fallback path.
             return

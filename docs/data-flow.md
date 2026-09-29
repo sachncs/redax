@@ -29,7 +29,7 @@ validate offsets → resolve overlaps → evaluate policy → replace spans
 | Audit file | no | no | no | Counts, types, durations, keyed digest, and request metadata only. |
 | Prometheus metrics | no | no | no | Never put user text or credentials in labels. |
 | Redis cache/idempotency | no | no | yes | TTL-bound response records; cache keys are digests. |
-| Redis jobs | no after submission payload leaves memory | no | yes | Job results are redacted; ownership uses one-way tokens. |
+| Redis jobs | encrypted ARQ payload and redacted result; payload encryption key is deployment-only | no | yes | Production requires `REDAX_JOB_PAYLOAD_ENCRYPTION_KEY`; ownership uses one-way tokens. |
 | OTLP/exported traces | not intentionally | not intentionally | no | Export destination and SDK instrumentation remain deployment concerns. |
 | Reverse proxy / host logs | possible | possible | possible | Configure these systems separately; Redax cannot control them. |
 

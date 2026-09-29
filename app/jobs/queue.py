@@ -12,6 +12,7 @@ from arq.worker import Worker
 
 from app.api.jobs import record_failure, run_job
 from app.config import Settings
+from app.jobs.payload import JobPayloadCipher
 from app.logging import configure_logging, get_logger
 from app.main import build_state, teardown_state
 from app.observability import JOB_PERMANENT_FAILURES, JOB_RETRIES
@@ -26,6 +27,9 @@ async def process_job(
 ) -> None:
     """Run one job attempt and ask ARQ to retry transient failures."""
     state = ctx["state"]
+    payload = JobPayloadCipher(
+        getattr(getattr(state, "settings", None), "job_payload_encryption_key", "")
+    ).decode(payload)
     success = await run_job(job_id, payload, state.job_store, request_id, state, mark_failure=False)
     if success:
         return
