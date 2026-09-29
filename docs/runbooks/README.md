@@ -14,6 +14,7 @@ and deployment versions—not request bodies or API keys.
 - [Rollback and disaster recovery](rollback.md)
 - [Backup and restore](backup-restore.md)
 - [Persisted schema migrations](schema-migrations.md)
+- [Production launch gate](launch.md)
 
 For all incidents, stop forwarding raw request data into tickets or chat. Use
 synthetic probes to verify recovery.
