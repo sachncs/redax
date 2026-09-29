@@ -313,6 +313,25 @@ async def test_real_redis_audit_expires_events_by_retention(real_job_store: JobS
 
 
 @pytest.mark.asyncio
+async def test_real_redis_audit_expires_while_idle(real_job_store: JobStore) -> None:
+    audit = RedisAudit(
+        real_job_store.client,
+        namespace=f"{real_job_store.namespace}:idle-retention",
+        max_events=100,
+        retention_seconds=1,
+        required=True,
+    )
+    await audit.start()
+    await audit.record(Event(request_id="idle-expired", ts="", policy_version="p", text_chars=1))
+    await asyncio.sleep(1.2)
+
+    client = real_job_store.client
+    assert client is not None
+    assert await client.lrange(audit.key, 0, -1) == []
+    assert await client.lrange(audit.timestamp_key, 0, -1) == []
+
+
+@pytest.mark.asyncio
 async def test_real_redis_client_recovers_after_connection_close(
     real_job_store: JobStore,
 ) -> None:

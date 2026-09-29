@@ -33,6 +33,8 @@ while redis.call('LLEN', KEYS[2]) > 0 do
   redis.call('LPOP', KEYS[1])
   redis.call('LPOP', KEYS[2])
 end
+redis.call('EXPIRE', KEYS[1], ARGV[5])
+redis.call('EXPIRE', KEYS[2], ARGV[5])
 return 1
 """
 
@@ -85,6 +87,7 @@ class RedisAudit:
                 str(time.time()),
                 str(self.max_events),
                 str(time.time() - self.retention_seconds),
+                str(self.retention_seconds),
             )
             self.failed = False
         except (OSError, RedisError, RuntimeError, TimeoutError, ValueError) as exc:

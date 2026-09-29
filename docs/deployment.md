@@ -103,7 +103,7 @@ All settings read from environment variables prefixed with `REDAX_`. See
 | `REDAX_AUDIT_FSYNC` | `true` | fsync each audit line written |
 | `REDAX_AUDIT_MAX_BYTES` | `1000000000` | rotate the audit log when it reaches this size |
 | `REDAX_AUDIT_ROTATION_BACKUPS` | `5` | keep this many rotated audit files; 0 truncates instead |
-| `REDAX_AUDIT_RETENTION_SECONDS` | `7776000` | retain audit events for this many seconds; file mode prunes at startup and Redis mode trims atomically during writes |
+| `REDAX_AUDIT_RETENTION_SECONDS` | `7776000` | retain audit events for this many seconds; file mode prunes at startup and Redis mode trims atomically during writes, with Redis keys expiring after an idle retention window |
 | `REDAX_REQUEST_TIMEOUT_SECONDS` | `30` | per-request and job inference timeout |
 | `REDAX_REQUEST_BODY_TIMEOUT_SECONDS` | `30` | maximum time to receive a chunked request body before returning 408 |
 | `REDAX_SHUTDOWN_TIMEOUT_SECONDS` | `30` | total budget for dependency cleanup after readiness drops |

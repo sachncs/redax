@@ -30,6 +30,7 @@ class FakeRedis:
         timestamp: str,
         limit: str,
         cutoff: str,
+        _retention_seconds: str,
     ) -> int:
         while len(self.timestamps) < len(self.events):
             self.timestamps.append(float(timestamp))
