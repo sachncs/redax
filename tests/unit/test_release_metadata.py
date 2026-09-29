@@ -44,3 +44,11 @@ def test_release_metadata_binds_release_inputs(monkeypatch) -> None:
         "durable_job": DURABLE_JOB_SCHEMA_VERSION,
         "idempotency": IDEMPOTENCY_SCHEMA_VERSION,
     }
+
+
+def test_release_metadata_can_bind_published_image_digest() -> None:
+    digest = "sha256:" + "a" * 64
+
+    metadata = build_metadata(digest)
+
+    assert metadata["container_image_digest"] == digest

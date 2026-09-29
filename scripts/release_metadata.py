@@ -51,11 +51,11 @@ def model_revisions(path: Path) -> list[dict[str, str]]:
     return models
 
 
-def build_metadata() -> dict[str, Any]:
+def build_metadata(image_digest: str | None = None) -> dict[str, Any]:
     """Build deterministic release metadata from repository inputs."""
     lockfile = ROOT / "requirements.lock"
     model_manifest = ROOT / "MODEL_HASHES.txt"
-    return {
+    metadata: dict[str, Any] = {
         "metadata_schema_version": 1,
         "project_version": project_version(),
         "git_commit": git_commit(),
@@ -69,15 +69,20 @@ def build_metadata() -> dict[str, Any]:
             "idempotency": IDEMPOTENCY_SCHEMA_VERSION,
         },
     }
+    if image_digest:
+        metadata["container_image_digest"] = image_digest
+    return metadata
 
 
 def main() -> None:
     """Write release metadata as stable, reviewable JSON."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--image-digest", default=None)
     args = parser.parse_args()
     args.output.write_text(
-        json.dumps(build_metadata(), indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        json.dumps(build_metadata(args.image_digest), indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
     )
 
 
