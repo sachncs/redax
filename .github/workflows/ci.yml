@@ -154,8 +154,8 @@ jobs:
           kubectl kustomize deploy/kubernetes \
             | sed -E "s#ghcr.io/sachncs/redax@sha256:[^[:space:]]+#redax-smoke:${GITHUB_SHA}#g" \
             | kubectl apply -f -
-          kubectl -n redax rollout status deployment/redax-api --timeout=600s
-          kubectl -n redax rollout status deployment/redax-worker --timeout=600s
+          kubectl -n redax rollout status deployment/redax-api --timeout=300s
+          kubectl -n redax rollout status deployment/redax-worker --timeout=300s
 
       - name: Exercise API, durable jobs, and rollout rollback
         run: |
@@ -212,6 +212,9 @@ jobs:
         if: failure()
         run: |
           kubectl -n redax get pods -o wide | tee /tmp/redax-kubectl-pods.txt
+          kubectl -n redax get events --sort-by=.lastTimestamp | tee /tmp/redax-kubectl-events.txt
+          kubectl -n redax get pods -o json | tee /tmp/redax-kubectl-pods.json
+          kubectl -n redax describe pods | tee /tmp/redax-kubectl-all-pods.txt
           kubectl -n redax describe deployment redax-api | tee /tmp/redax-kubectl-api.txt
           kubectl -n redax describe deployment redax-worker | tee /tmp/redax-kubectl-worker.txt
           for pod in $(kubectl -n redax get pods -o name); do
@@ -228,6 +231,7 @@ jobs:
           path: |
             /tmp/redax-*.json
             /tmp/redax-kubectl-*.txt
+            /tmp/redax-kubectl-*.json
             /tmp/redax-port-forward.log
 
   performance:
