@@ -208,6 +208,18 @@ jobs:
             kubectl -n redax rollout status deployment/"$deployment" --timeout=600s
           done
 
+      - name: Collect disposable smoke diagnostics
+        if: failure()
+        run: |
+          kubectl -n redax get pods -o wide | tee /tmp/redax-kubectl-pods.txt
+          kubectl -n redax describe deployment redax-api | tee /tmp/redax-kubectl-api.txt
+          kubectl -n redax describe deployment redax-worker | tee /tmp/redax-kubectl-worker.txt
+          for pod in $(kubectl -n redax get pods -o name); do
+            safe_name="${pod//\//-}"
+            kubectl -n redax describe "$pod" > "/tmp/redax-kubectl${safe_name}.txt" || true
+            kubectl -n redax logs "$pod" --all-containers --prefix --tail=200 >> "/tmp/redax-kubectl${safe_name}.txt" 2>&1 || true
+          done
+
       - name: Upload disposable smoke evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -215,6 +227,7 @@ jobs:
           name: redax-kubernetes-smoke-${{ github.sha }}
           path: |
             /tmp/redax-*.json
+            /tmp/redax-kubectl-*.txt
             /tmp/redax-port-forward.log
 
   performance:
