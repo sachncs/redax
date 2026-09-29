@@ -20,6 +20,11 @@ class FakeRedis:
         self.events = self.events[start : end + 1 if end >= 0 else None]
 
 
+class FailingRedis(FakeRedis):
+    async def rpush(self, _key: str, value: str) -> int:
+        raise ConnectionError("redis unavailable")
+
+
 async def test_redis_audit_stores_versioned_metadata_only() -> None:
     client = FakeRedis()
     backend = RedisAudit(client, namespace="test", max_events=2)  # type: ignore[arg-type]
@@ -43,3 +48,17 @@ async def test_redis_audit_stores_versioned_metadata_only() -> None:
 async def test_redis_audit_requires_shared_client() -> None:
     with pytest.raises(RuntimeError, match="requires a connected Redis client"):
         await RedisAudit(None).start()
+
+
+async def test_required_redis_audit_fails_closed_on_write_error() -> None:
+    backend = RedisAudit(FailingRedis(), required=True)  # type: ignore[arg-type]
+    await backend.start()
+
+    with pytest.raises(RuntimeError, match="audit backend is unavailable"):
+        await backend.record(Event(request_id="req", ts="", policy_version="p", text_chars=1))
+
+
+async def test_optional_redis_audit_drops_failed_write() -> None:
+    backend = RedisAudit(FailingRedis(), required=False)  # type: ignore[arg-type]
+    await backend.start()
+    await backend.record(Event(request_id="req", ts="", policy_version="p", text_chars=1))

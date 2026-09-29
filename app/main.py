@@ -180,6 +180,7 @@ async def build_state(settings: Settings) -> State:
             job_store.client,
             namespace=settings.redis_namespace,
             max_events=settings.audit_redis_max_events,
+            required=settings.audit_required,
         )
     else:
         audit = FileAudit(

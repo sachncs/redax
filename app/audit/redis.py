@@ -7,6 +7,8 @@ import json
 import redis.asyncio as aioredis
 
 from app.audit.backend import Event, event_to_dict
+from app.logging import get_logger
+from app.observability import AUDIT_DROPPED, AUDIT_WRITE_FAILED
 
 
 class RedisAudit:
@@ -17,10 +19,13 @@ class RedisAudit:
         client: aioredis.Redis | None,
         namespace: str = "redax",
         max_events: int = 100_000,
+        required: bool = False,
     ) -> None:
         self.client = client
         self.key = f"{namespace}:audit:events"
         self.max_events = max_events
+        self.required = required
+        self.backend_label = "redis"
 
     async def start(self) -> None:
         """Verify that the shared Redis client is available."""
@@ -35,5 +40,16 @@ class RedisAudit:
         if self.client is None:
             raise RuntimeError("Redis audit backend is unavailable")
         payload = json.dumps(event_to_dict(event), separators=(",", ":"), sort_keys=True)
-        await self.client.rpush(self.key, payload)  # type: ignore[misc]
-        await self.client.ltrim(self.key, -self.max_events, -1)  # type: ignore[misc]
+        try:
+            await self.client.rpush(self.key, payload)  # type: ignore[misc]
+            await self.client.ltrim(self.key, -self.max_events, -1)  # type: ignore[misc]
+        except (OSError, RuntimeError, TimeoutError, ValueError) as exc:
+            AUDIT_WRITE_FAILED.labels(backend=self.backend_label).inc()
+            get_logger("redax.audit").warning(
+                "redax.audit_write_failed",
+                backend=self.backend_label,
+                error=exc.__class__.__name__,
+            )
+            AUDIT_DROPPED.labels(backend=self.backend_label).inc()
+            if self.required:
+                raise RuntimeError("audit backend is unavailable") from exc

@@ -20,7 +20,7 @@ degradation explicitly.
 
 ## Recover and verify
 
-Restore storage or the centralized sink, rotate safely, and run a synthetic
+Restore storage or the configured centralized sink, rotate safely, and run a synthetic
 request. Verify a versioned metadata event, retention policy, and absence of
-the synthetic value. Tamper-evident centralized audit and restore tests remain
+the synthetic value. Tamper-evident centralized audit and managed restore tests remain
 production-program gaps.

@@ -99,8 +99,10 @@ DLP program.
   model/runtime supply-chain risk remain deployment concerns.
 - Explicit `passThrough` policies can intentionally preserve detected text;
   policy review is part of the security boundary.
-- The local JSONL audit backend is not a tamper-proof ledger, and in-process
-  jobs are not a durable distributed queue.
+- The default local JSONL audit backend is not a tamper-proof ledger. An opt-in
+  bounded Redis audit sink is centralized but still depends on managed Redis
+  durability and is not tamper-proof; in-process jobs are not a durable
+  distributed queue.
 
 ## Verification evidence
 
