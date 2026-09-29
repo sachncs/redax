@@ -7,7 +7,9 @@ import uuid
 from dataclasses import dataclass
 from typing import Any, Literal
 
-IDEMPOTENCY_VERSION = 3
+from app.schema_versions import IDEMPOTENCY_SCHEMA_VERSION
+
+IDEMPOTENCY_VERSION = IDEMPOTENCY_SCHEMA_VERSION
 ReservationStatus = Literal["acquired", "completed", "conflict", "in_progress"]
 
 COMPLETE_SCRIPT = """

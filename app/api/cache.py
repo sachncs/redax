@@ -6,7 +6,9 @@ import hashlib
 import json
 from typing import Any
 
-CACHE_SCHEMA_VERSION = 1
+from app.schema_versions import CACHE_ENVELOPE_SCHEMA_VERSION
+
+CACHE_SCHEMA_VERSION = CACHE_ENVELOPE_SCHEMA_VERSION
 
 
 def redaction_cache_payload(

@@ -11,6 +11,13 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
+from app.schema_versions import (
+    AUDIT_EVENT_SCHEMA_VERSION,
+    CACHE_ENVELOPE_SCHEMA_VERSION,
+    DURABLE_JOB_SCHEMA_VERSION,
+    IDEMPOTENCY_SCHEMA_VERSION,
+)
+
 ROOT = Path(__file__).parents[1]
 
 
@@ -56,10 +63,10 @@ def build_metadata() -> dict[str, Any]:
         "model_manifest_sha256": sha256_file(model_manifest),
         "models": model_revisions(model_manifest),
         "persisted_schema_versions": {
-            "audit_event": 1,
-            "cache_envelope": 1,
-            "durable_job": 1,
-            "idempotency": 3,
+            "audit_event": AUDIT_EVENT_SCHEMA_VERSION,
+            "cache_envelope": CACHE_ENVELOPE_SCHEMA_VERSION,
+            "durable_job": DURABLE_JOB_SCHEMA_VERSION,
+            "idempotency": IDEMPOTENCY_SCHEMA_VERSION,
         },
     }
 

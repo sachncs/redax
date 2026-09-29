@@ -17,6 +17,8 @@ from typing import Any
 
 import redis.asyncio as aioredis
 
+from app.schema_versions import DURABLE_JOB_SCHEMA_VERSION
+
 
 @dataclass
 class JobRecord:
@@ -56,7 +58,7 @@ class JobStore:
     """
 
     KEY_TEMPLATE = "{ns}:job:{id}"
-    JOB_SCHEMA_VERSION = 1
+    JOB_SCHEMA_VERSION = DURABLE_JOB_SCHEMA_VERSION
     COUNT_KEY_TEMPLATE = "{ns}:jobs:{owner}"
     TOTAL_COUNT_KEY_TEMPLATE = "{ns}:jobs:inflight"
     QUEUE_INDEX_KEY_TEMPLATE = "{ns}:jobs:created"

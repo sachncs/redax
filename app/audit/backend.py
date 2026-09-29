@@ -5,7 +5,9 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
-AUDIT_SCHEMA_VERSION = 1
+from app.schema_versions import AUDIT_EVENT_SCHEMA_VERSION
+
+AUDIT_SCHEMA_VERSION = AUDIT_EVENT_SCHEMA_VERSION
 
 
 @dataclass

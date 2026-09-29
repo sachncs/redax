@@ -2,6 +2,12 @@ from __future__ import annotations
 
 import hashlib
 
+from app.schema_versions import (
+    AUDIT_EVENT_SCHEMA_VERSION,
+    CACHE_ENVELOPE_SCHEMA_VERSION,
+    DURABLE_JOB_SCHEMA_VERSION,
+    IDEMPOTENCY_SCHEMA_VERSION,
+)
 from scripts.release_metadata import ROOT, build_metadata
 
 
@@ -33,8 +39,8 @@ def test_release_metadata_binds_release_inputs(monkeypatch) -> None:
         },
     ]
     assert metadata["persisted_schema_versions"] == {
-        "audit_event": 1,
-        "cache_envelope": 1,
-        "durable_job": 1,
-        "idempotency": 3,
+        "audit_event": AUDIT_EVENT_SCHEMA_VERSION,
+        "cache_envelope": CACHE_ENVELOPE_SCHEMA_VERSION,
+        "durable_job": DURABLE_JOB_SCHEMA_VERSION,
+        "idempotency": IDEMPOTENCY_SCHEMA_VERSION,
     }
