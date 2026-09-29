@@ -354,6 +354,7 @@ def test_stats_endpoint_reports_pipeline_when_present() -> None:
     test_state.settings = NoAuthSettings()
     test_state.detector = StatsStubModel()
     test_state.regex_detector = type("R", (), {"name": "regex"})()
+    test_state.job_store = type("Store", (), {"client": None})()
     test_state.pipeline = Pipeline(
         regex_gate=Gate(detector=test_state.regex_detector),
         model_stage=ModelStage(detector=test_state.detector),
@@ -371,5 +372,7 @@ def test_stats_endpoint_reports_pipeline_when_present() -> None:
     assert body["ready"] is True
     assert body["detector"] == "stub_model"
     assert body["regex_detector"] == "regex"
+    assert body["redis_enabled"] is True
+    assert body["redis_connected"] is False
     assert "pipeline" in body
     assert body["pipeline"]["model_breaker"]["state"] == "closed"

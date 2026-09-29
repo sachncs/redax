@@ -137,6 +137,10 @@ def register(app: FastAPI) -> None:
                 "regex_detector": getattr(getattr(state, "regex_detector", None), "name", None),
                 "audit_backend": type(state.audit).__name__ if state.audit else None,
                 "redis_enabled": state.job_store is not None,
+                "redis_connected": (
+                    state.job_store is not None
+                    and getattr(state.job_store, "client", None) is not None
+                ),
             }
             if state.pipeline is not None:
                 payload["pipeline"] = state.pipeline.stats()

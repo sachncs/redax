@@ -234,6 +234,7 @@ Operator-facing snapshot of the live wiring. Requires `X-API-Key` when
   "regex_detector": "regex",
   "audit_backend": "FileAudit",
   "redis_enabled": true,
+  "redis_connected": true,
   "pipeline": {
     "regex_detector": "regex",
     "model_detector": "gliner2",
