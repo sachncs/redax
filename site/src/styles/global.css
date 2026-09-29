@@ -452,6 +452,13 @@ h1, h2, h3, h4 { color: var(--rdx-ink); font-family: Georgia, "Times New Roman",
 .rdx-demo-mode a:hover { border-color: var(--rdx-accent); color: var(--rdx-accent); }
 .rdx-demo-note { padding: 14px 16px; border: 1px solid var(--rdx-rule); border-top: 0; color: var(--rdx-muted); background: #ded7c9; font-size: 13px; line-height: 1.55; }
 .rdx-demo-note b { color: var(--rdx-ink); }
+.rdx-faq { margin-top: 34px; border-top: 2px solid var(--rdx-ink); }
+.rdx-faq details { padding: 17px 0; border-bottom: 1px solid var(--rdx-rule); }
+.rdx-faq summary { display: flex; justify-content: space-between; gap: 16px; cursor: pointer; color: var(--rdx-ink); font: 800 14px/1.4 ui-monospace, monospace; list-style: none; text-transform: uppercase; }
+.rdx-faq summary::-webkit-details-marker { display: none; }
+.rdx-faq summary::after { content: "+"; color: var(--rdx-accent); font-size: 18px; }
+.rdx-faq details[open] summary::after { content: "−"; }
+.rdx-faq p { max-width: 720px; margin: 12px 32px 0 0; color: #47433c; font-size: 15px; line-height: 1.6; }
 .rdx-panel { min-height: 320px; padding: 20px; background: rgb(255 255 255 / .16); }
 .rdx-panel-dark { border-left: 1px solid var(--rdx-ink); background: #151513; color: #ece7dc; }
 .rdx-panel-head, .rdx-status { display: flex; justify-content: space-between; gap: 12px; font: 700 11px/1 ui-monospace, monospace; text-transform: uppercase; }
@@ -528,6 +535,9 @@ h1, h2, h3, h4 { color: var(--rdx-ink); font-family: Georgia, "Times New Roman",
 .rdx-docs-body li + li { margin-top: 8px; }
 .rdx-docs-body code { padding: 2px 5px; background: #ded7c9; color: var(--rdx-ink); font: 12px/1.3 ui-monospace, monospace; }
 .rdx-docs-body pre, .rdx-docs-body .code-shell { overflow-x: auto; padding: 18px; background: var(--rdx-ink) !important; color: #eee7d9 !important; border: 0; border-radius: 0; font: 12.5px/1.65 ui-monospace, monospace; }
+.rdx-docs-body pre { position: relative; }
+.rdx-copy-code { position: absolute; top: 10px; right: 10px; padding: 6px 8px; border: 1px solid #69665e; color: #e8e3d8; background: #11110f; font: 700 10px/1 ui-monospace, monospace; letter-spacing: .08em; cursor: pointer; }
+.rdx-copy-code:hover { border-color: #e8e3d8; }
 .rdx-docs-body pre code { padding: 0; background: transparent; color: inherit; }
 .rdx-docs-body .card { padding: 18px; background: var(--rdx-paper-2); border: 1px solid var(--rdx-rule); border-radius: 0; box-shadow: none; color: #38352f; }
 .rdx-docs-body .card p { color: #47433c; }

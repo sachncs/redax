@@ -43,6 +43,7 @@ export const NAV = [
   { label: "Live demo", href: "/redax/#demo" },
   { label: "Pipeline", href: "/redax/#pipeline" },
   { label: "Deploy", href: "/redax/#deploy" },
+  { label: "FAQ", href: "/redax/#faq" },
   { label: "Docs", href: DOCS.api },
   { label: "GitHub", href: SITE.repo, external: true },
 ] as const;
@@ -233,6 +234,7 @@ export const FOOTER = {
         { label: "Live demonstration", href: "/redax/#demo" },
         { label: "Pipeline", href: "/redax/#pipeline" },
         { label: "Start locally", href: "/redax/#start" },
+        { label: "FAQ", href: "/redax/#faq" },
       ],
     },
     {

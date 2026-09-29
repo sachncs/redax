@@ -50,3 +50,23 @@ const next = activeIndex >= 0 && activeIndex < links.length - 1 ? links[activeIn
     </article>
   </div></section>
 </Base>
+
+<script is:inline>
+  document.querySelectorAll(".rdx-docs-body pre").forEach((block) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "rdx-copy-code";
+    button.textContent = "COPY";
+    button.addEventListener("click", async () => {
+      const code = block.querySelector("code")?.textContent ?? block.textContent ?? "";
+      try {
+        await navigator.clipboard.writeText(code);
+        button.textContent = "COPIED";
+      } catch {
+        button.textContent = "SELECT MANUALLY";
+      }
+      window.setTimeout(() => { button.textContent = "COPY"; }, 1800);
+    });
+    block.append(button);
+  });
+</script>
