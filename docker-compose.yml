@@ -12,6 +12,7 @@ services:
       REDAX_REDIS_REQUIRED: ${REDAX_REDIS_REQUIRED:-true}
       REDAX_REDIS_NAMESPACE: ${REDAX_REDIS_NAMESPACE:-redax-local}
       REDAX_DETECTOR: ${REDAX_DETECTOR:-gliner2}
+      REDAX_RATE_LIMIT_PER_MINUTE: ${REDAX_RATE_LIMIT_PER_MINUTE:-600}
       REDAX_REDIS_URL: redis://redis:6379/0
       REDAX_MODEL_CACHE: /models
       REDAX_AUDIT_PATH: /var/lib/redax/audit.jsonl
