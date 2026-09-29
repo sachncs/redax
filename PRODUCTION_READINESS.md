@@ -38,7 +38,7 @@ as each production milestone lands.
 |---|---|---|
 | Horizontally scalable API | PARTIAL | Reference Kubernetes API replicas, probes, rolling budgets, and an opt-in shared Redis audit sink now exist; HA Redis and multi-replica failure evidence remain pending. |
 | Independently scalable workers | PARTIAL | `redax-worker` and Redis-backed ARQ enqueueing exist; capacity, lease recovery, and deployment evidence are pending. |
-| Measured performance characteristics | PARTIAL | `docs/benchmarks/regex-local-baseline.json` plus current Python 3.13 API baseline and sustained artifacts record detector/API p50-p99, throughput, CPU, and RSS locally; worker/model/cache/batch/stream capacity and soak evidence remain pending. |
+| Measured performance characteristics | PARTIAL | `docs/benchmarks/regex-local-baseline.json`, current Python 3.13 API baseline/sustained artifacts, and a 300-request concurrency matrix at 1/10/20/40 record detector/API p50-p99, throughput, CPU, and RSS locally; worker/model/cache/batch/stream capacity and soak evidence remain pending. |
 | Known saturation limits | FAIL | Local baselines exist, but no ramp/spike/soak artifact establishes p99, queueing, CPU, memory, Redis, or model saturation limits. |
 | Autoscaling guidance | FAIL | No production deployment or measured scaling model exists. |
 

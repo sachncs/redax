@@ -21,6 +21,19 @@ python scripts/load_bench.py --requests 100 --concurrency 10 \
   --output docs/benchmarks/regex-api-local-baseline.json
 ```
 
+The concurrency matrix artifacts record the same 300-request workload at
+concurrency 1, 10, 20, and 40 against the Python 3.13 regex server on the
+recorded macOS host:
+
+- [`regex-api-concurrency-1.json`](benchmarks/regex-api-concurrency-1.json)
+- [`regex-api-concurrency-10.json`](benchmarks/regex-api-concurrency-10.json)
+- [`regex-api-concurrency-20.json`](benchmarks/regex-api-concurrency-20.json)
+- [`regex-api-concurrency-40.json`](benchmarks/regex-api-concurrency-40.json)
+
+All four runs returned 300/300 HTTP 200 responses. They are local regression
+measurements only; the harness's RSS/CPU fields describe the load-generator
+process, not a production server capacity limit.
+
 For sustained-load checks, replace `--requests 100` with
 `--duration-seconds 3600`; the harness reports request count, throughput,
 percentiles, and RSS drift over the bounded run.

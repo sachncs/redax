@@ -14,6 +14,13 @@ the sustained run measured 471.635 requests/sec, p99 40.889 ms, and an RSS
 increase of about 8.4 MiB. These are regression baselines only, not safe
 operating limits or SLO evidence for a production topology.
 
+The current concurrency matrix adds 300-request regex runs at concurrency 1,
+10, 20, and 40 in
+[`docs/benchmark-results.md`](benchmark-results.md). Every run returned 100%
+HTTP 200 responses. The matrix shows p99 rising from 3.398 ms at concurrency 1
+to 111.732 ms at concurrency 20 and 74.606 ms at concurrency 40 on this local
+host; it is useful for regression tracking, not a production saturation limit.
+
 ## Reference topology
 
 ```text
