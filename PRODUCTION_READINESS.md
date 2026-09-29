@@ -37,7 +37,7 @@ as each production milestone lands.
 |---|---|---|
 | Horizontally scalable API | PARTIAL | Reference Kubernetes API replicas, probes, and rolling budgets now exist; HA Redis, centralized audit, and multi-replica failure evidence remain pending. |
 | Independently scalable workers | PARTIAL | `redax-worker` and Redis-backed ARQ enqueueing exist; capacity, lease recovery, and deployment evidence are pending. |
-| Measured performance characteristics | FAIL | Benchmark harness exists, but no current machine-readable capacity result is published. |
+| Measured performance characteristics | PARTIAL | `docs/benchmarks/regex-local-baseline.json` records a reproducible local detector baseline; API/worker/model capacity and soak evidence remain pending. |
 | Known saturation limits | FAIL | No ramp/spike/soak artifact records p99, queueing, CPU, memory, Redis, or model saturation. |
 | Autoscaling guidance | FAIL | No production deployment or measured scaling model exists. |
 
