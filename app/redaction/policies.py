@@ -81,6 +81,8 @@ def parse_policy(raw: dict[str, Any], source: str) -> Policy:
         ValueError: If ``raw['fields']`` is not a mapping, or if any field
             config is missing the required ``strategy`` key.
     """
+    if not isinstance(raw, dict):
+        raise ValueError(f"{source}: policy must be a mapping")
     fields_raw = raw.get("fields", {}) or {}
     if not isinstance(fields_raw, dict):
         raise ValueError(f"{source}: 'fields' must be a mapping")

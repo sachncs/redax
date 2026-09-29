@@ -57,6 +57,11 @@ def test_fields_top_level_must_be_mapping() -> None:
         parse_policy_dict({"fields": "oops"})
 
 
+def test_policy_root_must_be_mapping() -> None:
+    with pytest.raises(ValueError, match="policy must be a mapping"):
+        parse_policy_dict("oops")  # type: ignore[arg-type]
+
+
 def test_policy_rejects_too_many_fields() -> None:
     fields = {f"field_{index}": {"strategy": "passThrough"} for index in range(129)}
     with pytest.raises(ValueError, match="at most 128 entries"):
