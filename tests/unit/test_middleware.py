@@ -214,6 +214,95 @@ async def test_request_admission_stays_held_until_stream_finishes() -> None:
 
 
 @pytest.mark.asyncio
+async def test_request_admission_recovers_after_saturation() -> None:
+    from collections.abc import AsyncIterator
+
+    from fastapi.responses import StreamingResponse
+
+    app = FastAPI()
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    @app.get("/held")
+    async def held() -> StreamingResponse:
+        async def events() -> AsyncIterator[bytes]:
+            started.set()
+            yield b"ready\n"
+            await release.wait()
+
+        return StreamingResponse(events(), media_type="text/plain")
+
+    @app.get("/probe")
+    async def probe() -> dict[str, bool]:
+        return {"ok": True}
+
+    state = SimpleNamespace(
+        ready=True,
+        settings=SimpleNamespace(
+            max_body_bytes=1024,
+            request_body_timeout_seconds=1.0,
+            request_admission_timeout_seconds=0.01,
+        ),
+        request_admission=asyncio.Semaphore(1),
+        active_requests=0,
+        drain_event=asyncio.Event(),
+    )
+    app.state.state = state
+    register_request_context(app)
+
+    def make_scope(path: str) -> dict[str, object]:
+        return {
+            "type": "http",
+            "asgi": {"version": "3.0", "spec_version": "2.0"},
+            "http_version": "1.1",
+            "method": "GET",
+            "scheme": "http",
+            "path": path,
+            "raw_path": path.encode(),
+            "query_string": b"",
+            "headers": [],
+            "client": ("test", 1),
+            "server": ("test", 80),
+        }
+
+    async def run_request(path: str) -> list[dict[str, object]]:
+        incoming = [{"type": "http.request", "body": b"", "more_body": False}]
+        sent: list[dict[str, object]] = []
+
+        async def receive() -> dict[str, object]:
+            if incoming:
+                return incoming.pop(0)
+            await asyncio.Future()
+            return {"type": "http.disconnect"}
+
+        async def send(message: dict[str, object]) -> None:
+            sent.append(message)
+
+        await app(make_scope(path), receive, send)
+        return sent
+
+    held_task = asyncio.create_task(run_request("/held"))
+    await asyncio.wait_for(started.wait(), timeout=1.0)
+
+    saturated = await run_request("/probe")
+    assert (
+        next(message["status"] for message in saturated if message["type"] == "http.response.start")
+        == 503
+    )
+
+    release.set()
+    await asyncio.wait_for(held_task, timeout=1.0)
+
+    recovered = await run_request("/probe")
+    assert (
+        next(message["status"] for message in recovered if message["type"] == "http.response.start")
+        == 200
+    )
+    assert state.active_requests == 0
+    assert state.request_admission._value == 1
+
+
+@pytest.mark.asyncio
 async def test_slow_chunked_request_body_times_out() -> None:
     from app.middleware import read_bounded_body
 
