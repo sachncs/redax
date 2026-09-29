@@ -16,11 +16,11 @@ Docker Compose, a production Dockerfile, CI, Pages deployment, and a verified
 `v0.1.0` release. The current CI gate covers tests, Ruff, mypy, deterministic
 regressions, a synthetic evaluation, and the Astro site build.
 
-The repository does not yet contain a real distributed worker, a reference HA
-deployment, measured SLO/load evidence, chaos/recovery evidence, SBOM or
-container vulnerability gate, a restore-tested backup procedure, or a complete
-production-readiness matrix. `/v1/jobs` explicitly remains an in-process
-FastAPI background-task feature.
+The repository now contains a distributed ARQ worker and atomic job admission
+and completion primitives, but it still lacks a reference HA deployment,
+measured SLO/load evidence, chaos/recovery evidence, an SBOM or container
+vulnerability gate, a restore-tested backup procedure, and a complete
+production-readiness matrix.
 
 ## Prioritized gaps
 

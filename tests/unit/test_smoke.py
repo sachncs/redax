@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 
 def test_health_module_importable() -> None:
     from app.api.health import register
@@ -28,6 +30,23 @@ def test_app_imports() -> None:
     from app.main import app
 
     assert app.title == "Redax"
+
+
+def test_teardown_marks_unready_before_closing_queue() -> None:
+    from app.main import teardown_state
+    from app.state import State
+
+    class Queue:
+        def __init__(self, state: State) -> None:
+            self.state = state
+
+        async def close(self) -> None:
+            assert self.state.ready is False
+
+    state = State(ready=True)
+    state.job_queue = Queue(state)
+    asyncio.run(teardown_state(state))
+    assert state.ready is False
 
 
 def test_healthz(client) -> None:

@@ -186,6 +186,14 @@ async def teardown_state(state: State) -> None:
         state: The ``State`` whose resources should be released.
     """
     log = get_logger("redax.lifespan")
+    state.ready = False
+    # Readiness must drop before any dependency is closed so a load balancer
+    # can stop routing new work while the process drains existing work.
+    try:
+        if state.job_queue is not None:
+            await state.job_queue.close()
+    except Exception as exc:
+        log.warning("redax.job_queue_stop_failed", error=exc.__class__.__name__)
     try:
         if state.audit is not None:
             await state.audit.stop()
@@ -196,12 +204,6 @@ async def teardown_state(state: State) -> None:
             await state.job_store.stop()
     except Exception as exc:
         log.warning("redax.job_store_stop_failed", error=exc.__class__.__name__)
-    try:
-        if state.job_queue is not None:
-            await state.job_queue.close()
-    except Exception as exc:
-        log.warning("redax.job_queue_stop_failed", error=exc.__class__.__name__)
-    state.ready = False
 
 
 @asynccontextmanager

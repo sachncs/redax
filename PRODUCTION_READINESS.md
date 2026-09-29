@@ -16,7 +16,7 @@ as each production milestone lands.
 | API correctness across replicas | FAIL | Redis is shared for some state, but jobs and circuit breakers still have process-local behavior; no multi-replica integration gate. |
 | Durable jobs survive worker failure | FAIL | `/v1/jobs` uses FastAPI `BackgroundTasks`; no `app/jobs/queue.py` worker exists. |
 | Redis failure behavior is explicit | PASS | `docs/failure-modes.md`, `app/ratelimit.py`, and configuration tests define current cache/job/rate-limit degradation. Durable-job behavior remains pending. |
-| Graceful shutdown is verified | FAIL | Lifespan closes resources, but there is no drain state or SIGTERM integration test for active HTTP/stream/job work. |
+| Graceful shutdown is verified | PARTIAL | Readiness now drops before queue/audit/Redis teardown, but there is no SIGTERM integration test for active HTTP/stream/job work. |
 | Overload is bounded | FAIL | Text/chunk/inference/job admission limits exist, but HTTP, stream, Redis-pool, and worker queue bounds are not demonstrated under load. |
 | Dependency recovery works | FAIL | Unit fault paths exist; no Redis restart, worker lease recovery, or audit-storage recovery test is present. |
 
@@ -65,7 +65,7 @@ as each production milestone lands.
 |---|---|---|
 | Hardened container | PARTIAL | Non-root, pinned dependencies, model verification, and slim runtime exist; base digest, read-only filesystem, capabilities, SBOM, and scan gate are pending. |
 | Reference HA deployment | FAIL | Compose is development/local; Kubernetes/Helm or equivalent reference assets are absent. |
-| Health/readiness/startup probes | PARTIAL | `/healthz`, `/readyz`, and Docker probes exist; dependency-aware readiness and drain semantics need implementation. |
+| Health/readiness/startup probes | PARTIAL | `/healthz`, `/readyz`, and Docker probes exist; readiness drops before teardown, but dependency-aware readiness and full drain semantics need evidence. |
 | Rolling deployment and rollback | FAIL | Versioned release exists, but mixed-version state compatibility and rollback procedure are not tested. |
 | Backup/restore and RPO/RTO | FAIL | No restore-tested Redis/audit backup procedure or measured RPO/RTO. |
 | Reproducible release artifacts | PASS | `v0.1.0` release publishes wheel, sdist, checksums, and GHCR image with a tag/version guard. SBOM/signatures remain pending. |
