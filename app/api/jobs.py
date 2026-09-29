@@ -40,6 +40,16 @@ from app.state import State, get_state
 JOB_FAILED = "job failed"
 
 
+def store_available(store: JobStore | None) -> bool:
+    """Return whether a retained store has a usable Redis client.
+
+    In-memory test/development stores may intentionally omit ``client``;
+    those stores remain available. A real ``JobStore`` retains its handle
+    across reconnects, so ``client is None`` means the dependency is down.
+    """
+    return store is not None and (not hasattr(store, "client") or store.client is not None)
+
+
 class JobSubmit(BaseModel):
     """Request body for POST /v1/jobs."""
 
@@ -151,9 +161,10 @@ def register(app: FastAPI) -> None:
         endpoint = "GET /v1/jobs/{id}"
         method = "GET"
         store: JobStore | None = state.job_store
-        if store is None:
+        if not store_available(store):
             REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
-            return job_store_unavailable(request, "job store not initialized")
+            return job_store_unavailable(request, "durable job store unavailable")
+        assert store is not None
         record = await store.get(job_id)
         if record is None or record.owner != store.owner_token(api_key):
             REQUESTS.labels(endpoint=endpoint, method=method, status="404").inc()
@@ -183,9 +194,10 @@ def register(app: FastAPI) -> None:
         endpoint = "DELETE /v1/jobs/{id}"
         method = "DELETE"
         store: JobStore | None = state.job_store
-        if store is None:
+        if not store_available(store):
             REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
-            return job_store_unavailable(request, "job store not initialized")
+            return job_store_unavailable(request, "durable job store unavailable")
+        assert store is not None
         try:
             record = await store.get(job_id)
             if record is None or record.owner != store.owner_token(api_key):

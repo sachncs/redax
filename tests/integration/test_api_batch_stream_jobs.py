@@ -395,6 +395,17 @@ def test_unknown_job_id_is_not_echoed_in_error_responses(app_with_state):
     assert canary not in cancellation.text
 
 
+def test_job_reads_fail_closed_during_redis_reconnect(app_with_state):
+    """Retained Redis store handles must not turn outage reads into 500s."""
+    app_with_state.state.state.job_store = JobStore("redis://127.0.0.1:6399")
+    with TestClient(app_with_state, raise_server_exceptions=False) as client:
+        status = client.get("/v1/jobs/unknown", headers={"X-API-Key": "test-key"})
+        cancellation = client.delete("/v1/jobs/unknown", headers={"X-API-Key": "test-key"})
+
+    assert status.status_code == 503
+    assert cancellation.status_code == 503
+
+
 def test_running_job_cannot_be_cancelled(app_with_state):
     app_with_state.state.state.job_queue = PassiveJobQueue()
     with TestClient(app_with_state) as client:
