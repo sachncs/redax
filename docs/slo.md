@@ -64,7 +64,8 @@ rate breaches the published threshold; it must be recorded, not guessed.
 
 ## Required evidence
 
-The current repository has the benchmark harness but no release-grade capacity
-artifact. M6 must add machine-readable ramp, spike, cache-cold, cache-hot,
-batch, stream, job, and soak results under a documented environment, then link
-them from `docs/scaling.md` and this page.
+The current repository has machine-readable local regex API baseline and
+sustained-run artifacts, but not release-grade capacity evidence. M6 must add
+machine-readable ramp, spike, cache-cold, cache-hot, batch, stream, job, and
+multi-hour soak results under a documented environment, then link them from
+`docs/scaling.md` and this page.

@@ -2,37 +2,38 @@
   "schema_version": 1,
   "kind": "redax_api_load_baseline",
   "measurement_scope": "local_baseline",
-  "commit": "066b4cb5b695834b668151f5da7528ebeb05f3b0",
+  "commit": "81ff167901c2d7ed807da778c6e68b7ed7545c7c",
   "runtime": {
     "python": "3.13.15",
     "platform": "macOS-26.7.1-arm64-arm-64bit-Mach-O"
   },
-  "target": "http://127.0.0.1:8010/v1/redact",
+  "target": "http://127.0.0.1:8011/v1/redact",
   "workload": {
-    "requests": 100,
-    "concurrency": 10
+    "requests": 200,
+    "concurrency": 20,
+    "duration_seconds": null
   },
   "result": {
-    "requests": 100,
-    "concurrency": 10,
-    "elapsed_seconds": 0.226588,
-    "throughput_requests_per_second": 441.33,
+    "requests": 200,
+    "concurrency": 20,
+    "elapsed_seconds": 0.509263,
+    "throughput_requests_per_second": 392.725,
     "status_counts": {
-      "200": 100
+      "200": 200
     },
     "latency_ms": {
-      "p50": 16.206,
-      "p90": 21.53,
-      "p95": 33.187,
-      "p99": 34.973,
-      "max": 42.575,
-      "mean": 17.752
+      "p50": 34.899,
+      "p90": 86.193,
+      "p95": 110.375,
+      "p99": 157.465,
+      "max": 214.388,
+      "mean": 43.93
     },
     "process": {
-      "rss_before_bytes": 36896768,
-      "rss_after_bytes": 44990464,
-      "rss_delta_bytes": 8093696,
-      "cpu_percent": 43.4
+      "rss_before_bytes": 37044224,
+      "rss_after_bytes": 46055424,
+      "rss_delta_bytes": 9011200,
+      "cpu_percent": 65.5
     }
   }
 }

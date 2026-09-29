@@ -1,8 +1,18 @@
 # Scaling and capacity
 
-Current status: **capacity is not yet measured**. The repository's benchmark
-harness is useful for detector comparisons, but it is not evidence of a safe
-service throughput limit. Do not infer capacity from a local laptop run.
+Current status: **local capacity evidence exists; production capacity is not
+yet established**. The checked-in artifacts are useful for regression tracking,
+but they are not evidence of a safe HA service throughput limit. Do not infer
+production capacity from a local laptop run.
+
+Current local evidence on Python 3.13/macOS is available in
+[`regex-api-local-baseline.json`](benchmarks/regex-api-local-baseline.json)
+(200 requests at concurrency 20) and
+[`regex-api-sustained-local.json`](benchmarks/regex-api-sustained-local.json)
+(5 seconds at concurrency 20). Both completed with 100% HTTP 200 responses;
+the sustained run measured 471.635 requests/sec, p99 40.889 ms, and an RSS
+increase of about 8.4 MiB. These are regression baselines only, not safe
+operating limits or SLO evidence for a production topology.
 
 ## Reference topology
 
@@ -63,6 +73,7 @@ job age—not CPU alone.
 `/v1/jobs` now uses a separate ARQ worker tier. A reference Kubernetes
 topology is checked in under
 [`deploy/kubernetes/`](../deploy/kubernetes/README.md). There is still no
-measured safe throughput, no HA Redis evidence, and no load/soak artifact in the current
-release. These are P0/P1 gaps in [`PRODUCTION_PLAN.md`](../PRODUCTION_PLAN.md),
+measured safe production throughput, no HA Redis evidence, and no multi-hour
+soak artifact in the current release. These are P0/P1 gaps in
+[`PRODUCTION_PLAN.md`](../PRODUCTION_PLAN.md),
 not hidden assumptions.
