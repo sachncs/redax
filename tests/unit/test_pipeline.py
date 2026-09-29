@@ -3,9 +3,11 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+import pytest
+
 from app.inference.detector import Span
 from app.inference.regex import RegexDetector
-from app.redaction.pipeline import Pipeline
+from app.redaction.pipeline import Pipeline, PipelineUnavailableError
 from app.redaction.stages.gate import Gate
 from app.redaction.stages.model import ModelStage
 
@@ -84,6 +86,19 @@ def test_pipeline_model_circuit_opens_after_failures() -> None:
     assert fallback_stage.spans == ()
 
 
+def test_pipeline_fails_closed_when_fallback_has_no_matches() -> None:
+    class BoomModel:
+        name = "boom"
+
+        def detect_sync(self, text: str, entity_types: list[str]) -> list[Span]:
+            del text, entity_types
+            raise ConnectionError("model down")
+
+    pipeline = build_test_pipeline(detector=BoomModel(), threshold=1, cooldown=10.0)
+    with pytest.raises(PipelineUnavailableError):
+        run_async_coro(pipeline("ordinary text with no regex entities"))
+
+
 def test_pipeline_recovers_after_circuit_cooldown() -> None:
     state = {"fail": True}
 
@@ -98,8 +113,8 @@ def test_pipeline_recovers_after_circuit_cooldown() -> None:
             return [Span(start=0, end=5, type="PERSON", confidence=0.9)]
 
     pipeline = build_test_pipeline(detector=FlakyModel(), threshold=1, cooldown=0.05)
-    first = run_async_coro(pipeline("hi there"))
-    assert first.used_fallback
+    with pytest.raises(PipelineUnavailableError):
+        run_async_coro(pipeline("hi there"))
     state["fail"] = False
     import time
 

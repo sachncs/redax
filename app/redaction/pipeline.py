@@ -26,6 +26,10 @@ from app.redaction.stages.model import ModelStage
 log = logging.getLogger(__name__)
 
 
+class PipelineUnavailableError(RuntimeError):
+    """Raised when model failure leaves no safe regex fallback output."""
+
+
 @dataclass(frozen=True)
 class Outcome:
     """One stage's contribution to a pipeline run."""
@@ -93,6 +97,11 @@ class Pipeline:
 
         fallback_outcome = self.fallback_stage(fused, model_outcome.circuit_open)
         outcomes.append(fallback_outcome)
+
+        if model_outcome.circuit_open and not fused:
+            raise PipelineUnavailableError(
+                "model stage unavailable and regex fallback found no matches"
+            )
 
         counters: dict[str, int] = {}
         replacements: list[str] = []

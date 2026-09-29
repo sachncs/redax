@@ -94,6 +94,9 @@ detector path. Sending `policy` and `entity_types` together returns 422.
 Policy strategies and options are validated before execution; unknown
 strategies are rejected.
 
+If the model stage is unavailable and the regex fallback finds no spans, the
+pipeline returns `503` rather than returning the original text.
+
 **Errors**: 413 (oversize), 422 (validation), 429 (rate-limited), 503 (not ready), 504 (timeout).
 
 Rate-limit 429 responses include `Retry-After`, `X-RateLimit-Limit`,

@@ -42,6 +42,7 @@ from app.logging import get_logger
 from app.middleware import get_request_id
 from app.observability import CACHE_HITS, REQUEST_LATENCY, REQUESTS
 from app.ratelimit import rate_limit
+from app.redaction.pipeline import PipelineUnavailableError
 from app.state import State, get_state
 
 
@@ -384,6 +385,15 @@ def register(app: FastAPI) -> None:
         except TimeoutError:
             REQUESTS.labels(endpoint=endpoint, method=method, status="504").inc()
             return timeout_error(request)
+        except PipelineUnavailableError:
+            REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
+            return problem_response(
+                request,
+                type="https://redax.ai/errors/pipeline-unavailable",
+                title="Pipeline Unavailable",
+                status=503,
+                detail="redaction pipeline is temporarily unavailable",
+            )
         except TRANSIENT_EXC as exc:
             REQUESTS.labels(endpoint=endpoint, method=method, status="500").inc()
             get_logger("redax.api").error("redax.redact_failed", error=exc.__class__.__name__)
