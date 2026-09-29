@@ -40,6 +40,18 @@ spec:
           annotations:
             summary: Redis rate-limit checks are failing closed
             runbook_url: https://github.com/sachncs/redax/blob/master/docs/runbooks/redis.md
+        - alert: RedaxRedisPoolSaturated
+          expr: |
+            redax_redis_pool_connections_max > 0
+            and redax_redis_pool_connections_in_use
+              / redax_redis_pool_connections_max > 0.9
+          for: 5m
+          labels:
+            severity: ticket
+            service: redax
+          annotations:
+            summary: Redax Redis connection pool is above 90% utilization
+            runbook_url: https://github.com/sachncs/redax/blob/master/docs/runbooks/redis.md
         - alert: RedaxAuditWriteFailures
           expr: increase(redax_audit_write_failed_total[10m]) > 0
           for: 5m

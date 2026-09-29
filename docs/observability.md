@@ -3,7 +3,8 @@
 Redax exposes RED metrics on `/metrics`: request rate and status,
 end-to-end latency histograms, detector latency, durable job duration and
 retry counters, accepted in-flight job depth, cache hits, error types, audit
-failures, response-size histograms, oldest durable-job age, and rate-limit dependency failures.
+failures, response-size histograms, oldest durable-job age, Redis pool
+utilization, and rate-limit dependency failures.
 `redax_queue_depth` is a
 per-process gauge of accepted non-terminal jobs; use it with replica count
 and Redis-backed admission limits rather than treating one replica's value

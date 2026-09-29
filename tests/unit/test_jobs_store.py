@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import ClassVar
+
 import pytest
 
 from app.jobs.store import JobStore
@@ -223,6 +225,22 @@ async def test_oldest_job_age_ignores_expired_index_entries(
     assert "missing" not in redis_client.sorted_sets["redax:jobs:created"]
     await store.set_result(record.id, {"text": "done"})
     assert await store.oldest_job_age_seconds() == 0.0
+
+
+def test_pool_stats_exposes_only_bounded_counts(store: JobStore) -> None:
+    assert store.pool_stats() == {"in_use": 0, "available": 0, "max": 0}
+
+
+def test_pool_stats_reports_connection_utilization(
+    store: JobStore, redis_client: FakeRedis
+) -> None:
+    class Pool:
+        _in_use_connections: ClassVar[set[object]] = {object(), object()}
+        _available_connections: ClassVar[list[object]] = [object()]
+        max_connections = 8
+
+    redis_client.connection_pool = Pool()
+    assert store.pool_stats() == {"in_use": 2, "available": 1, "max": 8}
 
 
 async def test_count_for_key_reads_counter(store: JobStore, redis_client: FakeRedis) -> None:

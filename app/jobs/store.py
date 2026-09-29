@@ -237,6 +237,19 @@ return 1
             await client.zrem(queue_key, job_id)
         return 0.0
 
+    def pool_stats(self) -> dict[str, int]:
+        """Return bounded Redis pool utilization without exposing connection data."""
+        client = self.client
+        if client is None:
+            return {"in_use": 0, "available": 0, "max": 0}
+        pool = getattr(client, "connection_pool", None)
+        if pool is None:
+            return {"in_use": 0, "available": 0, "max": 0}
+        in_use = len(getattr(pool, "_in_use_connections", ()))
+        available = len(getattr(pool, "_available_connections", ()))
+        maximum = int(getattr(pool, "max_connections", 0))
+        return {"in_use": in_use, "available": available, "max": maximum}
+
     async def count_for_key(self, owner: str) -> int:
         """Return the number of in-flight jobs for ``owner``; 0 if the counter is missing."""
         client = self.client

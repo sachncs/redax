@@ -39,7 +39,13 @@ from app.inference.registry import DetectorRegistry
 from app.jobs.store import JobStore
 from app.logging import configure_logging, get_logger
 from app.middleware import register_request_context
-from app.observability import QUEUE_OLDEST_AGE, configure_tracing
+from app.observability import (
+    QUEUE_OLDEST_AGE,
+    REDIS_POOL_AVAILABLE,
+    REDIS_POOL_IN_USE,
+    REDIS_POOL_MAX,
+    configure_tracing,
+)
 from app.redaction.circuit.breaker import Breaker
 from app.redaction.pipeline import Pipeline
 from app.redaction.redactor import Redactor
@@ -255,6 +261,10 @@ async def refresh_job_metrics(state: State) -> None:
             except (OSError, RuntimeError, TimeoutError, ValueError):
                 age = 0.0
             QUEUE_OLDEST_AGE.set(age)
+            pool = state.job_store.pool_stats()
+            REDIS_POOL_IN_USE.set(pool["in_use"])
+            REDIS_POOL_AVAILABLE.set(pool["available"])
+            REDIS_POOL_MAX.set(pool["max"])
         await asyncio.sleep(5.0)
 
 

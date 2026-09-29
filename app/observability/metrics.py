@@ -84,6 +84,24 @@ QUEUE_OLDEST_AGE = Gauge(
     registry=REGISTRY,
 )
 
+REDIS_POOL_IN_USE = Gauge(
+    "redax_redis_pool_connections_in_use",
+    "Redis connections currently checked out by this process.",
+    registry=REGISTRY,
+)
+
+REDIS_POOL_AVAILABLE = Gauge(
+    "redax_redis_pool_connections_available",
+    "Redis connections currently available in this process pool.",
+    registry=REGISTRY,
+)
+
+REDIS_POOL_MAX = Gauge(
+    "redax_redis_pool_connections_max",
+    "Configured maximum Redis connections for this process pool.",
+    registry=REGISTRY,
+)
+
 JOB_DURATION = Histogram(
     "redax_job_duration_seconds",
     "Time spent processing a durable redaction job attempt.",
