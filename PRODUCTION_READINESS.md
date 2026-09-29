@@ -6,7 +6,7 @@ the cited evidence covers the stated scope; `FAIL` means implementation or
 evidence is still missing; `NOT APPLICABLE` means the requirement is outside the current
 supported product surface.
 
-Review baseline: `b5f0f29` and the current `master` tree. The latest review
+Review baseline: `dfe2538` and the current `master` tree. The latest review
 also includes constant-time API-key rotation checks, production wildcard-CORS
 rejection, bounded audit shutdown, a real OTLP delivery/privacy canary, bounded
 entity-type and inline-policy structures, count/time-bounded Redis audit
@@ -14,6 +14,10 @@ retention with a real-Redis age regression test, idempotency publication before
 response-cache publication, fail-closed explicit idempotency requests when
 Redis is unavailable, fail-closed rate limiting when a retained Redis store is
 disconnected, and bounded CI reliability-gate durations.
+The request-admission suite also proves a saturated held stream returns 503 to
+excess traffic and that the next request succeeds after the stream drains;
+branch-scoped CI/security concurrency cancellation prevents superseded launch
+gates from consuming runner capacity indefinitely.
 `PARTIAL` is not an acceptance status: unresolved implementation or evidence
 gaps are recorded as `FAIL` until the stated scope is proven.
 Update this matrix as each production milestone lands.
@@ -26,7 +30,7 @@ Update this matrix as each production milestone lands.
 | Durable jobs survive worker failure | FAIL | ARQ worker, jittered retries, atomic admission/claim/completion/cancellation, startup stale-job reconciliation, bounded payload-free DLQ records, real-Redis recovery after a killed worker process, and a real-Redis SIGTERM drain of an active job are tested; CI run [36590632488](https://github.com/sachncs/redax/actions/runs/36590632488) now executes the Redis reliability and replica suites with the Redis server binary installed and uploads JUnit evidence; managed Redis failover and production-scale evidence remain pending. |
 | Redis failure behavior is explicit | PASS | `docs/failure-modes.md`, typed Redis exception handling in API/jobs/readiness, `app/ratelimit.py`, `tests/integration/test_api_redact.py::test_response_cache_failure_recomputes_without_leaking_canary`, and configuration tests define current cache/job/rate-limit degradation. Durable-job and managed-Redis failover behavior remain pending. |
 | Graceful shutdown is verified | PASS | Readiness drops before teardown; process-level Uvicorn SIGTERM tests cover a held HTTP request and a backpressured active stream, while a real-Redis ARQ test verifies SIGTERM stops pickup and drains an active job within the configured deadline. |
-| Overload is bounded | FAIL | Declared and chunked request-body bytes plus a bounded chunked-body receive timeout, text, aggregate batch, chunk, total stream duration, HTTP, inference, and job admission limits exist; Redis-pool, worker queue, and sustained overload recovery evidence remain. |
+| Overload is bounded | FAIL | Declared and chunked request-body bytes plus a bounded chunked-body receive timeout, text, aggregate batch, chunk, total stream duration, HTTP, inference, and job admission limits exist; `tests/unit/test_middleware.py::test_request_admission_recovers_after_saturation` proves local admission recovery after a held stream; Redis-pool, worker queue, and sustained overload recovery evidence remain. |
 | Dependency recovery works | FAIL | Real-Redis worker lease recovery, disposable Redis restart/reconnect, required Redis-audit write recovery after an outage, and `tests/unit/test_main_recovery.py::test_refresh_job_metrics_reconnects_store_and_queue` cover recovery behavior; CI run [36590632488](https://github.com/sachncs/redax/actions/runs/36590632488) passes the Redis restart/restore and replica suites; managed Redis failover evidence remains missing. |
 
 ## Security and privacy
@@ -60,7 +64,7 @@ Update this matrix as each production milestone lands.
 | Configuration validation and documentation | PASS | `Settings` plus documented configuration drift tests. |
 | API/OpenAPI contract | PASS | API contract tests and documented paths; generated OpenAPI advertises the `X-API-Key` scheme and the scope matrix is documented as the runtime authorization contract. |
 | Bounded policy and request structures | PASS | `app/api/models.py` bounds request entity-type lists and labels; `app/redaction/policies.py` bounds field count, field names, option strings, entity types, detector passes, and hash output length; `tests/unit/test_api_limits.py` and `tests/unit/test_policies.py` exercise rejection boundaries. |
-| Meaningful coverage threshold | PASS | `pyproject.toml` enforces 80% branch-aware coverage through `make test-cov`; the Python 3.13 suite currently measures 84.66% (515 passed, 12 skipped). |
+| Meaningful coverage threshold | PASS | `pyproject.toml` enforces 80% branch-aware coverage through `make test-cov`; the Python 3.13 suite currently measures 84.78% (519 passed, 12 skipped). |
 
 ## Observability and operations
 
