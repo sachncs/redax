@@ -66,7 +66,7 @@ import DocsLayout from "~/layouts/DocsLayout.astro";
   <section>
     <h2 class="text-[25px] text-ink-0">Errors and safe retries</h2>
     <p class="mt-3">Errors use RFC 7807 <code>application/problem+json</code> so clients can branch on stable status and type fields. Expect <code>413</code> for oversized input, <code>422</code> for invalid JSON, <code>429</code> for rate limits, <code>503</code> when the service is not ready, and <code>504</code> for a timeout.</p>
-    <p class="mt-3">Send an <code>Idempotency-Key</code> with retryable POST requests. Redax returns the same result for the same key instead of performing duplicate work, which matters when a queue or load balancer retries after a network interruption.</p>
+    <p class="mt-3">Send an <code>Idempotency-Key</code> with retryable POST requests. Redis leases the key before redaction, so concurrent replicas cannot silently perform unrelated work under one key. The same fingerprint replays the safe result; a different body returns <code>409</code>, and an in-flight duplicate returns <code>409</code> until the lease expires or completes.</p>
   </section>
 
   <section class="card p-6 sm:p-8">

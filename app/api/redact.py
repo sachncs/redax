@@ -17,6 +17,9 @@ from fastapi import APIRouter, Depends, FastAPI, Header, Request
 from pydantic import BaseModel, Field
 
 from app.api.cache import redaction_cache_key, redaction_cache_payload
+from app.api.idempotency import complete as complete_idempotency
+from app.api.idempotency import release as release_idempotency
+from app.api.idempotency import reserve as reserve_idempotency
 from app.api.policy import effective_policy, policy_version
 from app.audit.backend import Event, span_summary
 from app.auth import require_api_key
@@ -28,6 +31,7 @@ from app.errors import (
     timeout_error,
 )
 from app.inference.detector import Span
+from app.jobs.store import JobStore
 from app.logging import get_logger
 from app.middleware import get_request_id
 from app.observability import CACHE_HITS, REQUEST_LATENCY, REQUESTS
@@ -56,7 +60,6 @@ class RedactResponse(BaseModel):
 
 
 _CACHE_SKIPPED_LOGGED: set[str] = set()
-IDEMPOTENCY_RESPONSE_VERSION = 2
 
 
 def request_fingerprint(body: RedactRequest, policy: dict[str, Any] | None) -> str:
@@ -106,6 +109,10 @@ def register(app: FastAPI) -> None:
         start = time.perf_counter()
         endpoint = "POST /v1/redact"
         method = "POST"
+        idempotency_storage: str | None = None
+        idempotency_token: str | None = None
+        idempotency_completed = False
+        job_store: JobStore | None = None
 
         try:
             settings = state.settings
@@ -185,39 +192,36 @@ def register(app: FastAPI) -> None:
                         _log_cache_skipped("idempotency")
                     else:
                         ns = getattr(settings, "redis_namespace", "redax")
-                        idem_raw = await job_store.client.get(
-                            idempotency_storage_key(ns, x_idempotency_key)
+                        idempotency_storage = idempotency_storage_key(ns, x_idempotency_key)
+                        reservation = await reserve_idempotency(
+                            job_store.client,
+                            idempotency_storage,
+                            fingerprint,
+                            getattr(settings, "idempotency_ttl_seconds", 86_400),
                         )
-                        if idem_raw:
-                            idem_payload = json.loads(idem_raw)
-                            if (
-                                isinstance(idem_payload, dict)
-                                and idem_payload.get("response_version")
-                                == IDEMPOTENCY_RESPONSE_VERSION
-                                and "response" in idem_payload
-                            ):
-                                if idem_payload.get("request_fingerprint") != fingerprint:
-                                    return problem_response(
-                                        request,
-                                        type="https://redax.ai/errors/idempotency-key-reused",
-                                        title="Idempotency Key Reused",
-                                        status=409,
-                                        detail="Idempotency-Key must be reused with the same request body",
-                                    )
-                                cached_response = idem_payload["response"]
-                            else:
-                                # Entries written before the fingerprinted
-                                # envelope may contain the old response shape;
-                                # recompute instead of replaying it.
-                                cached_response = None
-                            if cached_response is None:
-                                idem_raw = None
-                            else:
-                                CACHE_HITS.labels(cache="idempotency").inc()
-                                REQUESTS.labels(
-                                    endpoint=endpoint, method=method, status="200"
-                                ).inc()
-                                return cached_response
+                        if reservation.status == "conflict":
+                            REQUESTS.labels(endpoint=endpoint, method=method, status="409").inc()
+                            return problem_response(
+                                request,
+                                type="https://redax.ai/errors/idempotency-key-reused",
+                                title="Idempotency Key Reused",
+                                status=409,
+                                detail="Idempotency-Key must be reused with the same request body",
+                            )
+                        if reservation.status == "in_progress":
+                            REQUESTS.labels(endpoint=endpoint, method=method, status="409").inc()
+                            return problem_response(
+                                request,
+                                type="https://redax.ai/errors/idempotency-in-progress",
+                                title="Idempotency Request In Progress",
+                                status=409,
+                                detail="Retry after the request holding this Idempotency-Key completes",
+                            )
+                        if reservation.status == "completed" and reservation.response is not None:
+                            CACHE_HITS.labels(cache="idempotency").inc()
+                            REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
+                            return reservation.response
+                        idempotency_token = reservation.token
 
                 # Response cache short-circuit
                 cache_shared = bool(getattr(settings, "cache_shared", False))
@@ -298,17 +302,18 @@ def register(app: FastAPI) -> None:
                     )
                     if x_idempotency_key:
                         idem_ttl = getattr(settings, "idempotency_ttl_seconds", 86_400)
-                        await job_store.client.set(
-                            idempotency_storage_key(ns, x_idempotency_key),
-                            json.dumps(
-                                {
-                                    "response_version": IDEMPOTENCY_RESPONSE_VERSION,
-                                    "request_fingerprint": fingerprint,
-                                    "response": response_body,
-                                }
-                            ),
-                            ex=idem_ttl,
-                        )
+                        if idempotency_storage is None or idempotency_token is None:
+                            raise RuntimeError("idempotency reservation was not acquired")
+                        if not await complete_idempotency(
+                            job_store.client,
+                            idempotency_storage,
+                            fingerprint,
+                            idempotency_token,
+                            response_body,
+                            idem_ttl,
+                        ):
+                            raise RuntimeError("idempotency reservation expired before completion")
+                        idempotency_completed = True
 
                 if audit is not None:
                     from app.observability.tracing import current_trace_id_hex
@@ -345,6 +350,20 @@ def register(app: FastAPI) -> None:
             get_logger("redax.api").error("redax.redact_failed", error=exc.__class__.__name__)
             return internal_error(request)
         finally:
+            if (
+                idempotency_storage is not None
+                and idempotency_token is not None
+                and not idempotency_completed
+            ):
+                try:
+                    if job_store is not None:
+                        await release_idempotency(
+                            job_store.client, idempotency_storage, idempotency_token
+                        )
+                except TRANSIENT_EXC:
+                    get_logger("redax.api").warning(
+                        "redax.idempotency_release_failed", error="redis_error"
+                    )
             REQUEST_LATENCY.labels(endpoint=endpoint, method=method).observe(
                 time.perf_counter() - start
             )

@@ -111,8 +111,12 @@ line and audit event for the request.
 
 ## Idempotency
 
-Pass an `Idempotency-Key` header to make repeat POSTs safe. The second call
-with the same key returns the cached response (24h TTL).
+Pass an `Idempotency-Key` header to make repeat POSTs safe. Redis atomically
+leases the key before redaction and publishes the completed response only if
+the lease is still owned by that request. A completed call with the same
+fingerprint returns the cached response (24h TTL); a different body returns
+409, and a concurrent request receives 409 until the first call completes or
+its lease expires.
 
 ```python
 httpx.post(url, json=body, headers={"Idempotency-Key": "abc-123"})
