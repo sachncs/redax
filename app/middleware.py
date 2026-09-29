@@ -13,16 +13,17 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import suppress
 from re import fullmatch
 from typing import Any
 
 import structlog
 from fastapi import FastAPI, Request
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 from opentelemetry import context, trace
 from opentelemetry.trace import Span
+from starlette.background import BackgroundTask
 from starlette.types import Message, Receive
 
 from app.errors import problem_response
@@ -164,10 +165,26 @@ def register_request_context(app: FastAPI) -> None:
         status = 500
         admitted = False
         admission: Any | None = None
+        release_deferred = False
         response: Response
         span = request_tracer.start_span("redax.http.request")
         span_token = context.attach(trace.set_span_in_context(span))
         span.set_attribute("http.request.method", request.method)
+
+        def release_admission() -> None:
+            """Release the request slot once, including after streaming responses."""
+            nonlocal admitted
+            if not admitted or admission is None:
+                return
+            admitted = False
+            state = getattr(request.app.state, "state", None)
+            if state is not None:
+                state.active_requests = max(0, state.active_requests - 1)
+                if state.active_requests == 0 and state.drain_event is not None:
+                    state.drain_event.set()
+            REQUESTS_INFLIGHT.dec()
+            admission.release()
+
         try:
             state = getattr(request.app.state, "state", None)
             admission = getattr(state, "request_admission", None)
@@ -305,16 +322,36 @@ def register_request_context(app: FastAPI) -> None:
             )
             response.headers["X-Request-ID"] = request_id
             status = response.status_code
+            if admitted and admission is not None:
+                if isinstance(response, StreamingResponse):
+                    original_iterator = response.body_iterator
+
+                    async def guarded_iterator() -> AsyncIterator[Any]:
+                        """Release admission on stream completion or cancellation."""
+                        try:
+                            async for chunk in original_iterator:
+                                yield chunk
+                        finally:
+                            release_admission()
+
+                    response.body_iterator = guarded_iterator()
+                else:
+                    existing_background = response.background
+
+                    async def finish_response() -> None:
+                        """Release admission only after the complete body is sent."""
+                        try:
+                            if existing_background is not None:
+                                await existing_background()
+                        finally:
+                            release_admission()
+
+                    response.background = BackgroundTask(finish_response)
+                release_deferred = True
             return response
         finally:
-            if admitted and admission is not None:
-                state = getattr(request.app.state, "state", None)
-                if state is not None:
-                    state.active_requests = max(0, state.active_requests - 1)
-                    if state.active_requests == 0 and state.drain_event is not None:
-                        state.drain_event.set()
-                REQUESTS_INFLIGHT.dec()
-                admission.release()
+            if admitted and not release_deferred:
+                release_admission()
             emit_access_line(
                 method=request.method,
                 path=safe_access_path(request),

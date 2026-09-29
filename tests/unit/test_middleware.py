@@ -140,6 +140,80 @@ def test_bounded_body_replay_supports_streaming_response() -> None:
 
 
 @pytest.mark.asyncio
+async def test_request_admission_stays_held_until_stream_finishes() -> None:
+    from collections.abc import AsyncIterator
+
+    from fastapi.responses import StreamingResponse
+
+    app = FastAPI()
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    @app.get("/held-stream")
+    async def held_stream() -> StreamingResponse:
+        async def events() -> AsyncIterator[bytes]:
+            started.set()
+            yield b"first\n"
+            await release.wait()
+            yield b"second\n"
+
+        return StreamingResponse(events(), media_type="text/plain")
+
+    admission = asyncio.Semaphore(1)
+    state = SimpleNamespace(
+        ready=True,
+        settings=SimpleNamespace(
+            max_body_bytes=1024,
+            request_body_timeout_seconds=1.0,
+            request_admission_timeout_seconds=0.1,
+        ),
+        request_admission=admission,
+        active_requests=0,
+        drain_event=asyncio.Event(),
+    )
+    app.state.state = state
+    register_request_context(app)
+
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0", "spec_version": "2.0"},
+        "http_version": "1.1",
+        "method": "GET",
+        "scheme": "http",
+        "path": "/held-stream",
+        "raw_path": b"/held-stream",
+        "query_string": b"",
+        "headers": [],
+        "client": ("test", 1),
+        "server": ("test", 80),
+    }
+    incoming = [{"type": "http.request", "body": b"", "more_body": False}]
+    sent: list[dict] = []
+
+    async def receive() -> dict:
+        if incoming:
+            return incoming.pop(0)
+        await asyncio.Future()
+        return {"type": "http.disconnect"}
+
+    async def send(message: dict) -> None:
+        sent.append(message)
+
+    request_task = asyncio.create_task(app(scope, receive, send))
+    await asyncio.wait_for(started.wait(), timeout=1.0)
+    assert state.active_requests == 1
+    assert admission._value == 0
+
+    release.set()
+    await asyncio.wait_for(request_task, timeout=1.0)
+    assert state.active_requests == 0
+    assert admission._value == 1
+    assert b"first\nsecond\n" in b"".join(
+        message.get("body", b"") for message in sent if message["type"] == "http.response.body"
+    )
+
+
+@pytest.mark.asyncio
 async def test_slow_chunked_request_body_times_out() -> None:
     from app.middleware import read_bounded_body
 
