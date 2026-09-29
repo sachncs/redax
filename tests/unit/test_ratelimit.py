@@ -39,6 +39,10 @@ class FakeStore:
         self.client = client
 
 
+class DisconnectedStore:
+    client = None
+
+
 class FakeSettings:
     def __init__(self, rate_limit_per_minute: int = 5) -> None:
         self.rate_limit_per_minute = rate_limit_per_minute
@@ -62,6 +66,15 @@ async def test_missing_job_store_fails_closed_503() -> None:
     from app.ratelimit import RateLimitUnavailable
 
     state = build_state(store=None, settings=FakeSettings(5))
+    with pytest.raises(RateLimitUnavailable):
+        await rate_limit("key-1", state)
+
+
+@pytest.mark.asyncio
+async def test_disconnected_job_store_fails_closed_503() -> None:
+    from app.ratelimit import RateLimitUnavailable
+
+    state = build_state(store=DisconnectedStore(), settings=FakeSettings(5))
     with pytest.raises(RateLimitUnavailable):
         await rate_limit("key-1", state)
 

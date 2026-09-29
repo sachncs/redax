@@ -71,9 +71,16 @@ async def rate_limit(api_key: str, state: State) -> str:
         if fail_open:
             return api_key
         raise RateLimitUnavailable()
+    client = job_store.client
+    if client is None:
+        if fail_open:
+            get_logger("redax.ratelimit").warning(
+                "redax.ratelimit_unavailable", error="redis_client_missing"
+            )
+            return api_key
+        raise RateLimitUnavailable()
     key_digest = hashlib.sha256(api_key.encode("utf-8")).hexdigest()[:32]
     bucket = f"{getattr(settings, 'redis_namespace', 'redax')}:rl:{key_digest}:{minute_bucket()}"
-    client = job_store.client
     try:
         count = await client.eval(RATE_LIMIT_SCRIPT, 1, bucket, "60")
         if int(count) > limit:
