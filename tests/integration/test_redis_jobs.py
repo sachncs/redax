@@ -132,12 +132,14 @@ async def test_real_redis_admission_and_terminal_transitions_are_atomic(
     admitted = [record for record in attempts if record is not None]
     assert len(admitted) == 3
     assert await real_job_store.count_inflight() == 3
+    assert await real_job_store.oldest_job_age_seconds() >= 0
 
     await asyncio.gather(
         *(real_job_store.set_error(record.id, "job failed") for record in admitted)
     )
     assert await real_job_store.count_inflight() == 0
     assert await real_job_store.count_for_key("tenant-a") == 0
+    assert await real_job_store.oldest_job_age_seconds() == 0.0
 
     # A duplicate terminal delivery must not decrement shared counters twice.
     await asyncio.gather(

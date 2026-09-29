@@ -78,6 +78,12 @@ QUEUE_DEPTH = Gauge(
     registry=REGISTRY,
 )
 
+QUEUE_OLDEST_AGE = Gauge(
+    "redax_queue_oldest_age_seconds",
+    "Age of the oldest non-terminal durable job.",
+    registry=REGISTRY,
+)
+
 JOB_DURATION = Histogram(
     "redax_job_duration_seconds",
     "Time spent processing a durable redaction job attempt.",

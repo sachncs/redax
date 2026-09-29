@@ -59,6 +59,7 @@ class JobStore:
     JOB_SCHEMA_VERSION = 1
     COUNT_KEY_TEMPLATE = "{ns}:jobs:{owner}"
     TOTAL_COUNT_KEY_TEMPLATE = "{ns}:jobs:inflight"
+    QUEUE_INDEX_KEY_TEMPLATE = "{ns}:jobs:created"
     ADMIT_SCRIPT = """
 local total = tonumber(redis.call('GET', KEYS[3]) or '0')
 local owner = tonumber(redis.call('GET', KEYS[2]) or '0')
@@ -66,7 +67,9 @@ if total >= tonumber(ARGV[7]) then return 0 end
 if ARGV[5] ~= '' and owner >= tonumber(ARGV[8]) then return 0 end
 redis.call('HSET', KEYS[1], 'id', ARGV[1], 'status', ARGV[2], 'result', ARGV[3], 'error', ARGV[4], 'owner', ARGV[5], 'updated_at', ARGV[9])
 redis.call('HSET', KEYS[1], 'schema_version', ARGV[10])
+redis.call('ZADD', KEYS[4], ARGV[9], ARGV[1])
 redis.call('EXPIRE', KEYS[1], ARGV[6])
+redis.call('EXPIRE', KEYS[4], ARGV[6])
 redis.call('INCR', KEYS[3])
 redis.call('EXPIRE', KEYS[3], ARGV[6])
 if ARGV[5] ~= '' then
@@ -80,6 +83,7 @@ local status = redis.call('HGET', KEYS[1], 'status')
 if status ~= 'queued' and status ~= 'running' then return 0 end
 redis.call('HSET', KEYS[1], 'status', ARGV[1], 'result', ARGV[2], 'error', ARGV[3], 'updated_at', ARGV[5], 'schema_version', ARGV[6])
 redis.call('EXPIRE', KEYS[1], ARGV[4])
+redis.call('ZREM', KEYS[4], ARGV[7])
 local owner = redis.call('HGET', KEYS[1], 'owner')
 if owner ~= false and owner ~= '' then
   local owner_count = tonumber(redis.call('GET', KEYS[2]) or '0')
@@ -118,6 +122,9 @@ return 1
 
     def _total_count_key(self) -> str:
         return self.TOTAL_COUNT_KEY_TEMPLATE.format(ns=self.namespace)
+
+    def _queue_index_key(self) -> str:
+        return self.QUEUE_INDEX_KEY_TEMPLATE.format(ns=self.namespace)
 
     def _dead_letter_key(self) -> str:
         return f"{self.namespace}:jobs:dead-letter"
@@ -173,6 +180,8 @@ return 1
             owner=self.owner_token(owner) if owner else "",
         )
         await self.set_record(record)
+        await client.zadd(self._queue_index_key(), {job_id: time.time()})
+        await client.expire(self._queue_index_key(), self.ttl_seconds)
         if owner:
             count_key = self._count_key(owner)
             await client.incr(count_key)
@@ -192,10 +201,11 @@ return 1
         owner_token = self.owner_token(owner) if owner else ""
         result = await client.eval(  # type: ignore[misc]
             self.ADMIT_SCRIPT,
-            3,
+            4,
             self._key(job_id),
             self._count_key(owner),
             self._total_count_key(),
+            self._queue_index_key(),
             job_id,
             "queued",
             "",
@@ -210,6 +220,22 @@ return 1
         if int(result) != 1:
             return None
         return JobRecord(job_id, "queued", None, None, owner_token)
+
+    async def oldest_job_age_seconds(self) -> float:
+        """Return the age of the oldest live queued/running job."""
+        client = self.client
+        if client is None:
+            raise RuntimeError("JobStore.start() must run before oldest_job_age_seconds()")
+        queue_key = self._queue_index_key()
+        for _ in range(16):
+            rows = await client.zrange(queue_key, 0, 0, withscores=True)
+            if not rows:
+                return 0.0
+            job_id, created_at = rows[0]
+            if await client.exists(self._key(str(job_id))):
+                return max(0.0, time.time() - float(created_at))
+            await client.zrem(queue_key, job_id)
+        return 0.0
 
     async def count_for_key(self, owner: str) -> int:
         """Return the number of in-flight jobs for ``owner``; 0 if the counter is missing."""
@@ -296,6 +322,7 @@ return 1
             client,
             self._key(job_id),
             self._total_count_key(),
+            self._queue_index_key(),
             self.namespace,
             "done",
             json.dumps(result),
@@ -312,6 +339,7 @@ return 1
             client,
             self._key(job_id),
             self._total_count_key(),
+            self._queue_index_key(),
             self.namespace,
             "failed",
             "",
@@ -369,6 +397,7 @@ async def set_terminal(
     client: aioredis.Redis,
     job_key: str,
     total_key: str,
+    queue_key: str,
     namespace: str,
     status: str,
     result: str,
@@ -380,16 +409,18 @@ async def set_terminal(
     owner_key = JobStore.COUNT_KEY_TEMPLATE.format(ns=namespace, owner=owner or "")
     result_value = await client.eval(  # type: ignore[misc]
         JobStore.TERMINAL_SCRIPT,
-        3,
+        4,
         job_key,
         owner_key,
         total_key,
+        queue_key,
         status,
         result,
         error,
         str(ttl_seconds),
         str(time.time()),
         str(JobStore.JOB_SCHEMA_VERSION),
+        job_key.rsplit(":", 1)[-1],
     )
     return bool(result_value)
 

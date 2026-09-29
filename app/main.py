@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as package_version
 from typing import Any
@@ -39,7 +39,7 @@ from app.inference.registry import DetectorRegistry
 from app.jobs.store import JobStore
 from app.logging import configure_logging, get_logger
 from app.middleware import register_request_context
-from app.observability import configure_tracing
+from app.observability import QUEUE_OLDEST_AGE, configure_tracing
 from app.redaction.circuit.breaker import Breaker
 from app.redaction.pipeline import Pipeline
 from app.redaction.redactor import Redactor
@@ -206,6 +206,12 @@ async def teardown_state(state: State) -> None:
     timeout_seconds = float(getattr(state.settings, "shutdown_timeout_seconds", 30.0))
     deadline = asyncio.get_running_loop().time() + timeout_seconds
 
+    if state.job_metrics_task is not None:
+        state.job_metrics_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await state.job_metrics_task
+        state.job_metrics_task = None
+
     if state.drain_event is not None and state.active_requests:
         remaining = deadline - asyncio.get_running_loop().time()
         if remaining > 0:
@@ -240,6 +246,18 @@ async def teardown_state(state: State) -> None:
         await close_component("job_store", state.job_store.stop)
 
 
+async def refresh_job_metrics(state: State) -> None:
+    """Refresh shared durable-job gauges until the API begins shutdown."""
+    while True:
+        if state.job_store is not None:
+            try:
+                age = await state.job_store.oldest_job_age_seconds()
+            except (OSError, RuntimeError, TimeoutError, ValueError):
+                age = 0.0
+            QUEUE_OLDEST_AGE.set(age)
+        await asyncio.sleep(5.0)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Initialise and tear down long-lived resources for the FastAPI app.
@@ -267,6 +285,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         except Exception as exc:
             log.warning("redax.job_queue_unavailable", error=exc.__class__.__name__)
     app.state.state = state
+    if state.job_store is not None:
+        state.job_metrics_task = asyncio.create_task(refresh_job_metrics(state))
 
     log.info(
         "redax.startup",

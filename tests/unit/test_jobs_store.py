@@ -11,6 +11,7 @@ class FakeRedis:
         self.expires: list[tuple[str, int]] = []
         self.counter: dict[str, int] = {}
         self.lists: dict[str, list[str]] = {}
+        self.sorted_sets: dict[str, dict[str, float]] = {}
 
     async def hset(
         self,
@@ -51,6 +52,21 @@ class FakeRedis:
     async def delete(self, key: str) -> None:
         self.counter.pop(key, None)
 
+    async def zadd(self, key: str, mapping: dict[str, float]) -> int:
+        self.sorted_sets.setdefault(key, {}).update(mapping)
+        return len(mapping)
+
+    async def zrange(self, key: str, start: int, end: int, *, withscores: bool = False):
+        values = sorted(self.sorted_sets.get(key, {}).items(), key=lambda item: item[1])
+        values = values[start : end + 1 if end >= 0 else None]
+        return values if withscores else [value[0] for value in values]
+
+    async def exists(self, key: str) -> int:
+        return int(key in self.records)
+
+    async def zrem(self, key: str, member: str) -> int:
+        return int(self.sorted_sets.get(key, {}).pop(member, None) is not None)
+
     async def rpush(self, key: str, value: str) -> int:
         self.lists.setdefault(key, []).append(value)
         return len(self.lists[key])
@@ -65,10 +81,17 @@ class FakeRedis:
                 yield key
 
     async def eval(
-        self, _script: str, _numkeys: int, job_key: str, owner_key: str, total_key: str, *args: str
+        self,
+        _script: str,
+        _numkeys: int,
+        job_key: str,
+        owner_key: str,
+        total_key: str,
+        queue_key: str,
+        *args: str,
     ) -> int:
-        if len(args) == 6:
-            status, result, error, ttl, updated_at, schema_version = args
+        if len(args) == 7:
+            status, result, error, ttl, updated_at, schema_version, job_id = args
             record = self.records.get(job_key, {})
             if record.get("status") not in {"queued", "running"}:
                 return 0
@@ -82,6 +105,7 @@ class FakeRedis:
                 }
             )
             await self.expire(job_key, int(ttl))
+            await self.zrem(queue_key, job_id)
             owner = record.get("owner", "")
             if owner:
                 count = self.counter.get(owner_key, 0)
@@ -124,6 +148,8 @@ class FakeRedis:
             },
         )
         await self.expire(job_key, int(ttl))
+        await self.zadd(queue_key, {job_id: float(updated_at)})
+        await self.expire(queue_key, int(ttl))
         await self.incr(total_key)
         await self.expire(total_key, int(ttl))
         if owner:
@@ -185,6 +211,18 @@ async def test_create_keeps_ttl_and_tracks_owner(store: JobStore, redis_client: 
     assert redis_client.counter[f"redax:jobs:{owner_token}"] == 1
     assert (f"redax:job:{record.id}", 60) in redis_client.expires
     assert (f"redax:jobs:{owner_token}", 60) in redis_client.expires
+
+
+async def test_oldest_job_age_ignores_expired_index_entries(
+    store: JobStore, redis_client: FakeRedis
+) -> None:
+    await redis_client.zadd("redax:jobs:created", {"missing": 1.0})
+    record = await store.create(owner="k1")
+    age = await store.oldest_job_age_seconds()
+    assert age >= 0
+    assert "missing" not in redis_client.sorted_sets["redax:jobs:created"]
+    await store.set_result(record.id, {"text": "done"})
+    assert await store.oldest_job_age_seconds() == 0.0
 
 
 async def test_count_for_key_reads_counter(store: JobStore, redis_client: FakeRedis) -> None:

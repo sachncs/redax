@@ -65,6 +65,7 @@ class State:
     request_admission: Any | None = None
     active_requests: int = 0
     drain_event: asyncio.Event | None = None
+    job_metrics_task: asyncio.Task[None] | None = None
     extras: dict[str, Any] = field(default_factory=dict)
     pipeline: Pipeline | None = None
 
