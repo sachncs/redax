@@ -8,7 +8,7 @@ HA”; gaps are marked explicitly.
 |---|---|---|---|
 | API keys missing in `prod` | Startup fails validation. | Fail closed. | Keep; add scoped principal/rotation evidence. |
 | Trusted hosts missing in `prod` | Startup fails validation. | Fail closed. | Keep; document proxy/TLS boundary. |
-| Redis unavailable at startup | App logs and continues with no job store; cache/idempotency/jobs are disabled; rate limiting fails closed unless explicit fail-open. | Mixed, explicit. | Readiness must reflect required deployment mode; test recovery without restart. |
+| Redis unavailable at startup | App logs and continues with no job store; cache/idempotency/jobs are disabled; rate limiting fails closed unless explicit fail-open. | Mixed, explicit. | Readiness must reflect required deployment mode; restart/reconnect behavior is covered by the disposable Redis drill. |
 | Redis unavailable during rate limit | Returns typed 503 by default; explicit `REDAX_RATE_LIMIT_FAIL_OPEN=true` allows traffic. | Configurable, documented. | Require explicit operator acknowledgement and alert on fail-open. |
 | Redis unavailable during cache | Request recomputes; cache is skipped. | Fail open for optimization only. | Never let cache failure change redaction semantics. |
 | Redis unavailable during jobs | Submission returns 503; accepted jobs depend on Redis durability and recovery. | Unsafe without HA/failover evidence. | Verify Redis HA, enqueue recovery, lease expiry, and worker retry/DLQ behavior. |

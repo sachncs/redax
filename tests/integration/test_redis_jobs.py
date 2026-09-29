@@ -3,6 +3,10 @@ from __future__ import annotations
 import asyncio
 import multiprocessing
 import os
+import shutil
+import socket
+import subprocess
+import tempfile
 import uuid
 
 import pytest
@@ -13,6 +17,47 @@ from arq.constants import in_progress_key_prefix
 from arq.worker import Worker, func
 
 from app.jobs.store import JobStore
+
+
+def free_tcp_port() -> int:
+    """Reserve a currently unused local TCP port for the restart drill."""
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        return int(sock.getsockname()[1])
+
+
+def start_ephemeral_redis(port: int, directory: str) -> subprocess.Popen[bytes]:
+    """Start a disposable Redis instance with persistence enabled."""
+    return subprocess.Popen(
+        [
+            "redis-server",
+            "--bind",
+            "127.0.0.1",
+            "--port",
+            str(port),
+            "--dir",
+            directory,
+            "--appendonly",
+            "yes",
+            "--save",
+            "",
+        ],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+
+async def wait_for_redis(client: aioredis.Redis) -> None:
+    """Wait briefly for a disposable Redis process to accept connections."""
+    deadline = asyncio.get_running_loop().time() + 5
+    while True:
+        try:
+            await client.ping()
+            return
+        except (OSError, aioredis.RedisError):
+            if asyncio.get_running_loop().time() >= deadline:
+                raise
+            await asyncio.sleep(0.05)
 
 
 async def crashable_recovery_job(ctx: dict[str, object], marker_key: str) -> str:
@@ -118,6 +163,36 @@ async def test_real_redis_client_recovers_after_connection_close(
     assert client is not None
     await client.aclose()
     assert await real_job_store.count_inflight() == 0
+
+
+@pytest.mark.asyncio
+async def test_redis_client_recovers_after_server_restart() -> None:
+    if shutil.which("redis-server") is None:
+        pytest.skip("redis-server is unavailable for the restart drill")
+    port = free_tcp_port()
+    with tempfile.TemporaryDirectory() as directory:
+        process = start_ephemeral_redis(port, directory)
+        client = aioredis.from_url(
+            f"redis://127.0.0.1:{port}/15",
+            decode_responses=True,
+            socket_connect_timeout=0.2,
+            socket_timeout=0.2,
+            retry_on_timeout=True,
+            health_check_interval=0.1,
+        )
+        try:
+            await wait_for_redis(client)
+            await client.set("redax:restart-drill", "before", ex=60)
+            process.terminate()
+            process.wait(timeout=5)
+            process = start_ephemeral_redis(port, directory)
+            await wait_for_redis(client)
+            assert await client.get("redax:restart-drill") == "before"
+        finally:
+            await client.aclose()
+            if process.poll() is None:
+                process.terminate()
+                process.wait(timeout=5)
 
 
 @pytest.mark.asyncio
