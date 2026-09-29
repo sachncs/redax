@@ -40,9 +40,8 @@ def build_eval_detector(name: str) -> Any:
 
         return RegexDetector()
     if name in ("gliner2", "fastino"):
-        # `fastino/gliner2-privacy-filter-PII-multi` is the upstream
-        # checkpoint; same model, same label set. The CLI still
-        # accepts the alias for legacy scripts.
+        # `fastino/GLiNER2-Guardrails-PII-Multi` is the pinned checkpoint.
+        # The CLI still accepts the alias for legacy scripts.
         from app.inference.gliner2 import GLiNER2Detector
 
         return GLiNER2Detector()

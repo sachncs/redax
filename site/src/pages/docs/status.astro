@@ -7,7 +7,7 @@ import DocsLayout from "~/layouts/DocsLayout.astro";
     <div class="mt-4 grid gap-3">
       {[
         ['Stable', 'Structured regex detection and typed replacement', 'Email, phone, IBAN, SSN, IPv4, URL, and Luhn-checked card patterns are the clearest local path. Validate your own corpus.'],
-        ['Beta', 'GLiNER2 local model path', 'The pinned local model can add contextual entities. Model availability, warm-up, runtime, and revision must be part of readiness and rollout checks.'],
+        ['Beta', 'Guardrails-PII local model path', 'The pinned local model can add contextual entities across 42 PII labels and seven languages. Redax currently uses the PII extraction interface; availability, warm-up, runtime, and revision must be part of readiness and rollout checks.'],
         ['Beta', 'HTTP operations', 'Authentication, rate limiting, idempotency, health probes, metrics, traces, and the local audit backend exist, but deployment configuration and retention remain operator-owned.'],
         ['Experimental', 'Relexicalization and reversible workflows', 'Readable replacements can help downstream tasks, but collision, restoration, and access-control risks require an application-specific review.'],
         ['Experimental', 'Browser/WASM surface', 'The public browser demo is regex-only and illustrative. It does not represent server-side model parity or complete DLP coverage.'],

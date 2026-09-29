@@ -1,6 +1,6 @@
 # Model support and provenance
 
-Redax currently ships one model-backed detector: `fastino/gliner2-privacy-filter-PII-multi`.
+Redax currently ships one model-backed detector: `fastino/GLiNER2-Guardrails-PII-Multi`.
 The runtime loads it locally from the configured cache with
 `local_files_only=True`; it does not call a hosted inference API on the
 request path.
@@ -9,14 +9,19 @@ request path.
 
 | Field | Value |
 |---|---|
-| Model | `fastino/gliner2-privacy-filter-PII-multi` |
-| Revision | `c153999da5f4c509df4322b0c6a1baf3d2c284d7` |
-| Snapshot digest | `6c8acb9f91f7de13bec075211229981df09aa2a265f0d2bd6dc6a313cebdfeca` |
+| Model | `fastino/GLiNER2-Guardrails-PII-Multi` |
+| Revision | `aad696b2f6815e3dfc2d95908129eea5ed598562` |
+| Snapshot digest | `e1cd8966e7a56c2fa543f43a521edde8426c701509420d2d08c57a06ead7f33e` |
 | Runtime | `gliner2` with local Torch dependencies |
 | Default device | CPU |
 | Mode | Beta; regex-only is the explicit stable fallback mode |
 | Download behavior | Build/deployment step only; request inference is local-only |
 | Label mapping | Model labels are normalized to uppercase Redax span types at the adapter boundary |
+
+The checkpoint also contains guardrails classification heads. Redax currently
+uses its `extract_entities` PII interface only; safety classification is not
+part of the Redax HTTP contract until it has an explicit endpoint, policy, and
+test coverage.
 
 `MODEL_HASHES.txt` is the machine-readable integrity manifest. Run
 `python scripts/download_models.py --model ... --revision ...` during a
@@ -38,7 +43,7 @@ The container build performs this verification before the image is usable.
 
 ## Known limitations
 
-The model card's taxonomy and reported scores are not a guarantee for a
+The [model card](https://huggingface.co/fastino/GLiNER2-Guardrails-PII-Multi)'s taxonomy and reported scores are not a guarantee for a
 particular workload. Redax does not currently provide an independent claim of
 complete multilingual, clinical, OCR, image, or secret detection. Validate
 the entity types and false-positive/false-negative profile against synthetic

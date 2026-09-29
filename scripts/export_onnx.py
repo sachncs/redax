@@ -14,7 +14,7 @@ from pathlib import Path
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", default="fastino/gliner2-privacy-filter-PII-multi")
+    parser.add_argument("--model", default="fastino/GLiNER2-Guardrails-PII-Multi")
     parser.add_argument(
         "--cache",
         default=os.environ.get("REDAX_MODEL_CACHE", "./models_cache"),

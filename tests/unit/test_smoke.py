@@ -14,7 +14,7 @@ def test_config_defaults() -> None:
 
     s = Settings()
     assert s.log_level == "INFO"
-    assert s.model_name == "fastino/gliner2-privacy-filter-PII-multi"
+    assert s.model_name == "fastino/GLiNER2-Guardrails-PII-Multi"
     assert s.default_policy == "default"
     assert s.max_text_chars == 100_000
 

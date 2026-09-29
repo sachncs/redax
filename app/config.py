@@ -56,8 +56,8 @@ class Settings(BaseSettings):
 
     detector: Literal["gliner2", "regex"] = "gliner2"
     model_cache: str = "./models_cache"
-    model_name: str = "fastino/gliner2-privacy-filter-PII-multi"
-    model_revision: str = "c153999da5f4c509df4322b0c6a1baf3d2c284d7"
+    model_name: str = "fastino/GLiNER2-Guardrails-PII-Multi"
+    model_revision: str = "aad696b2f6815e3dfc2d95908129eea5ed598562"
     model_threshold: float = Field(default=0.5, ge=0.0, le=1.0)
 
     policies_dir: str = "./policies"

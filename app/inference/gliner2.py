@@ -73,8 +73,8 @@ class GLiNER2Detector:
 
     def __init__(
         self,
-        model_name: str = "fastino/gliner2-privacy-filter-PII-multi",
-        model_revision: str = "main",
+        model_name: str = "fastino/GLiNER2-Guardrails-PII-Multi",
+        model_revision: str = "aad696b2f6815e3dfc2d95908129eea5ed598562",
         model_cache: str | os.PathLike[str] = "./models_cache",
         threshold: float = 0.5,
         device: str = "cpu",

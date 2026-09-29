@@ -33,9 +33,9 @@ def test_release_metadata_binds_release_inputs(monkeypatch) -> None:
             "revision": "df7af994d39d358e52f929ff1b3a40d894adf022",
         },
         {
-            "sha256": "69a9cad2465548b4f5ee12f4e0a45a181827d1aa82dd6d2eb26fe04bf64cd8a0",
-            "repo_id": "fastino/gliner2-privacy-filter-PII-multi",
-            "revision": "c153999da5f4c509df4322b0c6a1baf3d2c284d7",
+            "sha256": "e1cd8966e7a56c2fa543f43a521edde8426c701509420d2d08c57a06ead7f33e",
+            "repo_id": "fastino/GLiNER2-Guardrails-PII-Multi",
+            "revision": "aad696b2f6815e3dfc2d95908129eea5ed598562",
         },
     ]
     assert metadata["persisted_schema_versions"] == {

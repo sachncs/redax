@@ -17,7 +17,7 @@ def clear_redax_env(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_defaults() -> None:
     s = Settings()
     assert s.detector == "gliner2"
-    assert s.model_revision == "c153999da5f4c509df4322b0c6a1baf3d2c284d7"
+    assert s.model_revision == "aad696b2f6815e3dfc2d95908129eea5ed598562"
     assert s.inference_concurrency == 2
     assert s.worker_concurrency == 1
     assert s.max_inflight == 32

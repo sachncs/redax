@@ -113,7 +113,7 @@ All settings read from environment variables prefixed with `REDAX_`. See
 | `REDAX_TRUSTED_HOSTS` | `""` | comma-separated hostnames required in production |
 | `REDAX_CORS_ORIGINS` | `""` | comma-separated explicit browser origins; empty disables browser CORS, and `*` is refused in production |
 | `REDAX_MODEL_CACHE` | `./models_cache` | HF_HOME redirect |
-| `REDAX_MODEL_NAME` | `fastino/gliner2-privacy-filter-PII-multi` | HF model id |
+| `REDAX_MODEL_NAME` | `fastino/GLiNER2-Guardrails-PII-Multi` | HF model id; Redax uses its PII extraction interface |
 | `REDAX_MODEL_REVISION` | pinned commit | model revision required for reproducible loading |
 | `REDAX_MODEL_THRESHOLD` | `0.5` | GLiNER2 detection threshold |
 | `REDAX_DETECTOR` | `gliner2` | `gliner2` or explicit `regex` mode |

@@ -54,8 +54,8 @@ COPY scripts/download_models.py scripts/download_models.py
 # redax:redax (see the mkdir/chown above); the build step itself runs
 # as root for one RUN instruction only.
 RUN python scripts/download_models.py \
-        --model fastino/gliner2-privacy-filter-PII-multi \
-        --revision c153999da5f4c509df4322b0c6a1baf3d2c284d7
+        --model fastino/GLiNER2-Guardrails-PII-Multi \
+        --revision aad696b2f6815e3dfc2d95908129eea5ed598562
 
 USER redax
 

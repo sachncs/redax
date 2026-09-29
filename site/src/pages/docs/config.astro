@@ -25,8 +25,8 @@ const groups: { title: string; rows: ConfigRow[] }[] = [
   { title: "Detector and policy", rows: [
     row("REDAX_DETECTOR", "gliner2 | regex", "no", "gliner2", "regex", "Choose deterministic structured detection or the pinned local model path."),
     row("REDAX_MODEL_CACHE", "path", "model mode", "./models_cache", "/var/lib/redax/models", "Local model cache; preload it when startup must not fetch."),
-    row("REDAX_MODEL_NAME", "string", "model mode", "fastino/gliner2-privacy-filter-PII-multi", "fastino/gliner2-privacy-filter-PII-multi", "Model identifier."),
-    row("REDAX_MODEL_REVISION", "string", "model mode", "pinned commit", "c153999da5f4c509df4322b0c6a1baf3d2c284d7", "Pin and record the exact revision for reproducibility."),
+    row("REDAX_MODEL_NAME", "string", "model mode", "fastino/GLiNER2-Guardrails-PII-Multi", "fastino/GLiNER2-Guardrails-PII-Multi", "Pinned Hugging Face model identifier; Redax uses its PII extraction interface."),
+    row("REDAX_MODEL_REVISION", "string", "model mode", "pinned commit", "aad696b2f6815e3dfc2d95908129eea5ed598562", "Pin and record the exact revision for reproducible loading."),
     row("REDAX_MODEL_THRESHOLD", "0..1", "no", "0.5", "0.5", "Model threshold; validate against your corpus."),
     row("REDAX_POLICIES_DIR", "path", "no", "./policies", "/etc/redax/policies", "Directory containing policy YAML files."),
     row("REDAX_DEFAULT_POLICY", "string", "prod", "default", "default", "Policy loaded and validated before production startup."),

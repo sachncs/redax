@@ -39,13 +39,13 @@ def test_benchmark_text_separates_cold_cache_requests() -> None:
 
 
 def test_pinned_model_metadata_reads_committed_identity(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("REDAX_MODEL_NAME", "fastino/gliner2-privacy-filter-PII-multi")
-    monkeypatch.setenv("REDAX_MODEL_REVISION", "c153999da5f4c509df4322b0c6a1baf3d2c284d7")
+    monkeypatch.setenv("REDAX_MODEL_NAME", "fastino/GLiNER2-Guardrails-PII-Multi")
+    monkeypatch.setenv("REDAX_MODEL_REVISION", "aad696b2f6815e3dfc2d95908129eea5ed598562")
 
     metadata = pinned_model_metadata()
 
-    assert metadata["name"] == "fastino/gliner2-privacy-filter-PII-multi"
-    assert metadata["revision"] == "c153999da5f4c509df4322b0c6a1baf3d2c284d7"
+    assert metadata["name"] == "fastino/GLiNER2-Guardrails-PII-Multi"
+    assert metadata["revision"] == "aad696b2f6815e3dfc2d95908129eea5ed598562"
     assert len(metadata["manifest_sha256"]) == 64
 
 
