@@ -46,6 +46,14 @@ weights may be loaded in each API replica or isolated to a model-serving tier;
 the choice must be recorded with memory and latency measurements. Workers must
 not depend on an API process's memory, local queue, or local filesystem.
 
+The cross-process gate
+`tests/integration/test_api_replicas.py::test_two_api_replicas_share_idempotency_state`
+starts two production-configured Uvicorn processes against the same Redis
+namespace. It verifies that a completed idempotency result replays on the
+other replica and that reusing the key with a different request body returns
+409. This proves the tested coordination path, not HA Redis or full deployment
+capacity.
+
 ## Required benchmark matrix
 
 Run each scenario at increasing concurrency and record JSON output:

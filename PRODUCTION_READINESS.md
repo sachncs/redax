@@ -13,7 +13,7 @@ as each production milestone lands.
 
 | Requirement | Status | Evidence / gap |
 |---|---|---|
-| API correctness across replicas | PARTIAL | Redis-backed idempotency, rate limits, durable jobs, audit, and model-breaker coordination are implemented with atomic integration coverage; a full multi-process API gate and HA Redis evidence remain pending. |
+| API correctness across replicas | PARTIAL | Redis-backed idempotency, rate limits, durable jobs, audit, and model-breaker coordination are implemented with atomic integration coverage; `tests/integration/test_api_replicas.py::test_two_api_replicas_share_idempotency_state` proves replay and same-key/different-body conflict across two real API processes, while HA Redis and failure evidence remain pending. |
 | Durable jobs survive worker failure | PARTIAL | ARQ worker, jittered retries, atomic admission/claim/completion, startup stale-job reconciliation, bounded payload-free DLQ records, and real-Redis recovery after a killed worker process are tested; Redis failover and production-scale evidence remain pending. |
 | Redis failure behavior is explicit | PASS | `docs/failure-modes.md`, `app/ratelimit.py`, and configuration tests define current cache/job/rate-limit degradation. Durable-job behavior remains pending. |
 | Graceful shutdown is verified | PARTIAL | Readiness drops before teardown, admitted HTTP requests drain within `REDAX_SHUTDOWN_TIMEOUT_SECONDS`, and ARQ worker SIGTERM stops new pickup while boundedly draining active jobs; stream/job signal integration evidence is still pending. |
@@ -36,7 +36,7 @@ as each production milestone lands.
 
 | Requirement | Status | Evidence / gap |
 |---|---|---|
-| Horizontally scalable API | PARTIAL | Reference Kubernetes API replicas, probes, rolling budgets, and shared Redis audit now exist without a shared filesystem dependency; HA Redis and multi-replica failure evidence remain pending. |
+| Horizontally scalable API | PARTIAL | Reference Kubernetes API replicas, probes, rolling budgets, shared Redis audit, and a two-process Redis-backed idempotency gate now exist without a shared filesystem dependency; HA Redis, failover, and multi-replica failure evidence remain pending. |
 | Independently scalable workers | PARTIAL | `redax-worker` and Redis-backed ARQ enqueueing exist; capacity, lease recovery, and deployment evidence are pending. |
 | Measured performance characteristics | PARTIAL | `docs/benchmarks/regex-local-baseline.json`, current Python 3.13 API baseline/sustained artifacts, a 300-request concurrency matrix at 1/10/20/40, and a 1,000-request warm ramp at 1/20/40/80/128/160 record detector/API p50-p99, throughput, CPU, and RSS locally; worker/model/cache/batch/stream capacity and soak evidence remain pending. |
 | Known saturation limits | PARTIAL | The local warm ramp identifies a regression knee near concurrency 80 and p99 degradation at 128/160; CI now gates a 500-request regex ramp at concurrency 10/40/80 with error and p99 thresholds, but this is not a production safe limit until server-side resource metrics, representative workloads, and HA/soak evidence exist. |
