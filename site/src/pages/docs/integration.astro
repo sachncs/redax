@@ -4,10 +4,25 @@ import DocsLayout from "~/layouts/DocsLayout.astro";
 <DocsLayout active="integration" title="Integration" description="Add Redax at the model and storage boundaries without changing your provider or application contract.">
   <section class="card border-flame-400/20 bg-flame-500/[0.06] p-6 sm:p-8"><div class="text-[11px] uppercase tracking-[0.2em] text-flame-300">Why this pattern works</div><p class="mt-4 text-[16px] leading-[1.7] text-ink-100">Your application remains the owner of the conversation. Redax only owns the privacy boundary, so you can change model providers without rewriting your data-handling rules.</p></section>
   <section><h2 class="text-[25px] text-ink-0">Choose your boundary</h2><p class="mt-3">Most teams redact user input before it crosses the model boundary, then inspect model output again before storing, displaying, or sending it elsewhere. Use the second pass when your threat model requires it; Redax does not automatically make the rest of your application safe.</p><pre class="code-shell mt-5 overflow-x-auto p-5 text-[13px] leading-[1.7] text-ink-100"><code>{`user message → Redax → LLM → Redax → UI / storage`}</code></pre></section>
-  <section><h2 class="text-[25px] text-ink-0">Python shape</h2><p class="mt-3">Keep the HTTP call in a small boundary function so the rest of your application never has to remember which fields are sensitive. The important rule is that the model call receives the transformed <code>safe_input.text</code>, never the original message.</p><pre class="code-shell mt-5 overflow-x-auto p-5 text-[13px] leading-[1.7] text-ink-100"><code>{`async def safe_chat(message: str) -> str:
-    safe_input = await redact(message)
-    answer = await call_your_llm(safe_input.text)
-    return (await redact(answer)).text`}</code></pre></section>
+  <section><h2 class="text-[25px] text-ink-0">Python boundary function</h2><p class="mt-3">Keep the HTTP call in a small function so the rest of your application never has to remember which fields are sensitive. This uses the real endpoint and response field; a non-2xx response raises before any downstream model call can happen.</p><pre class="code-shell mt-5 overflow-x-auto p-5 text-[13px] leading-[1.7] text-ink-100"><code>{`import httpx
+
+
+async def redact_before_model(message: str, api_key: str) -> str:
+    async with httpx.AsyncClient(base_url="http://localhost:8000", timeout=30.0) as client:
+        response = await client.post(
+            "/v1/redact",
+            headers={"X-API-Key": api_key},
+            json={"text": message, "use_pipeline": True},
+        )
+        response.raise_for_status()
+        return response.json()["text"]
+
+
+# Pass only the returned string to your existing model client.
+safe_message = await redact_before_model(
+    "Synthetic contact alice@example.com",
+    api_key="your-injected-key",
+)`}</code></pre><p class="mt-4 text-[13px]">Need a synchronous script or Redis/telemetry setup? Use the <a href="/redax/docs/examples">practical examples</a>.</p></section>
   <section><h2 class="text-[25px] text-ink-0">Decide what to do with placeholders</h2><p class="mt-3">Typed placeholders preserve the shape of a conversation without preserving the identifying value. Keep them when the model only needs context; use a policy strategy such as <code>hash</code> when you need stable joins; restore values only inside a controlled, audited system that has a real business reason to do so.</p></section>
   <section><h2 class="text-[25px] text-ink-0">Handle failures explicitly</h2><p class="mt-3">Treat a failed redaction as a failed privacy check. Do not silently fall back to sending the raw prompt to the model. Retry with an idempotency key for transient failures, or return a user-safe error while your service checks <code>/readyz</code> and its own dependency health.</p></section>
   <section class="card p-6 sm:p-8"><h2 class="text-[22px] text-ink-0">Start locally</h2><p class="mt-3">Use Docker Compose for the first integration, then promote the same API contract behind your own ingress and service identity.</p><div class="mt-6 flex flex-wrap gap-3"><a href="/redax/#deploy" class="btn-primary">View deployment options →</a><a href="/redax/docs/api" class="btn-ghost">Review the API</a></div></section>
