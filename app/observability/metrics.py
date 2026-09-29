@@ -84,6 +84,12 @@ QUEUE_OLDEST_AGE = Gauge(
     registry=REGISTRY,
 )
 
+ACTIVE_WORKERS = Gauge(
+    "redax_active_workers",
+    "Workers with a live Redis heartbeat.",
+    registry=REGISTRY,
+)
+
 REDIS_POOL_IN_USE = Gauge(
     "redax_redis_pool_connections_in_use",
     "Redis connections currently checked out by this process.",

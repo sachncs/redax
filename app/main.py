@@ -42,6 +42,7 @@ from app.jobs.store import JobStore
 from app.logging import configure_logging, get_logger
 from app.middleware import register_request_context
 from app.observability import (
+    ACTIVE_WORKERS,
     QUEUE_OLDEST_AGE,
     REDIS_POOL_AVAILABLE,
     REDIS_POOL_IN_USE,
@@ -274,6 +275,10 @@ async def refresh_job_metrics(state: State) -> None:
             except (OSError, RuntimeError, TimeoutError, ValueError):
                 age = 0.0
             QUEUE_OLDEST_AGE.set(age)
+            try:
+                ACTIVE_WORKERS.set(await state.job_store.active_worker_count())
+            except (OSError, RuntimeError, TimeoutError, ValueError):
+                ACTIVE_WORKERS.set(0)
             pool = state.job_store.pool_stats()
             REDIS_POOL_IN_USE.set(pool["in_use"])
             REDIS_POOL_AVAILABLE.set(pool["available"])

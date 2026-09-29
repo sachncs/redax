@@ -33,6 +33,15 @@
     },
     {
       "type": "timeseries",
+      "title": "Durable jobs and worker heartbeats",
+      "targets": [
+        {"expr": "redax_queue_depth", "legendFormat": "queue depth"},
+        {"expr": "redax_queue_oldest_age_seconds", "legendFormat": "oldest job age"},
+        {"expr": "redax_active_workers", "legendFormat": "active workers"}
+      ]
+    },
+    {
+      "type": "timeseries",
       "title": "Kubernetes CPU and memory",
       "targets": [
         {"expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"redax\"}[5m]))", "legendFormat": "CPU {{pod}}"},

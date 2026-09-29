@@ -1,4 +1,5 @@
 from .metrics import (
+    ACTIVE_WORKERS,
     ADMISSION_REJECTIONS,
     AUDIT_DROPPED,
     AUDIT_UNINITIALISED,
@@ -27,6 +28,7 @@ from .metrics import (
 from .tracing import configure_tracing, current_trace_id_hex
 
 __all__ = [
+    "ACTIVE_WORKERS",
     "ADMISSION_REJECTIONS",
     "AUDIT_DROPPED",
     "AUDIT_UNINITIALISED",

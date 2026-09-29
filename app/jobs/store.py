@@ -60,6 +60,7 @@ class JobStore:
     COUNT_KEY_TEMPLATE = "{ns}:jobs:{owner}"
     TOTAL_COUNT_KEY_TEMPLATE = "{ns}:jobs:inflight"
     QUEUE_INDEX_KEY_TEMPLATE = "{ns}:jobs:created"
+    WORKER_KEY_TEMPLATE = "{ns}:worker:{worker_id}"
     ADMIT_SCRIPT = """
 local total = tonumber(redis.call('GET', KEYS[3]) or '0')
 local owner = tonumber(redis.call('GET', KEYS[2]) or '0')
@@ -130,6 +131,9 @@ return 1
     def _dead_letter_key(self) -> str:
         return f"{self.namespace}:jobs:dead-letter"
 
+    def _worker_key(self, worker_id: str) -> str:
+        return self.WORKER_KEY_TEMPLATE.format(ns=self.namespace, worker_id=worker_id)
+
     @staticmethod
     def owner_token(owner: str) -> str:
         """Return the bounded, non-secret token used for job ownership state."""
@@ -158,6 +162,37 @@ return 1
         if self.client is not None:
             await self.client.aclose()
             self.client = None
+
+    async def worker_heartbeat(self, worker_id: str, active_jobs: int, max_jobs: int) -> None:
+        """Publish a short-lived worker heartbeat and bounded capacity snapshot."""
+        client = self.client
+        if client is None:
+            raise RuntimeError("JobStore.start() must run before worker_heartbeat()")
+        key = self._worker_key(worker_id)
+        await client.hset(  # type: ignore[misc]
+            key,
+            mapping={
+                "active_jobs": str(max(0, active_jobs)),
+                "max_jobs": str(max(1, max_jobs)),
+                "updated_at": str(time.time()),
+            },
+        )
+        await client.expire(key, 15)
+
+    async def worker_stop(self, worker_id: str) -> None:
+        """Remove a worker heartbeat during an orderly worker shutdown."""
+        if self.client is not None:
+            await self.client.delete(self._worker_key(worker_id))
+
+    async def active_worker_count(self) -> int:
+        """Count workers whose heartbeat keys have not expired."""
+        client = self.client
+        if client is None:
+            raise RuntimeError("JobStore.start() must run before active_worker_count()")
+        count = 0
+        async for _key in client.scan_iter(match=f"{self.namespace}:worker:*"):
+            count += 1
+        return count
 
     async def create(self, owner: str = "") -> JobRecord:
         """Mint a new job id, store the queued record, and bump the per-owner counter.

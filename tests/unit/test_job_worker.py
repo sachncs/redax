@@ -29,13 +29,13 @@ async def test_process_job_retries_before_dead_letter(monkeypatch):
     monkeypatch.setattr(queue, "run_job", failed_run)
     monkeypatch.setattr(queue, "record_failure", failure)
 
+    ctx = {"state": State(), "job_try": 1, "active_jobs": 0}
     with pytest.raises(queue.Retry) as raised:
-        await queue.process_job(
-            {"state": State(), "job_try": 1}, "job-1", {"text": "x"}, "request-1"
-        )
+        await queue.process_job(ctx, "job-1", {"text": "x"}, "request-1")
 
     assert raised.value.defer_score == 1000
     assert calls == [False]
+    assert ctx["active_jobs"] == 0
     after = next(iter(JOB_RETRIES.collect())).samples[0].value
     assert after == before + 1
 

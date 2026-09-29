@@ -53,6 +53,9 @@ class FakeRedis:
 
     async def delete(self, key: str) -> None:
         self.counter.pop(key, None)
+        self.records.pop(key, None)
+        self.lists.pop(key, None)
+        self.sorted_sets.pop(key, None)
 
     async def zadd(self, key: str, mapping: dict[str, float]) -> int:
         self.sorted_sets.setdefault(key, {}).update(mapping)
@@ -79,7 +82,7 @@ class FakeRedis:
 
     async def scan_iter(self, match: str):
         for key in self.records:
-            if key.startswith("redax:job:"):
+            if key.startswith("redax:job:") or key.startswith("redax:worker:"):
                 yield key
 
     async def eval(
@@ -243,6 +246,13 @@ def test_pool_stats_reports_connection_utilization(
 
     redis_client.connection_pool = Pool()
     assert store.pool_stats() == {"in_use": 2, "available": 1, "max": 8}
+
+
+async def test_worker_heartbeat_expires_and_is_counted(store: JobStore) -> None:
+    await store.worker_heartbeat("worker-a", active_jobs=1, max_jobs=2)
+    assert await store.active_worker_count() == 1
+    await store.worker_stop("worker-a")
+    assert await store.active_worker_count() == 0
 
 
 async def test_count_for_key_reads_counter(store: JobStore, redis_client: FakeRedis) -> None:

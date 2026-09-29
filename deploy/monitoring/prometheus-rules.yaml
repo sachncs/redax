@@ -83,3 +83,12 @@ spec:
           annotations:
             summary: No Redax worker replica is available
             runbook_url: https://github.com/sachncs/redax/blob/master/docs/runbooks/jobs.md
+        - alert: RedaxWorkerHeartbeatUnavailable
+          expr: redax_active_workers < 1
+          for: 5m
+          labels:
+            severity: page
+            service: redax
+          annotations:
+            summary: No Redax worker heartbeat is visible to the API
+            runbook_url: https://github.com/sachncs/redax/blob/master/docs/runbooks/jobs.md
