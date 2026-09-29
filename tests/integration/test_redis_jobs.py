@@ -317,11 +317,21 @@ async def test_redis_client_recovers_after_server_restart() -> None:
         try:
             await wait_for_redis(client)
             await client.set("redax:restart-drill", "before", ex=60)
+            audit = RedisAudit(client, namespace="redax:restart-audit", required=True)
+            await audit.start()
+            await audit.record(Event(request_id="before", ts="", policy_version="p", text_chars=1))
             process.terminate()
             process.wait(timeout=5)
+            with pytest.raises(RuntimeError, match="audit backend is unavailable"):
+                await audit.record(
+                    Event(request_id="during", ts="", policy_version="p", text_chars=1)
+                )
             process = start_ephemeral_redis(port, directory)
             await wait_for_redis(client)
             assert await client.get("redax:restart-drill") == "before"
+            await audit.record(Event(request_id="after", ts="", policy_version="p", text_chars=1))
+            assert audit.failed is False
+            assert len(await client.lrange("redax:restart-audit:audit:events", 0, -1)) == 2
         finally:
             await client.aclose()
             if process.poll() is None:
