@@ -18,6 +18,7 @@ export const DOCS = {
   policies: "/redax/docs/policies",
   bench: "/redax/docs/bench",
   deployment: "/redax/docs/deployment",
+  production: "/redax/docs/production",
   security: "/redax/docs/security",
   dataFlow: "/redax/docs/data-flow",
   status: "/redax/docs/status",
@@ -38,8 +39,10 @@ export const HERO = {
 
 export const NAV = [
   { label: "Product", href: "/redax/#product" },
+  { label: "How it works", href: "/redax/#how-it-works" },
   { label: "Live demo", href: "/redax/#demo" },
   { label: "Pipeline", href: "/redax/#pipeline" },
+  { label: "Deploy", href: "/redax/#deploy" },
   { label: "Docs", href: DOCS.api },
   { label: "GitHub", href: SITE.repo, external: true },
 ] as const;
@@ -240,6 +243,7 @@ export const FOOTER = {
         { label: "Integration", href: DOCS.integration },
         { label: "Policies", href: DOCS.policies },
         { label: "Deployment", href: DOCS.deployment },
+        { label: "Production config", href: DOCS.production },
         { label: "Security boundary", href: DOCS.security },
         { label: "Production launch", href: DOCS.launch },
       ],

@@ -9,57 +9,44 @@ interface Props {
 
 const { title, description, active } = Astro.props;
 const links = [
+  { key: "index", label: "Overview", href: "/redax/docs/" },
   { key: "api", label: "HTTP API", href: "/redax/docs/api" },
   { key: "architecture", label: "Architecture", href: "/redax/docs/architecture" },
   { key: "integration", label: "Integration", href: "/redax/docs/integration" },
   { key: "policies", label: "Policies", href: "/redax/docs/policies" },
   { key: "bench", label: "Benchmarks", href: "/redax/docs/bench" },
   { key: "deployment", label: "Deployment", href: "/redax/docs/deployment" },
+  { key: "production", label: "Production config", href: "/redax/docs/production" },
   { key: "security", label: "Security boundary", href: "/redax/docs/security" },
   { key: "data-flow", label: "Data flow", href: "/redax/docs/data-flow" },
   { key: "status", label: "Capability status", href: "/redax/docs/status" },
   { key: "launch", label: "Production launch", href: "/redax/docs/launch" },
 ];
+const activeIndex = links.findIndex((link) => link.key === active);
+const previous = activeIndex > 0 ? links[activeIndex - 1] : null;
+const next = activeIndex >= 0 && activeIndex < links.length - 1 ? links[activeIndex + 1] : null;
 ---
 <Base title={`${title} · Redax docs`} description={description}>
-  <section class="section pt-32 sm:pt-40">
-    <div class="container-x">
-      <div class="grid grid-cols-1 lg:grid-cols-[220px_minmax(0,760px)] gap-10 lg:gap-20">
-        <aside class="lg:sticky lg:top-28 lg:self-start">
-          <a href="/redax/" class="text-[13px] text-ink-400 hover:text-ink-0 transition-colors">← Back to Redax</a>
-          <div class="mt-8 text-[11px] uppercase tracking-[0.2em] text-ink-500">Documentation</div>
-          <nav aria-label="Documentation" class="mt-3 grid gap-1">
-            {links.map((link) => (
-              <a
-                href={link.href}
-                aria-current={active === link.key ? "page" : undefined}
-                class={`rounded-lg px-3 py-2 text-[13.5px] transition-colors ${active === link.key ? "bg-white/[0.08] text-ink-0" : "text-ink-400 hover:bg-white/[0.04] hover:text-ink-100"}`}
-              >
-                {link.label}
-              </a>
-            ))}
-          </nav>
-          <div class="mt-8 rounded-xl border border-white/[0.08] bg-white/[0.03] p-4">
-            <div class="text-[11px] uppercase tracking-[0.18em] text-flame-300">Start here</div>
-            <p class="mt-2 text-[13px] leading-[1.5] text-ink-300">Run Redax locally, send one request, and inspect the safe output.</p>
-            <a href="/redax/#start" class="mt-3 inline-flex text-[13px] text-ink-100 hover:text-flame-200">Open quickstart →</a>
-          </div>
-        </aside>
-
-        <article class="min-w-0">
-          <span class="pill"><span class="dot"></span>Redax documentation</span>
-          <h1 class="mt-6 text-[clamp(42px,6vw,76px)] leading-[1.02] tracking-[-0.045em]">{title}</h1>
-          <p class="mt-6 max-w-2xl text-[18px] leading-[1.6] text-ink-300">{description}</p>
-          <div class="mt-8 grid gap-2 sm:grid-cols-3">
-            <div class="card p-4"><div class="text-[10px] uppercase tracking-[0.18em] text-flame-300">Why</div><p class="mt-2 text-[13px] leading-[1.5] text-ink-400">Keep raw customer text outside the model boundary.</p></div>
-            <div class="card p-4"><div class="text-[10px] uppercase tracking-[0.18em] text-flame-300">What</div><p class="mt-2 text-[13px] leading-[1.5] text-ink-400">A local API that detects, replaces, and records safely.</p></div>
-            <div class="card p-4"><div class="text-[10px] uppercase tracking-[0.18em] text-flame-300">How</div><p class="mt-2 text-[13px] leading-[1.5] text-ink-400">Run it, send text, pass only the returned text onward.</p></div>
-          </div>
-          <div class="mt-12 grid gap-10 text-[15px] leading-[1.7] text-ink-200">
-            <slot />
-          </div>
-        </article>
-      </div>
-    </div>
-  </section>
+  <section class="rdx-docs"><div class="rdx-shell rdx-docs-layout">
+    <aside class="rdx-docs-sidebar">
+      <a href="/redax/" class="rdx-docs-back">← Back to Redax</a>
+      <div class="rdx-docs-label">DOCUMENTATION</div>
+      <nav aria-label="Documentation" class="rdx-docs-nav">
+        {links.map((link) => <a href={link.href} aria-current={active === link.key ? "page" : undefined} class:list={{ active: active === link.key }}>{link.label}</a>)}
+      </nav>
+      <div class="rdx-docs-start"><div class="rdx-docs-label">START HERE</div><p>Run Redax locally, send one request, and inspect the safe output.</p><a href="/redax/#start">Open quickstart →</a></div>
+    </aside>
+    <article class="rdx-docs-content">
+      <div class="rdx-docs-breadcrumb"><a href="/redax/docs/">Docs</a><span>/</span><span>{title}</span></div>
+      <div class="rdx-docs-kicker">REDAX / {active.toUpperCase()}</div>
+      <h1>{title}</h1>
+      <p class="rdx-docs-lead">{description}</p>
+      <div class="rdx-docs-primer"><div><b>WHY</b><span>Keep raw customer text outside the model boundary.</span></div><div><b>WHAT</b><span>A local API that detects, replaces, and records safely.</span></div><div><b>HOW</b><span>Run it, send text, pass only returned text onward.</span></div></div>
+      <div class="rdx-docs-body"><slot /></div>
+      <nav class="rdx-docs-pager" aria-label="Documentation pagination">
+        {previous ? <a href={previous.href}><small>PREVIOUS</small><b>← {previous.label}</b></a> : <span></span>}
+        {next ? <a href={next.href}><small>NEXT</small><b>{next.label} →</b></a> : <span></span>}
+      </nav>
+    </article>
+  </div></section>
 </Base>

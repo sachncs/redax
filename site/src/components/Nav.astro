@@ -5,9 +5,9 @@ import { NAV, SITE } from "~/content/site";
   <div class="rdx-shell rdx-nav-inner" data-shell>
     <a href="/redax/" class="rdx-brand"><span class="rdx-mark">RX</span><span>REDAX</span><small>v{SITE.version}</small></a>
     <nav aria-label="Primary">
-      {NAV.filter((item) => ["Product", "Live demo", "Pipeline", "Docs"].includes(item.label)).map((item) => <a class="rdx-nav-link" href={item.href}>{item.label}</a>)}
+      {NAV.filter((item) => ["Product", "How it works", "Live demo", "Pipeline", "Deploy", "Docs"].includes(item.label)).map((item) => <a class="rdx-nav-link" href={item.href}>{item.label}</a>)}
     </nav>
-    <div class="rdx-nav-actions"><a href={SITE.repo} class="rdx-nav-github" target="_blank" rel="noopener">GitHub ↗</a><a href="#start" class="rdx-button rdx-button-primary">Get started <span>↘</span></a></div>
+    <div class="rdx-nav-actions"><a href={SITE.repo} class="rdx-nav-github" target="_blank" rel="noopener">GitHub ↗</a><a href="/redax/#start" class="rdx-button rdx-button-primary">Get started <span>↘</span></a></div>
   </div>
 </header>
 <script is:inline>

@@ -1,0 +1,14 @@
+---
+import DocsLayout from "~/layouts/DocsLayout.astro";
+---
+<DocsLayout active="index" title="Documentation" description="Understand Redax, run it locally, integrate one safe HTTP boundary, and decide what your deployment must provide for production.">
+  <section class="rdx-docs-callout"><b>New to Redax?</b><p>Start with the local Docker deployment, then send a synthetic request through the API. The product is a boundary in front of your existing model workflow — not a replacement for your application or provider.</p><a href="/redax/docs/deployment">Open the deployment guide →</a></section>
+  <section><h2>Choose your next step</h2><div class="rdx-docs-card-grid">
+    <a href="/redax/docs/integration"><b>Integrate the API</b><span>See the request and response contract, then put redaction immediately before your model call.</span></a>
+    <a href="/redax/docs/architecture"><b>Understand the boundary</b><span>Trace detection, policy, replacement, audit, Redis state, worker jobs, and telemetry.</span></a>
+    <a href="/redax/docs/deployment"><b>Deploy locally</b><span>Run the complete Compose stack with Redis, worker, metrics, logs, and traces — no cloud account required.</span></a>
+    <a href="/redax/docs/launch"><b>Plan production</b><span>Walk through hosting, Redis HA, secrets, telemetry, DNS/TLS, SLOs, failure drills, and stop conditions.</span></a>
+  </div></section>
+  <section><h2>What Redax does</h2><p>Redax detects configured entities, applies a versioned policy, and returns transformed text. Structured regex detection is the stable lightweight path; the pinned local GLiNER2 path adds contextual entities when its model is available. The browser demo is intentionally illustrative and does not claim server-side parity.</p></section>
+  <section class="rdx-docs-callout rdx-docs-warning"><b>Read the boundary before sending real data.</b><p>Detection is configured coverage, not proof of absence. Review the threat model, data flow, failure modes, policy pass-through behavior, provider logging, infrastructure access, and retention before production use.</p><a href="/redax/docs/security">Read the security boundary →</a></section>
+</DocsLayout>

@@ -5,6 +5,47 @@ For the cloud-free single-machine setup, see
 observability stack, backup/restore commands, and k6 smoke test. The sections
 below describe the broader deployment tiers and production-shaped topology.
 
+## Production decisions configured at deployment time
+
+Redax supplies the API, worker, processing pipeline, configuration contract,
+health endpoints, metrics, and reference Kubernetes resources. The operator
+must supply the environment around them. Record these choices with the release
+instead of treating them as application defaults:
+
+| Decision | What to choose | Why it matters | Redax/runtime configuration |
+|---|---|---|---|
+| Hosting target and region | Local host, private container platform, or Kubernetes; region and data-residency boundary | Determines latency to the caller/model and where operational data is stored | Platform deployment values plus `REDAX_HOST`, `REDAX_PORT`, `REDAX_TRUSTED_HOSTS`, Redis and OTLP endpoints |
+| Redis service | Development Redis or a private TLS/authenticated production service | Rate limits, idempotency, cache, durable jobs, worker coordination, and optional Redis audit depend on it | `REDAX_REDIS_URL`, `REDAX_REDIS_NAMESPACE`, `REDAX_REDIS_REQUIRED`, pool/timeouts |
+| Redis HA and backups | Replicas, automatic failover, persistence, backup cadence, restore owner, RPO/RTO | A single Redis process is not evidence that accepted jobs or leases survive failure | Provider settings plus `docs/runbooks/backup-restore.md`; verify with `docs/runbooks/launch.md` |
+| Telemetry destination | Log shipper, Prometheus, OTLP collector, retention and access policy | Operators need to measure SLOs without exporting request values | stdout, `/metrics`, `REDAX_OTLP_ENDPOINT`, collector privacy policy |
+| Secrets and identity | API keys, hash salt, job encryption key, audit integrity key, secret manager and workload identity | Authentication, encrypted queued payloads, correlation digests, and audit integrity must not use defaults | `REDAX_API_KEYS`, `REDAX_HASH_SALT`, `REDAX_JOB_PAYLOAD_ENCRYPTION_KEY`, `REDAX_AUDIT_INTEGRITY_KEY`, scopes/revocations |
+| DNS and TLS | DNS record, HTTPS certificate/issuer, reverse proxy, body/timeout/SSE routing | Public traffic must be encrypted and routed to a ready API without truncating streaming responses | Proxy/ingress configuration plus `REDAX_TRUSTED_HOSTS`, body and stream limits |
+| SLOs | Availability, latency, error, queue-age, recovery, and error-budget targets | The repository has characteristics and gates, not a universal capacity guarantee | `docs/slo.md`, `/metrics`, readiness and launch canary evidence |
+
+The repository does not ship provider-specific Terraform, Helm values for a
+managed Redis vendor, DNS automation, certificate issuer, or cloud IAM module.
+Use the primitives of the platform you choose and keep the resulting config
+and evidence with the deployment.
+
+### Rotation expectations
+
+API keys support overlap: add the replacement key, deploy it, verify a
+synthetic request, then revoke the old key with
+`REDAX_API_KEY_REVOCATIONS`. Rotate API keys on an organization-defined
+cadence and after suspected exposure. Hash salt rotation changes correlation
+and cache identity; job-payload encryption-key rotation requires a plan for
+already queued encrypted jobs; audit-integrity-key rotation requires a
+verification boundary for old records. These are coordinated deployments, not
+transparent hot reloads.
+
+### Recommended starting SLOs
+
+The following are recommendations, not guarantees: start with 99.9% serving
+availability, separate p95/p99 latency targets for regex/model/batch/stream/job
+workloads, an explicit 5xx/503/504 error budget, and measured Redis restore and
+worker-drain RPO/RTO. Tune them from the benchmark and failure artifacts in
+`docs/benchmarks/` and `PRODUCTION_READINESS.md`.
+
 ## Docker Compose (default)
 
 ```bash
