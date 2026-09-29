@@ -1,0 +1,11 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: redax
+    metrics_path: /metrics
+    static_configs:
+      - targets: [redax:8000]
+        labels:
+          service: redax
