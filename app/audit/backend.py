@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
 from typing import Any, Protocol, runtime_checkable
 
 from app.schema_versions import AUDIT_EVENT_SCHEMA_VERSION
@@ -80,6 +81,25 @@ def event_to_dict(event: Event) -> dict[str, Any]:
     payload = asdict(event)
     payload["schema_version"] = AUDIT_SCHEMA_VERSION
     return payload
+
+
+def with_timestamp(event: Event) -> Event:
+    """Return an event with a UTC timestamp when the caller left it empty."""
+    if event.ts:
+        return event
+    return Event(
+        request_id=event.request_id,
+        ts=datetime.now(UTC).isoformat(),
+        policy_version=event.policy_version,
+        text_chars=event.text_chars,
+        principal_id=event.principal_id,
+        entities_detected=event.entities_detected,
+        inference_ms=event.inference_ms,
+        redactor_version=event.redactor_version,
+        model_name=event.model_name,
+        trace_id=event.trace_id,
+        direction=event.direction,
+    )
 
 
 def span_summary(spans: list[Any]) -> list[dict[str, Any]]:

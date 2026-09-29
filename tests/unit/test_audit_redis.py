@@ -32,7 +32,7 @@ async def test_redis_audit_stores_versioned_metadata_only() -> None:
     await backend.record(
         Event(
             request_id="req-1",
-            ts="2026-09-29T00:00:00Z",
+            ts="",
             policy_version="default-1.0.0",
             text_chars=42,
             entities_detected=[{"type": "EMAIL", "count": 1, "confidence_avg": 1.0}],
@@ -41,6 +41,7 @@ async def test_redis_audit_stores_versioned_metadata_only() -> None:
 
     payload = json.loads(client.events[0])
     assert payload["schema_version"] == 1
+    assert payload["ts"].endswith("+00:00")
     assert payload["text_chars"] == 42
     assert "alice@example.com" not in client.events[0]
 

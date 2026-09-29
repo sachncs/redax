@@ -18,7 +18,7 @@ import os
 from datetime import UTC, datetime
 from pathlib import Path
 
-from app.audit.backend import Event, event_to_dict
+from app.audit.backend import Event, event_to_dict, with_timestamp
 from app.logging import get_logger
 from app.observability import AUDIT_DROPPED, AUDIT_UNINITIALISED, AUDIT_WRITE_FAILED
 
@@ -228,22 +228,3 @@ def prune_old_events(path: Path, retention_seconds: int) -> None:
             kept.append(line)
     if removed:
         path.write_text("\n".join(kept) + ("\n" if kept else ""), encoding="utf-8")
-
-
-def with_timestamp(event: Event) -> Event:
-    """Return a copy of ``event`` with ``ts`` set to now if it was empty."""
-    if event.ts:
-        return event
-    return Event(
-        request_id=event.request_id,
-        ts=datetime.now(UTC).isoformat(),
-        policy_version=event.policy_version,
-        text_chars=event.text_chars,
-        principal_id=event.principal_id,
-        entities_detected=event.entities_detected,
-        inference_ms=event.inference_ms,
-        redactor_version=event.redactor_version,
-        model_name=event.model_name,
-        trace_id=event.trace_id,
-        direction=event.direction,
-    )

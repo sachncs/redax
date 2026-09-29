@@ -7,7 +7,7 @@ import json
 import redis.asyncio as aioredis
 from redis.exceptions import RedisError
 
-from app.audit.backend import Event, event_to_dict
+from app.audit.backend import Event, event_to_dict, with_timestamp
 from app.logging import get_logger
 from app.observability import AUDIT_DROPPED, AUDIT_WRITE_FAILED
 
@@ -42,7 +42,9 @@ class RedisAudit:
         """Append one bounded, JSON-encoded metadata event."""
         if self.client is None:
             raise RuntimeError("Redis audit backend is unavailable")
-        payload = json.dumps(event_to_dict(event), separators=(",", ":"), sort_keys=True)
+        payload = json.dumps(
+            event_to_dict(with_timestamp(event)), separators=(",", ":"), sort_keys=True
+        )
         try:
             await self.client.rpush(self.key, payload)  # type: ignore[misc]
             await self.client.ltrim(self.key, -self.max_events, -1)  # type: ignore[misc]
