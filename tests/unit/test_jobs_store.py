@@ -10,6 +10,7 @@ class FakeRedis:
         self.records: dict[str, dict[str, str]] = {}
         self.expires: list[tuple[str, int]] = []
         self.counter: dict[str, int] = {}
+        self.lists: dict[str, list[str]] = {}
 
     async def hset(
         self,
@@ -49,6 +50,14 @@ class FakeRedis:
 
     async def delete(self, key: str) -> None:
         self.counter.pop(key, None)
+
+    async def rpush(self, key: str, value: str) -> int:
+        self.lists.setdefault(key, []).append(value)
+        return len(self.lists[key])
+
+    async def ltrim(self, key: str, start: int, end: int) -> None:
+        values = self.lists.get(key, [])
+        self.lists[key] = values[start:] if start < 0 and end == -1 else values[start : end + 1]
 
     async def scan_iter(self, match: str):
         for key in self.records:
@@ -191,6 +200,16 @@ async def test_reap_stale_job_fails_record_and_releases_capacity(
     assert redis_client.records[f"redax:job:{record.id}"]["error"] == "job lease expired"
     assert await store.count_inflight() == 0
     assert await store.count_for_key("k1") == 0
+
+
+async def test_dead_letter_is_bounded_and_payload_free(
+    store: JobStore, redis_client: FakeRedis
+) -> None:
+    await store.record_dead_letter("job-1", "job failed", attempts=5)
+    event = redis_client.lists["redax:jobs:dead-letter"][0]
+    assert "job-1" in event
+    assert "job failed" in event
+    assert "payload" not in event
 
 
 async def test_terminal_transition_releases_owner_slot(

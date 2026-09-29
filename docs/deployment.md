@@ -96,6 +96,7 @@ All settings read from environment variables prefixed with `REDAX_`. See
 | `REDAX_METRICS_BY_TENANT` | `false` | reserved setting; tenant labels are disabled by default |
 | `REDAX_WORKER_CONCURRENCY` | `1` | concurrent ARQ jobs per `redax-worker` process |
 | `REDAX_JOB_RETRY_JITTER_SECONDS` | `1.0` | maximum random delay added to exponential job retries |
+| `REDAX_JOB_DEAD_LETTER_MAX` | `1000` | maximum payload-free permanent-failure records retained in Redis |
 | `REDAX_OTLP_ENDPOINT` | `""` | OTLP gRPC endpoint for traces |
 
 ## Production checklist

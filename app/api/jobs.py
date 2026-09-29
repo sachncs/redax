@@ -253,10 +253,15 @@ async def run_job(
     return True
 
 
-async def record_failure(job_id: str, store: JobStore, logger: Any) -> None:
+async def record_failure(job_id: str, store: JobStore, logger: Any, *, attempts: int = 1) -> None:
     """Mark a job as failed in the JobStore; logs and counts write failures."""
     try:
         await store.set_error(job_id, JOB_FAILED)
+        try:
+            await store.record_dead_letter(job_id, JOB_FAILED, attempts)
+        except (OSError, TimeoutError, RuntimeError):
+            logger.error("redax.job_dead_letter_write_failed", job_id=job_id)
+            ERRORS.labels(type="job_dead_letter_write_failed").inc()
     except (OSError, TimeoutError, RuntimeError):
         logger.error("redax.job_store_write_failed", job_id=job_id)
         ERRORS.labels(type="job_store_write_failed").inc()

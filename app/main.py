@@ -144,6 +144,7 @@ async def build_state(settings: Settings) -> State:
         connect_timeout_seconds=settings.redis_connect_timeout_seconds,
         socket_timeout_seconds=settings.redis_socket_timeout_seconds,
         max_connections=settings.redis_max_connections,
+        dead_letter_max=settings.job_dead_letter_max,
     )
     try:
         await store.start()

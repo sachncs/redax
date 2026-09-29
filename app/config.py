@@ -79,6 +79,7 @@ class Settings(BaseSettings):
     inference_concurrency: int = Field(default=2, ge=1)
     worker_concurrency: int = Field(default=1, ge=1)
     job_retry_jitter_seconds: float = Field(default=1.0, ge=0.0, le=30.0)
+    job_dead_letter_max: int = Field(default=1000, ge=1)
     max_inflight: int = Field(default=32, ge=1)
     max_jobs_per_key: int = Field(default=50, ge=1)
     job_ttl_seconds: int = Field(default=86_400, ge=1)

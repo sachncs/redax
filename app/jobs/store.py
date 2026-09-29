@@ -97,6 +97,7 @@ return 1
         connect_timeout_seconds: float = 1.0,
         socket_timeout_seconds: float = 1.0,
         max_connections: int = 64,
+        dead_letter_max: int = 1000,
     ) -> None:
         self.url = redis_url
         self.ttl_seconds = ttl_seconds
@@ -105,6 +106,7 @@ return 1
         self.connect_timeout_seconds = connect_timeout_seconds
         self.socket_timeout_seconds = socket_timeout_seconds
         self.max_connections = max_connections
+        self.dead_letter_max = dead_letter_max
 
     def _key(self, job_id: str) -> str:
         return self.KEY_TEMPLATE.format(ns=self.namespace, id=job_id)
@@ -114,6 +116,9 @@ return 1
 
     def _total_count_key(self) -> str:
         return self.TOTAL_COUNT_KEY_TEMPLATE.format(ns=self.namespace)
+
+    def _dead_letter_key(self) -> str:
+        return f"{self.namespace}:jobs:dead-letter"
 
     @staticmethod
     def owner_token(owner: str) -> str:
@@ -303,6 +308,26 @@ return 1
             error,
             self.ttl_seconds,
         )
+
+    async def record_dead_letter(self, job_id: str, error: str, attempts: int) -> None:
+        """Retain bounded, payload-free metadata for a permanently failed job."""
+        client = getattr(self, "client", None)
+        if client is None:
+            raise RuntimeError("JobStore.start() must run before record_dead_letter()")
+        event = json.dumps(
+            {
+                "schema_version": 1,
+                "job_id": job_id,
+                "error": error,
+                "attempts": attempts,
+                "recorded_at": time.time(),
+            },
+            separators=(",", ":"),
+        )
+        key = self._dead_letter_key()
+        await client.rpush(key, event)
+        await client.ltrim(key, -self.dead_letter_max, -1)
+        await client.expire(key, self.ttl_seconds)
 
     async def set_record(self, record: JobRecord) -> None:
         """Write the full :class:`JobRecord` fields into the job hash.

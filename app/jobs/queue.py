@@ -38,7 +38,12 @@ async def process_job(
         JOB_RETRIES.inc()
         raise Retry(defer=delay)
     JOB_PERMANENT_FAILURES.inc()
-    await record_failure(job_id, state.job_store, get_logger("redax.jobs"))
+    await record_failure(
+        job_id,
+        state.job_store,
+        get_logger("redax.jobs"),
+        attempts=int(ctx.get("job_try", MAX_TRIES)),
+    )
 
 
 async def worker_main() -> None:
