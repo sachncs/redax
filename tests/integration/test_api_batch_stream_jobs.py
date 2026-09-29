@@ -199,9 +199,10 @@ def test_stream_records_end_to_end_request_latency(app_with_state):
 
 
 def test_job_lifecycle(app_with_state):
+    canary = "job.canary.7f8d@example.com"
     with TestClient(app_with_state) as client:
         sub = client.post(
-            "/v1/jobs", json={"text": "hi a@b.com"}, headers={"X-API-Key": "test-key"}
+            "/v1/jobs", json={"text": f"hi {canary}"}, headers={"X-API-Key": "test-key"}
         )
         assert sub.status_code == 202
         job_id = sub.json()["id"]
@@ -217,6 +218,9 @@ def test_job_lifecycle(app_with_state):
         body = client.get(f"/v1/jobs/{job_id}", headers={"X-API-Key": "test-key"}).json()
     assert body["status"] == "done"
     assert body["result"]["text"] == "hi [REDACTED]"
+    assert canary not in body["result"]["text"]
+    assert canary not in repr(app_with_state.state.state.job_store.records)
+    assert canary not in repr(app_with_state.state.state.audit.records)
 
 
 @pytest.fixture
