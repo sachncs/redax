@@ -6,7 +6,7 @@ the cited evidence covers the stated scope; `FAIL` means implementation or
 evidence is still missing; `NOT APPLICABLE` means the requirement is outside the current
 supported product surface.
 
-Review baseline: `817f1b0` and the current `master` tree. The latest review
+Review baseline: `b5f0f29` and the current `master` tree. The latest review
 also includes constant-time API-key rotation checks, production wildcard-CORS
 rejection, bounded audit shutdown, a real OTLP delivery/privacy canary, bounded
 entity-type and inline-policy structures, count/time-bounded Redis audit
@@ -60,7 +60,7 @@ Update this matrix as each production milestone lands.
 | Configuration validation and documentation | PASS | `Settings` plus documented configuration drift tests. |
 | API/OpenAPI contract | PASS | API contract tests and documented paths; generated OpenAPI advertises the `X-API-Key` scheme and the scope matrix is documented as the runtime authorization contract. |
 | Bounded policy and request structures | PASS | `app/api/models.py` bounds request entity-type lists and labels; `app/redaction/policies.py` bounds field count, field names, option strings, entity types, detector passes, and hash output length; `tests/unit/test_api_limits.py` and `tests/unit/test_policies.py` exercise rejection boundaries. |
-| Meaningful coverage threshold | PASS | `pyproject.toml` enforces 80% branch-aware coverage through `make test-cov`; the Python 3.13 suite currently measures 83.43%. |
+| Meaningful coverage threshold | PASS | `pyproject.toml` enforces 80% branch-aware coverage through `make test-cov`; the Python 3.13 suite currently measures 84.66% (515 passed, 12 skipped). |
 
 ## Observability and operations
 
