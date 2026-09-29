@@ -58,6 +58,17 @@ The Compose project will use one private bridge network. Only the API,
 Grafana, and Prometheus ports are published for normal local use. Containers
 refer to one another by Compose service name, never by `localhost`.
 
+## Configuration contract
+
+Compose-owned values are documented in [`.env.example`](../.env.example):
+the local mode, service ports, Redis namespace, detector, 1 MiB request and
+response limits, trusted hosts, and development-only credentials. The API and
+worker receive the shared application values for Redis, model cache, policy
+and audit paths, OTLP, API keys, hash salt, audit integrity, encryption, and
+limits. The complete typed `REDAX_*` Settings inventory is maintained in
+[`docs/deployment.md`](../docs/deployment.md) and checked against the Python
+Settings class by `site/scripts/check-config-reference.mjs`.
+
 ## Persistent state
 
 - `redax-models`: pinned model cache.
@@ -120,7 +131,7 @@ The local deployment phases are implemented and verified in order:
 | 0. Baseline | This topology, service, port, volume, and environment contract |
 | 1. Compose foundation | `docker compose config --quiet`; image build; health-gated startup |
 | 2. Observability | `scripts/verify_local_compose.py` confirms Prometheus, Loki, Tempo, and Grafana paths; the dashboard covers readiness, Redis pool, queue/worker activity, response rejections, and telemetry export failures |
-| 3. Security and persistence | `.env` is ignored; Redis AOF/RDB, named volumes, bounded JSON logs, localhost-only published ports, and 1 MiB Compose request/response limits |
+| 3. Security and persistence | `.env` is ignored; Redis AOF/RDB, named volumes, bounded JSON logs, localhost-only published ports, 1 MiB Compose request/response limits, and a verified Redis value surviving `docker compose restart redis` |
 | 4. Validation | API/worker redaction, Redis-backed job completion, and verification after container restart |
 | 5. Handoff | [`docs/local-deployment.md`](../docs/local-deployment.md), k6 scenario, backup/restore, reset, and troubleshooting instructions |
 
