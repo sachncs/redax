@@ -98,6 +98,7 @@ loading, CORS, and readiness behavior.
 - [Benchmark results](docs/benchmark-results.md)
 - [Model survey and provenance](docs/models-survey.md)
 - [Launch audit and remaining limitations](docs/launch-audit.md)
+- [Unresolved production-risk register](docs/unresolved-risks.md)
 - [Production readiness review](PRODUCTION_READINESS.md)
 - [Service-level objectives](docs/slo.md)
 - [Failure-mode matrix](docs/failure-modes.md)
