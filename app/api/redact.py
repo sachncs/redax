@@ -299,6 +299,27 @@ def register(app: FastAPI) -> None:
                         "relex_map": {},
                     }
 
+                if audit is not None:
+                    from app.observability.tracing import current_trace_id_hex
+
+                    audit_kwargs: dict[str, Any] = dict(
+                        request_id=request_id,
+                        ts="",
+                        policy_version=policy_version(policy),
+                        text_chars=len(body.text),
+                        principal_id=principal_id(api_key, getattr(settings, "hash_salt", "")),
+                        entities_detected=span_summary(spans),
+                        inference_ms=inference_ms,
+                        trace_id=current_trace_id_hex() or "",
+                    )
+                    if used_pipeline:
+                        audit_kwargs["model_name"] = state.detector.name if state.detector else ""
+                    await audit.record(Event(**audit_kwargs))
+
+                # Publish replayable success only after the audit boundary has
+                # acknowledged the event. A required-audit failure must not
+                # leave a cache hit or completed idempotency record that turns
+                # a later retry into an unaudited success.
                 ttl = getattr(settings, "cache_ttl_seconds", 3600)
                 if job_store is not None:
                     ns = getattr(settings, "redis_namespace", "redax")
@@ -321,23 +342,6 @@ def register(app: FastAPI) -> None:
                         ):
                             raise RuntimeError("idempotency reservation expired before completion")
                         idempotency_completed = True
-
-                if audit is not None:
-                    from app.observability.tracing import current_trace_id_hex
-
-                    audit_kwargs: dict[str, Any] = dict(
-                        request_id=request_id,
-                        ts="",
-                        policy_version=policy_version(policy),
-                        text_chars=len(body.text),
-                        principal_id=principal_id(api_key, getattr(settings, "hash_salt", "")),
-                        entities_detected=span_summary(spans),
-                        inference_ms=inference_ms,
-                        trace_id=current_trace_id_hex() or "",
-                    )
-                    if used_pipeline:
-                        audit_kwargs["model_name"] = state.detector.name if state.detector else ""
-                    await audit.record(Event(**audit_kwargs))
 
                 REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
                 response_text: str = str(response_body["text"])

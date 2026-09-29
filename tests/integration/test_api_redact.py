@@ -52,6 +52,19 @@ class MemoryAuditBackend(Backend):
         self.records.append(event)
 
 
+class FailingAuditBackend(Backend):
+    """Audit backend used to verify fail-closed request behavior."""
+
+    async def start(self) -> None:
+        return None
+
+    async def stop(self) -> None:
+        return None
+
+    async def record(self, event: Event) -> None:
+        raise RuntimeError("audit backend failed")
+
+
 class FailingRedactor:
     async def redact(self, text: str, policy=None, entity_types=None):
         raise RuntimeError(f"detector failure for {text}")
@@ -138,6 +151,38 @@ def test_pii_canary_is_absent_from_audit_and_failure_logs(app_with_redactor, cap
     output = capsys.readouterr().out
     assert failed.status_code == 500
     assert canary not in failed.text
+    assert canary not in output
+
+
+def test_audit_failure_rejects_request_without_leaking_canary(capsys):
+    """An audit failure must not produce a successful raw-value response."""
+    canary = "audit.failure.7f8d@example.com"
+    test_state = State()
+    test_state.settings = type(
+        "S", (), {"max_text_chars": 1000, "hash_salt": "x", "api_key_set": lambda self: set()}
+    )()
+    test_state.redactor = Redactor(
+        detector=RedactStubDetector(),
+        strategies={
+            "passThrough": Skip(),
+            "mask": Mask(),
+            "regex": Regex(),
+            "autoDeID": Deid(RedactStubDetector()),
+        },
+    )
+    test_state.audit = FailingAuditBackend()
+    test_state.job_store = None
+    test_state.ready = True
+
+    app = FastAPI()
+    app.state.state = test_state
+    register(app)
+    with TestClient(app, raise_server_exceptions=False) as client:
+        response = client.post("/v1/redact", json={"text": f"Email {canary}"})
+
+    output = capsys.readouterr().out
+    assert response.status_code == 500
+    assert canary not in response.text
     assert canary not in output
 
 
