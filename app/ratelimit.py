@@ -108,12 +108,12 @@ async def rate_limit(api_key: str, state: State) -> str:
     except HTTPException:
         raise
     except (OSError, RedisError, TimeoutError) as exc:
+        if fail_open:
+            return allow_without_rate_limit(api_key, exc.__class__.__name__)
         get_logger("redax.ratelimit").warning(
             "redax.ratelimit_unavailable", error=exc.__class__.__name__
         )
         RATE_LIMIT_UNAVAILABLE.inc()
-        if fail_open:
-            return api_key
         raise RateLimitUnavailable() from exc
     return api_key
 

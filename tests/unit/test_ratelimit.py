@@ -154,6 +154,21 @@ async def test_redis_down_fails_closed_503() -> None:
 
 
 @pytest.mark.asyncio
+async def test_fail_open_redis_command_failure_is_observable() -> None:
+    from app.observability import RATE_LIMIT_UNAVAILABLE
+
+    before = RATE_LIMIT_UNAVAILABLE._value.get()
+    client = FakeClient(error=ConnectionRefusedError("redis down"))
+    state = build_state(
+        store=FakeStore(client),
+        settings=FakeSettings(5, fail_open=True),
+    )
+
+    assert await rate_limit("key-1", state) == "key-1"
+    assert RATE_LIMIT_UNAVAILABLE._value.get() == before + 1
+
+
+@pytest.mark.asyncio
 async def test_bucket_rotates_across_minute_boundary(monkeypatch: pytest.MonkeyPatch) -> None:
     client = FakeClient(responses=[1, 1])
     store = FakeStore(client)
