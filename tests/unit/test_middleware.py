@@ -38,6 +38,18 @@ def test_request_context_echoes_client_request_id() -> None:
     assert structlog.contextvars.get_contextvars().get("request_id") is None
 
 
+def test_request_context_restricts_browser_capabilities() -> None:
+    app = make_app_with_probe({})
+
+    with TestClient(app) as client:
+        response = client.get("/probe")
+
+    assert response.status_code == 200
+    assert response.headers["Permissions-Policy"] == (
+        "camera=(), geolocation=(), microphone=(), payment=(), usb=()"
+    )
+
+
 def test_request_context_generates_id_when_absent() -> None:
     seen: dict = {}
     app = make_app_with_probe(seen)

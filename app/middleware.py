@@ -157,7 +157,8 @@ def register_request_context(app: FastAPI) -> None:
         structlog context for the lifetime of the request so every
         structured log line carries it. Security headers
         (X-Content-Type-Options, X-Frame-Options, Referrer-Policy,
-        Strict-Transport-Security) are stamped on every response.
+        Strict-Transport-Security, and Permissions-Policy) are stamped on
+        every response.
         """
         request_id = safe_request_id(request.headers.get("X-Request-ID"))
         structlog.contextvars.bind_contextvars(request_id=request_id)
@@ -319,6 +320,10 @@ def register_request_context(app: FastAPI) -> None:
             response.headers.setdefault(
                 "Strict-Transport-Security",
                 "max-age=31536000; includeSubDomains",
+            )
+            response.headers.setdefault(
+                "Permissions-Policy",
+                "camera=(), geolocation=(), microphone=(), payment=(), usb=()",
             )
             response.headers["X-Request-ID"] = request_id
             status = response.status_code
