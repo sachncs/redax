@@ -32,7 +32,7 @@ import { HERO } from "~/content/site";
         {HERO.ctas.map((c) => (
           <a
             href={c.href}
-            class={c.variant === "primary" ? "btn-primary" : "btn-ghost"}
+            class={c.variant === "primary" ? "rdx-button rdx-button-primary" : "rdx-button"}
           >
             {c.label}
             {c.variant === "primary" ? (
