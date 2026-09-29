@@ -38,6 +38,7 @@ __all__ = [
     "job_limit",
     "job_store_unavailable",
     "payload_too_large",
+    "policy_unavailable",
     "problem_response",
     "queue_full",
     "rate_limit_unavailable",
@@ -127,6 +128,17 @@ def job_store_unavailable(
         title="Job Store Unavailable",
         status=503,
         detail=detail,
+    )
+
+
+def policy_unavailable(request: Request) -> JSONResponse:
+    """RFC 7807 503 when the configured default policy cannot be loaded."""
+    return problem_response(
+        request,
+        type="https://redax.ai/errors/policy-unavailable",
+        title="Policy Unavailable",
+        status=503,
+        detail="the configured default policy is temporarily unavailable",
     )
 
 

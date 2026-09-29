@@ -26,13 +26,14 @@ from app.api.cache import (
 from app.api.idempotency import complete as complete_idempotency
 from app.api.idempotency import release as release_idempotency
 from app.api.idempotency import reserve as reserve_idempotency
-from app.api.policy import effective_policy, policy_version
+from app.api.policy import PolicyUnavailableError, effective_policy, policy_version
 from app.audit.backend import Event, span_summary
 from app.auth import principal_id, require_scope
 from app.errors import (
     TRANSIENT_EXC,
     internal_error,
     payload_too_large,
+    policy_unavailable,
     problem_response,
     timeout_error,
 )
@@ -172,6 +173,9 @@ def register(app: FastAPI) -> None:
             if policy is None and body.entity_types is None and not body.use_pipeline:
                 try:
                     policy = effective_policy(settings, None, None)
+                except PolicyUnavailableError:
+                    REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
+                    return policy_unavailable(request)
                 except (TypeError, ValueError) as exc:
                     REQUESTS.labels(endpoint=endpoint, method=method, status="422").inc()
                     get_logger("redax.api").warning(

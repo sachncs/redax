@@ -199,6 +199,38 @@ def test_batch_returns_results_for_each_item(app_with_state):
     assert body["results"][0]["text"] == "hi [REDACTED]"
 
 
+def test_batch_fails_closed_when_configured_policy_is_missing(app_with_state, tmp_path):
+    settings = app_with_state.state.state.settings
+    settings.default_policy = "missing"
+    settings.policies_dir = str(tmp_path)
+
+    with TestClient(app_with_state) as client:
+        response = client.post(
+            "/v1/redact/batch",
+            json={"items": [{"text": "must not pass through"}]},
+            headers={"X-API-Key": "test-key"},
+        )
+
+    assert response.status_code == 503
+    assert response.json()["type"] == "https://redax.ai/errors/policy-unavailable"
+
+
+def test_stream_fails_closed_when_configured_policy_is_missing(app_with_state, tmp_path):
+    settings = app_with_state.state.state.settings
+    settings.default_policy = "missing"
+    settings.policies_dir = str(tmp_path)
+
+    with TestClient(app_with_state) as client:
+        response = client.post(
+            "/v1/redact/stream",
+            json={"text": "must not pass through", "chunk_chars": 1000},
+            headers={"X-API-Key": "test-key"},
+        )
+
+    assert response.status_code == 503
+    assert response.json()["type"] == "https://redax.ai/errors/policy-unavailable"
+
+
 def test_stream_emits_events(app_with_state):
     with TestClient(app_with_state) as client:
         resp = client.post(

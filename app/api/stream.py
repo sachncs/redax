@@ -13,10 +13,10 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from opentelemetry import trace
 from pydantic import BaseModel, Field
 
-from app.api.policy import default_policy, policy_version
+from app.api.policy import PolicyUnavailableError, default_policy, policy_version
 from app.audit.backend import Event, span_summary
 from app.auth import principal_id, require_scope
-from app.errors import TRANSIENT_EXC, internal_error, payload_too_large
+from app.errors import TRANSIENT_EXC, internal_error, payload_too_large, policy_unavailable
 from app.logging import get_logger
 from app.middleware import get_request_id
 from app.observability import REQUEST_LATENCY, REQUESTS
@@ -88,7 +88,15 @@ def register(app: FastAPI) -> None:
         stream_timeout_seconds = getattr(settings, "stream_timeout_seconds", 60.0)
         chunk_bytes = getattr(settings, "stream_chunk_bytes", 4096)
         default_chunk_chars = getattr(settings, "stream_chunk_chars", 2000)
-        policy = body.policy if body.policy is not None else default_policy(settings)
+        policy: dict[str, Any] | None
+        if body.policy is not None:
+            policy = body.policy
+        else:
+            try:
+                policy = default_policy(settings)
+            except PolicyUnavailableError:
+                REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
+                return policy_unavailable(request)
         latency_start = time.perf_counter()
 
         async def event_source() -> AsyncIterator[str]:

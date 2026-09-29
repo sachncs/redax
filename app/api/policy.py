@@ -8,6 +8,10 @@ from typing import Any
 from app.redaction.policies import load_policy, parse_policy_dict
 
 
+class PolicyUnavailableError(RuntimeError):
+    """Raised when a configured default policy cannot be loaded safely."""
+
+
 def normalized_policy(raw: dict[str, Any], source: str) -> dict[str, Any]:
     """Validate a policy and return the canonical request shape."""
     parsed = parse_policy_dict(raw, source=source)
@@ -27,8 +31,11 @@ def default_policy(settings: Any) -> dict[str, Any] | None:
         return None
     path = Path(directory) / f"{name}.yaml"
     if not path.exists():
-        return None
-    loaded = load_policy(path)
+        raise PolicyUnavailableError("configured default policy is missing")
+    try:
+        loaded = load_policy(path)
+    except (OSError, TypeError, ValueError) as exc:
+        raise PolicyUnavailableError("configured default policy is invalid") from exc
     return normalized_policy(
         {
             "name": loaded.name,

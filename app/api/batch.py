@@ -15,10 +15,16 @@ from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from app.api.policy import default_policy, policy_version
+from app.api.policy import PolicyUnavailableError, default_policy, policy_version
 from app.audit.backend import Event, span_summary
 from app.auth import principal_id, require_scope
-from app.errors import TRANSIENT_EXC, internal_error, payload_too_large, timeout_error
+from app.errors import (
+    TRANSIENT_EXC,
+    internal_error,
+    payload_too_large,
+    policy_unavailable,
+    timeout_error,
+)
 from app.logging import get_logger
 from app.middleware import get_request_id
 from app.observability import REQUEST_LATENCY, REQUESTS
@@ -84,7 +90,11 @@ def register(app: FastAPI) -> None:
             timeout_seconds = getattr(settings, "request_timeout_seconds", 30.0)
             inference_concurrency = max(1, int(getattr(settings, "inference_concurrency", 2)))
             semaphore = asyncio.Semaphore(inference_concurrency)
-            policy = default_policy(settings)
+            try:
+                policy = default_policy(settings)
+            except PolicyUnavailableError:
+                REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
+                return policy_unavailable(request)
             inference_start = time.perf_counter()
             async with asyncio.timeout(timeout_seconds):
 

@@ -606,3 +606,30 @@ def test_redact_without_policy_uses_default_policy(tmp_path):
     assert resp.status_code == 200
     # The default policy's passThrough strategy leaves the text untouched.
     assert resp.json()["text"] == "hello"
+
+
+def test_missing_configured_default_policy_fails_closed(tmp_path):
+    state = State()
+    state.settings = type(
+        "S",
+        (),
+        {
+            "max_text_chars": 100_000,
+            "api_key_set": lambda self: set(),
+            "default_policy": "default",
+            "policies_dir": str(tmp_path),
+            "hash_salt": "change-me",
+        },
+    )()
+    state.redactor = Redactor(detector=RedactStubDetector(), strategies={"passThrough": Skip()})
+    state.audit = MemoryAuditBackend()
+    app = FastAPI()
+    app.state.state = state
+    register(app)
+
+    with TestClient(app) as client:
+        response = client.post("/v1/redact", json={"text": "must not pass through"})
+
+    assert response.status_code == 503
+    assert response.json()["type"] == "https://redax.ai/errors/policy-unavailable"
+    assert response.json()["detail"] == "the configured default policy is temporarily unavailable"
