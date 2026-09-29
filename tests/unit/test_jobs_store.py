@@ -50,15 +50,22 @@ class FakeRedis:
     async def delete(self, key: str) -> None:
         self.counter.pop(key, None)
 
+    async def scan_iter(self, match: str):
+        for key in self.records:
+            if key.startswith("redax:job:"):
+                yield key
+
     async def eval(
         self, _script: str, _numkeys: int, job_key: str, owner_key: str, total_key: str, *args: str
     ) -> int:
-        if len(args) == 4:
-            status, result, error, ttl = args
+        if len(args) == 5:
+            status, result, error, ttl, updated_at = args
             record = self.records.get(job_key, {})
             if record.get("status") not in {"queued", "running"}:
                 return 0
-            record.update({"status": status, "result": result, "error": error})
+            record.update(
+                {"status": status, "result": result, "error": error, "updated_at": updated_at}
+            )
             await self.expire(job_key, int(ttl))
             owner = record.get("owner", "")
             if owner:
@@ -73,7 +80,7 @@ class FakeRedis:
             else:
                 await self.decr(total_key)
             return 1
-        job_id, status, result, error, owner, ttl, max_total, max_owner = args
+        job_id, status, result, error, owner, ttl, max_total, max_owner, updated_at = args
         total = self.counter.get(total_key, 0)
         owner_count = self.counter.get(owner_key, 0)
         if total >= int(max_total) or (owner and owner_count >= int(max_owner)):
@@ -86,6 +93,7 @@ class FakeRedis:
                 "result": result,
                 "error": error,
                 "owner": owner,
+                "updated_at": updated_at,
             },
         )
         await self.expire(job_key, int(ttl))
@@ -135,6 +143,19 @@ async def test_create_admitted_reserves_shared_and_owner_slots_atomically(
     assert second is None
     assert await store.count_inflight() == 1
     assert await store.count_for_key("k1") == 1
+
+
+async def test_reap_stale_job_fails_record_and_releases_capacity(
+    store: JobStore,
+    redis_client: FakeRedis,
+) -> None:
+    record = await store.create(owner="k1")
+    redis_client.records[f"redax:job:{record.id}"]["updated_at"] = "0"
+    assert await store.reap_stale_jobs(max_age_seconds=1) == 1
+    assert redis_client.records[f"redax:job:{record.id}"]["status"] == "failed"
+    assert redis_client.records[f"redax:job:{record.id}"]["error"] == "job lease expired"
+    assert await store.count_inflight() == 0
+    assert await store.count_for_key("k1") == 0
 
 
 async def test_terminal_transition_releases_owner_slot(

@@ -144,6 +144,12 @@ async def build_state(settings: Settings) -> State:
     try:
         await store.start()
         job_store: JobStore | None = store
+        try:
+            reaped = await store.reap_stale_jobs(settings.job_stale_seconds)
+            if reaped:
+                log.warning("redax.stale_jobs_reaped", count=reaped)
+        except (OSError, RuntimeError, TimeoutError) as exc:
+            log.warning("redax.stale_jobs_recovery_failed", error=exc.__class__.__name__)
     except Exception as exc:
         log.warning("redax.redis_unavailable", error=exc.__class__.__name__)
         job_store = None

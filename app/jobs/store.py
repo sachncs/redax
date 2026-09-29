@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import time
 import uuid
 from dataclasses import dataclass
 from typing import Any
@@ -62,7 +63,7 @@ local total = tonumber(redis.call('GET', KEYS[3]) or '0')
 local owner = tonumber(redis.call('GET', KEYS[2]) or '0')
 if total >= tonumber(ARGV[7]) then return 0 end
 if ARGV[5] ~= '' and owner >= tonumber(ARGV[8]) then return 0 end
-redis.call('HSET', KEYS[1], 'id', ARGV[1], 'status', ARGV[2], 'result', ARGV[3], 'error', ARGV[4], 'owner', ARGV[5])
+redis.call('HSET', KEYS[1], 'id', ARGV[1], 'status', ARGV[2], 'result', ARGV[3], 'error', ARGV[4], 'owner', ARGV[5], 'updated_at', ARGV[9])
 redis.call('EXPIRE', KEYS[1], ARGV[6])
 redis.call('INCR', KEYS[3])
 redis.call('EXPIRE', KEYS[3], ARGV[6])
@@ -75,7 +76,7 @@ return 1
     TERMINAL_SCRIPT = """
 local status = redis.call('HGET', KEYS[1], 'status')
 if status ~= 'queued' and status ~= 'running' then return 0 end
-redis.call('HSET', KEYS[1], 'status', ARGV[1], 'result', ARGV[2], 'error', ARGV[3])
+redis.call('HSET', KEYS[1], 'status', ARGV[1], 'result', ARGV[2], 'error', ARGV[3], 'updated_at', ARGV[5])
 redis.call('EXPIRE', KEYS[1], ARGV[4])
 local owner = redis.call('HGET', KEYS[1], 'owner')
 if owner ~= false and owner ~= '' then
@@ -184,6 +185,7 @@ return 1
             str(self.ttl_seconds),
             str(max_inflight),
             str(max_jobs_per_key),
+            str(time.time()),
         )
         if int(result) != 1:
             return None
@@ -233,8 +235,30 @@ return 1
         if client is None:
             raise RuntimeError("JobStore.start() must run before set_status()")
         key = self._key(job_id)
-        await client.hset(key, "status", status)  # type: ignore[misc]
+        await client.hset(  # type: ignore[misc]
+            key, mapping={"status": status, "updated_at": str(time.time())}
+        )
         await client.expire(key, self.ttl_seconds)
+
+    async def reap_stale_jobs(self, max_age_seconds: int) -> int:
+        """Fail queued/running jobs older than the recovery lease threshold."""
+        client = self.client
+        if client is None:
+            raise RuntimeError("JobStore.start() must run before reap_stale_jobs()")
+        cutoff = time.time() - max_age_seconds
+        reaped = 0
+        async for key in client.scan_iter(match=f"{self.namespace}:job:*"):
+            raw = await client.hgetall(key)  # type: ignore[misc]
+            if raw.get("status") not in {"queued", "running"}:
+                continue
+            try:
+                updated_at = float(raw.get("updated_at", "0"))
+            except ValueError:
+                updated_at = 0.0
+            if updated_at <= cutoff:
+                await self.set_error(raw["id"], "job lease expired")
+                reaped += 1
+        return reaped
 
     async def set_result(self, job_id: str, result: dict[str, Any]) -> None:
         """Atomically mark the job done, store its result, and release capacity."""
@@ -287,6 +311,7 @@ return 1
                 "result": result_value,
                 "error": record.error or "",
                 "owner": record.owner,
+                "updated_at": str(time.time()),
             },
         )
         await client.expire(key, self.ttl_seconds)
@@ -315,6 +340,7 @@ async def set_terminal(
         result,
         error,
         str(ttl_seconds),
+        str(time.time()),
     )
 
 

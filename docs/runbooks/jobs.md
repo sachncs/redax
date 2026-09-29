@@ -22,4 +22,6 @@ is understood.
 Restart or replace workers, allow expired leases to be reclaimed, and inspect
 the dead-letter path. Submit a synthetic job and verify one terminal result,
 bounded retries, and no duplicate completion. The ARQ worker path is wired,
-but worker restart, lease recovery, and DLQ drills remain release gates.
+and startup reconciliation fails stale queued/running jobs after
+`REDAX_JOB_STALE_SECONDS`; worker restart, lease recovery, and DLQ drills
+remain release gates.
