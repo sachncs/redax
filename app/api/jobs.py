@@ -31,7 +31,7 @@ from app.errors import (
 from app.jobs.store import JobStore
 from app.logging import get_logger
 from app.middleware import get_request_id
-from app.observability import ERRORS, REQUESTS
+from app.observability import ERRORS, JOB_DURATION, REQUESTS
 from app.ratelimit import rate_limit
 from app.state import State, get_state
 
@@ -248,6 +248,8 @@ async def run_job(
         if mark_failure:
             await record_failure(job_id, store, logger)
         return False
+    finally:
+        JOB_DURATION.observe(time.perf_counter() - start)
     return True
 
 

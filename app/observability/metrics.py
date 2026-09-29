@@ -58,6 +58,25 @@ QUEUE_DEPTH = Gauge(
     registry=REGISTRY,
 )
 
+JOB_DURATION = Histogram(
+    "redax_job_duration_seconds",
+    "Time spent processing a durable redaction job attempt.",
+    buckets=(0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0, 60.0),
+    registry=REGISTRY,
+)
+
+JOB_RETRIES = Counter(
+    "redax_job_retries_total",
+    "Durable jobs requeued after a transient failure.",
+    registry=REGISTRY,
+)
+
+JOB_PERMANENT_FAILURES = Counter(
+    "redax_job_permanent_failures_total",
+    "Durable jobs that exhausted their retry budget.",
+    registry=REGISTRY,
+)
+
 AUDIT_UNINITIALISED = Counter(
     "redax_audit_uninitialised_total",
     "Audit events dropped because the backend was never started.",

@@ -1,8 +1,9 @@
 # Observability contract
 
 Redax exposes RED metrics on `/metrics`: request rate and status,
-end-to-end latency histograms, detector latency, cache hits, error types,
-audit failures, and rate-limit dependency failures. Do not add request text,
+end-to-end latency histograms, detector latency, durable job duration and
+retry counters, cache hits, error types, audit failures, and rate-limit
+dependency failures. Do not add request text,
 entity values, API keys, or Redis keys as labels.
 
 The checked-in assets are:

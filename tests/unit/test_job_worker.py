@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from app.jobs import queue
+from app.observability import JOB_PERMANENT_FAILURES, JOB_RETRIES
 
 
 class Store:
@@ -15,6 +16,7 @@ class State:
 
 @pytest.mark.asyncio
 async def test_process_job_retries_before_dead_letter(monkeypatch):
+    before = next(iter(JOB_RETRIES.collect())).samples[0].value
     calls: list[bool] = []
 
     async def failed_run(*_args, **kwargs):
@@ -34,10 +36,13 @@ async def test_process_job_retries_before_dead_letter(monkeypatch):
 
     assert raised.value.defer_score == 1000
     assert calls == [False]
+    after = next(iter(JOB_RETRIES.collect())).samples[0].value
+    assert after == before + 1
 
 
 @pytest.mark.asyncio
 async def test_process_job_records_failure_after_final_attempt(monkeypatch):
+    before = next(iter(JOB_PERMANENT_FAILURES.collect())).samples[0].value
     calls: list[str] = []
 
     async def failed_run(*_args, **_kwargs):
@@ -54,3 +59,5 @@ async def test_process_job_records_failure_after_final_attempt(monkeypatch):
     )
 
     assert calls == ["failed"]
+    after = next(iter(JOB_PERMANENT_FAILURES.collect())).samples[0].value
+    assert after == before + 1

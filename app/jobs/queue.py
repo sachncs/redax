@@ -13,6 +13,7 @@ from app.api.jobs import record_failure, run_job
 from app.config import Settings
 from app.logging import configure_logging, get_logger
 from app.main import build_state, teardown_state
+from app.observability import JOB_PERMANENT_FAILURES, JOB_RETRIES
 
 QUEUE_NAME = "redax:jobs"
 FUNCTION_NAME = "process_job"
@@ -29,7 +30,9 @@ async def process_job(
         return
     if int(ctx.get("job_try", 1)) < MAX_TRIES:
         delay = min(60, 2 ** max(0, int(ctx.get("job_try", 1)) - 1))
+        JOB_RETRIES.inc()
         raise Retry(defer=delay)
+    JOB_PERMANENT_FAILURES.inc()
     await record_failure(job_id, state.job_store, get_logger("redax.jobs"))
 
 
