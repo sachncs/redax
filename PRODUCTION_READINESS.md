@@ -6,7 +6,7 @@ the cited evidence covers the stated scope; `FAIL` means implementation or
 evidence is still missing; `N/A` means the requirement is outside the current
 supported product surface.
 
-Review baseline: `998119f` and the current `master` tree. Update this matrix
+Review baseline: `80536c6` and the current `master` tree. Update this matrix
 as each production milestone lands.
 
 ## Reliability and distributed correctness
@@ -30,7 +30,7 @@ as each production milestone lands.
 | Automated PII leak suite | PARTIAL | `tests/integration/test_api_redact.py` covers response, audit, metrics, and detector-failure logs; the complete release-blocking failure matrix is pending. |
 | No silent raw pass-through after internal failure | PARTIAL | Model fallback, audit-required rejection, and error handlers are tested; policy, cancellation, stream disconnect, and full failure-matrix coverage remain. |
 | Threat model matches implementation | PASS | `docs/threat-model.md`, `docs/data-flow.md`, and `docs/failure-modes.md`; update when the worker/audit architecture lands. |
-| High/critical vulnerability gate | PARTIAL | GitHub security run `36551462860` passed SBOM generation and the filesystem Trivy gate; release image scan/signature/attestation evidence is pending. |
+| High/critical vulnerability gate | PARTIAL | GitHub security run `36560012477` passed SBOM generation and the filesystem Trivy gate; the successful `v0.1.0` release run `36130306271` also scanned the release image, but recurring release evidence is still required. |
 
 ## Scalability and performance
 
@@ -65,12 +65,12 @@ as each production milestone lands.
 
 | Requirement | Status | Evidence / gap |
 |---|---|---|
-| Hardened container | PARTIAL | Non-root, pinned dependencies, model verification, slim runtime, and a digest-pinned Python base exist; read-only filesystem, capabilities, image SBOM, and release scan evidence remain pending. |
+| Hardened container | PARTIAL | Non-root, pinned dependencies, model verification, slim runtime, and a digest-pinned Python base exist; Kubernetes config supplies read-only filesystem/capability restrictions, and release run `36130306271` generated an image SBOM and passed the release scan; standalone Docker runtime restrictions remain deployment-specific. |
 | Reference HA deployment | PARTIAL | `deploy/kubernetes/` defines API/worker replicas, PDBs, probes, resource bounds, and autoscaling; external Redis HA and deployment smoke/failure evidence remain pending. |
 | Health/readiness/startup probes | PARTIAL | `/healthz`, `/readyz`, and Docker probes exist; readiness drops before teardown, but dependency-aware readiness and full drain semantics need evidence. |
 | Rolling deployment and rollback | FAIL | Versioned release exists, but mixed-version state compatibility and rollback procedure are not tested. |
 | Backup/restore and RPO/RTO | FAIL | No restore-tested Redis/audit backup procedure or measured RPO/RTO. |
-| Reproducible release artifacts | PASS | `v0.1.0` release publishes wheel, sdist, checksums, and GHCR image with a tag/version guard. SBOM/signatures remain pending. |
+| Reproducible release artifacts | PASS | `v0.1.0` release publishes wheel, sdist, checksums, and GHCR image with a tag/version guard; release run `36130306271` generated the image SBOM, signed the image, and published provenance attestation. |
 
 ## Required next gates
 
