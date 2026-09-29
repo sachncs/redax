@@ -53,15 +53,37 @@ const next = activeIndex >= 0 && activeIndex < links.length - 1 ? links[activeIn
 </Base>
 
 <script is:inline>
+  const escapeCode = (value) => value.replace(/[&<>"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[character]);
+  const highlightCode = (code) => {
+    const source = code.textContent ?? "";
+    const firstLine = source.trimStart().split("\n", 1)[0] ?? "";
+    const language = /^(curl|docker|kubectl|python3?\b|git\b|export\b|REDAX_)/.test(firstLine) ? "shell" : /^(\{|\[)/.test(source.trimStart()) ? "json" : /(^|\n)\s*(async )?def |(^|\n)\s*(import|from) /.test(source) ? "python" : "plain";
+    let output = escapeCode(source);
+    if (language === "shell") {
+      output = output.replace(/(^|\n)(\s*#.*)$/gm, '$1<span class="rdx-code-comment">$2</span>');
+      output = output.replace(/\b(curl|docker|kubectl|python3?\.13|git|export)\b/g, '<span class="rdx-code-keyword">$1</span>');
+    } else if (language === "json") {
+      output = output.replace(/(&quot;[^&]*?&quot;)(?=\s*:)/g, '<span class="rdx-code-key">$1</span>');
+      output = output.replace(/(:\s*)(&quot;[^&]*?&quot;)/g, '$1<span class="rdx-code-string">$2</span>');
+      output = output.replace(/\b(true|false|null)\b/g, '<span class="rdx-code-literal">$1</span>');
+    } else if (language === "python") {
+      output = output.replace(/(^|\n)(\s*#.*)$/gm, '$1<span class="rdx-code-comment">$2</span>');
+      output = output.replace(/\b(async|def|from|import|return|await|print)\b/g, '<span class="rdx-code-keyword">$1</span>');
+    }
+    code.dataset.language = language;
+    code.innerHTML = output;
+  };
   document.querySelectorAll(".rdx-docs-body pre").forEach((block) => {
+    const code = block.querySelector("code");
+    if (code) highlightCode(code);
     const button = document.createElement("button");
     button.type = "button";
     button.className = "rdx-copy-code";
     button.textContent = "COPY";
     button.addEventListener("click", async () => {
-      const code = block.querySelector("code")?.textContent ?? block.textContent ?? "";
+      const copied = block.querySelector("code")?.textContent ?? block.textContent ?? "";
       try {
-        await navigator.clipboard.writeText(code);
+        await navigator.clipboard.writeText(copied);
         button.textContent = "COPIED";
       } catch {
         button.textContent = "SELECT MANUALLY";
