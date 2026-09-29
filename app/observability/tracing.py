@@ -94,3 +94,21 @@ def current_trace_id_hex() -> str | None:
     if not ctx.is_valid:
         return None
     return format(ctx.trace_id, "032x")
+
+
+def flush_tracing(timeout_millis: int = 30_000) -> bool:
+    """Flush buffered spans within a bounded shutdown budget.
+
+    The SDK's proxy provider used when tracing is not configured has no
+    flush operation, which is treated as a successful no-op. Exporter
+    failures are reported as ``False`` so shutdown can log them without
+    turning telemetry loss into an application crash.
+    """
+    provider = trace.get_tracer_provider()
+    force_flush = getattr(provider, "force_flush", None)
+    if not callable(force_flush):
+        return True
+    try:
+        return bool(force_flush(timeout_millis))
+    except (RuntimeError, TimeoutError, TypeError, ValueError):
+        return False

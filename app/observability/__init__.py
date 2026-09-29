@@ -28,7 +28,7 @@ from .metrics import (
     decrement_queue_depth,
     queue_depth,
 )
-from .tracing import configure_tracing, current_trace_id_hex
+from .tracing import configure_tracing, current_trace_id_hex, flush_tracing
 
 __all__ = [
     "ACTIVE_WORKERS",
@@ -60,5 +60,6 @@ __all__ = [
     "configure_tracing",
     "current_trace_id_hex",
     "decrement_queue_depth",
+    "flush_tracing",
     "queue_depth",
 ]

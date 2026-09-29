@@ -51,6 +51,7 @@ from app.observability import (
     WORKER_JOBS_ACTIVE,
     WORKER_JOBS_CAPACITY,
     configure_tracing,
+    flush_tracing,
 )
 from app.redaction.circuit.breaker import Breaker
 from app.redaction.circuit.shared import SharedBreaker
@@ -279,6 +280,16 @@ async def teardown_state(state: State) -> None:
         await close_component("audit", state.audit.stop)
     if state.job_store is not None:
         await close_component("job_store", state.job_store.stop)
+
+    remaining = deadline - asyncio.get_running_loop().time()
+    if remaining > 0:
+        try:
+            async with asyncio.timeout(remaining):
+                flushed = await asyncio.to_thread(flush_tracing, max(1, int(remaining * 1000)))
+                if not flushed:
+                    log.warning("redax.tracing_flush_failed")
+        except TimeoutError:
+            log.warning("redax.shutdown_timeout", component="tracing")
 
 
 async def refresh_job_metrics(state: State) -> None:

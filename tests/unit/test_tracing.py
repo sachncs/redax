@@ -39,3 +39,27 @@ def test_otlp_exporter_uses_bounded_batch_settings(monkeypatch: pytest.MonkeyPat
     assert captured["max_export_batch_size"] == tracing.OTLP_MAX_EXPORT_BATCH_SIZE
     assert captured["schedule_delay_millis"] == tracing.OTLP_SCHEDULE_DELAY_MILLIS
     assert captured["export_timeout_millis"] == tracing.OTLP_EXPORT_TIMEOUT_MILLIS
+
+
+def test_flush_tracing_delegates_to_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[int] = []
+
+    class Provider:
+        def force_flush(self, timeout_millis: int) -> bool:
+            calls.append(timeout_millis)
+            return True
+
+    monkeypatch.setattr(tracing.trace, "get_tracer_provider", lambda: Provider())
+
+    assert tracing.flush_tracing(1234)
+    assert calls == [1234]
+
+
+def test_flush_tracing_contains_exporter_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    class Provider:
+        def force_flush(self, _timeout_millis: int) -> bool:
+            raise RuntimeError("collector unavailable")
+
+    monkeypatch.setattr(tracing.trace, "get_tracer_provider", lambda: Provider())
+
+    assert not tracing.flush_tracing(1234)
