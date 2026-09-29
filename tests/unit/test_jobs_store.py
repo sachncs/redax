@@ -92,10 +92,12 @@ class FakeRedis:
         queue_key: str,
         *args: str,
     ) -> int:
-        if len(args) == 7:
-            status, result, error, ttl, updated_at, schema_version, job_id = args
+        if len(args) == 8:
+            status, result, error, ttl, updated_at, schema_version, expected_schema, job_id = args
             record = self.records.get(job_key, {})
             if record.get("status") not in {"queued", "running"}:
+                return 0
+            if record.get("schema_version") != expected_schema:
                 return 0
             record.update(
                 {
@@ -275,6 +277,47 @@ async def test_reap_stale_job_fails_record_and_releases_capacity(
     assert redis_client.records[f"redax:job:{record.id}"]["error"] == "job lease expired"
     assert await store.count_inflight() == 0
     assert await store.count_for_key("k1") == 0
+
+
+async def test_schema_mismatch_is_not_reaped_or_mutated(
+    store: JobStore,
+    redis_client: FakeRedis,
+) -> None:
+    record = await store.create(owner="k1")
+    stored = redis_client.records[f"redax:job:{record.id}"]
+    stored["schema_version"] = "0"
+    stored["updated_at"] = "0"
+
+    assert await store.reap_stale_jobs(max_age_seconds=1) == 0
+    assert stored["status"] == "queued"
+    assert stored["schema_version"] == "0"
+    assert await store.count_inflight() == 1
+    assert await store.count_for_key("k1") == 1
+
+
+async def test_schema_mismatch_rejects_status_update(
+    store: JobStore,
+    redis_client: FakeRedis,
+) -> None:
+    record = await store.create(owner="k1")
+    redis_client.records[f"redax:job:{record.id}"]["schema_version"] = "0"
+
+    with pytest.raises(RuntimeError, match="schema version"):
+        await store.set_status(record.id, "running")
+    assert redis_client.records[f"redax:job:{record.id}"]["status"] == "queued"
+
+
+async def test_schema_mismatch_rejects_terminal_transition(
+    store: JobStore,
+    redis_client: FakeRedis,
+) -> None:
+    record = await store.create(owner="k1")
+    redis_client.records[f"redax:job:{record.id}"]["schema_version"] = "0"
+
+    assert await store.set_result(record.id, {"text": "new"}) is False
+    assert redis_client.records[f"redax:job:{record.id}"]["status"] == "queued"
+    assert redis_client.records[f"redax:job:{record.id}"]["schema_version"] == "0"
+    assert await store.count_inflight() == 1
 
 
 async def test_dead_letter_is_bounded_and_payload_free(

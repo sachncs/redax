@@ -47,7 +47,7 @@ as each production milestone lands.
 | Requirement | Status | Evidence / gap |
 |---|---|---|
 | Clear domain boundaries | PASS | `docs/architecture.md`, route modules, detector/redactor/audit separation, and typed settings. |
-| Versioned persisted schemas | PARTIAL | Idempotency, response-cache, durable-job, and audit-event records carry schema versions; mixed-version compatibility and migrations are still pending. |
+| Versioned persisted schemas | PARTIAL | Idempotency, response-cache, durable-job, and audit-event records carry schema versions; incompatible durable-job records are now refused by reads, status updates, terminal transitions, and stale reaping; migration evidence for all persisted stores is still pending. |
 | Configuration validation and documentation | PASS | `Settings` plus documented configuration drift tests. |
 | API/OpenAPI contract | PASS | API contract tests and documented paths; authorization scopes are not yet part of the contract. |
 | Meaningful coverage threshold | PASS | `pyproject.toml` enforces 80% branch-aware coverage through `make test-cov`; the Python 3.13 suite currently measures 83.43%. |

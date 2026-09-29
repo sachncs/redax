@@ -81,9 +81,10 @@ return 1
     TERMINAL_SCRIPT = """
 local status = redis.call('HGET', KEYS[1], 'status')
 if status ~= 'queued' and status ~= 'running' then return 0 end
+if redis.call('HGET', KEYS[1], 'schema_version') ~= ARGV[7] then return 0 end
 redis.call('HSET', KEYS[1], 'status', ARGV[1], 'result', ARGV[2], 'error', ARGV[3], 'updated_at', ARGV[5], 'schema_version', ARGV[6])
 redis.call('EXPIRE', KEYS[1], ARGV[4])
-redis.call('ZREM', KEYS[4], ARGV[7])
+redis.call('ZREM', KEYS[4], ARGV[8])
 local owner = redis.call('HGET', KEYS[1], 'owner')
 if owner ~= false and owner ~= '' then
   local owner_count = tonumber(redis.call('GET', KEYS[2]) or '0')
@@ -296,6 +297,9 @@ return 1
         if client is None:
             raise RuntimeError("JobStore.start() must run before set_status()")
         key = self._key(job_id)
+        schema_version = await client.hget(key, "schema_version")  # type: ignore[misc]
+        if schema_version != str(self.JOB_SCHEMA_VERSION):
+            raise RuntimeError("job schema version is not supported")
         await client.hset(  # type: ignore[misc]
             key,
             mapping={
@@ -315,14 +319,15 @@ return 1
         reaped = 0
         async for key in client.scan_iter(match=f"{self.namespace}:job:*"):
             raw = await client.hgetall(key)  # type: ignore[misc]
+            if raw.get("schema_version") != str(self.JOB_SCHEMA_VERSION):
+                continue
             if raw.get("status") not in {"queued", "running"}:
                 continue
             try:
                 updated_at = float(raw.get("updated_at", "0"))
             except ValueError:
                 updated_at = 0.0
-            if updated_at <= cutoff:
-                await self.set_error(raw["id"], "job lease expired")
+            if updated_at <= cutoff and await self.set_error(raw["id"], "job lease expired"):
                 reaped += 1
         return reaped
 
@@ -432,6 +437,7 @@ async def set_terminal(
         error,
         str(ttl_seconds),
         str(time.time()),
+        str(JobStore.JOB_SCHEMA_VERSION),
         str(JobStore.JOB_SCHEMA_VERSION),
         job_key.rsplit(":", 1)[-1],
     )
