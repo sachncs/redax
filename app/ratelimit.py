@@ -77,7 +77,19 @@ async def rate_limit(api_key: str, state: State) -> str:
     try:
         count = await client.eval(RATE_LIMIT_SCRIPT, 1, bucket, "60")
         if int(count) > limit:
-            raise HTTPException(status_code=429, detail="Rate limit exceeded")
+            now = int(time.time())
+            reset_at = ((now // 60) + 1) * 60
+            retry_after = max(1, reset_at - now)
+            raise HTTPException(
+                status_code=429,
+                detail="Rate limit exceeded",
+                headers={
+                    "Retry-After": str(retry_after),
+                    "X-RateLimit-Limit": str(limit),
+                    "X-RateLimit-Remaining": "0",
+                    "X-RateLimit-Reset": str(reset_at),
+                },
+            )
     except HTTPException:
         raise
     except (OSError, RedisError, TimeoutError) as exc:

@@ -110,6 +110,10 @@ async def test_over_limit_raises_429() -> None:
     with pytest.raises(HTTPException) as exc_info:
         await rate_limit("key-1", state)
     assert exc_info.value.status_code == 429
+    assert exc_info.value.headers is not None
+    assert int(exc_info.value.headers["Retry-After"]) >= 1
+    assert exc_info.value.headers["X-RateLimit-Limit"] == "5"
+    assert exc_info.value.headers["X-RateLimit-Remaining"] == "0"
 
 
 @pytest.mark.asyncio

@@ -96,6 +96,10 @@ strategies are rejected.
 
 **Errors**: 413 (oversize), 422 (validation), 429 (rate-limited), 503 (not ready), 504 (timeout).
 
+Rate-limit 429 responses include `Retry-After`, `X-RateLimit-Limit`,
+`X-RateLimit-Remaining`, and `X-RateLimit-Reset` headers so clients can
+retry at the next fixed-window boundary without guessing.
+
 **Headers honored**: `X-API-Key`, `Idempotency-Key`.
 
 When `REDAX_API_KEY_SCOPES` is configured, principals are restricted by

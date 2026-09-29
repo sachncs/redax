@@ -58,6 +58,25 @@ def test_http_exception_becomes_problem() -> None:
     assert body["status"] == 401
 
 
+def test_http_exception_preserves_retry_headers() -> None:
+    app = FastAPI()
+    install_error_handlers(app)
+
+    @app.get("/retry")
+    async def retry() -> None:
+        raise HTTPException(
+            status_code=429,
+            detail="Rate limit exceeded",
+            headers={"Retry-After": "7", "X-RateLimit-Remaining": "0"},
+        )
+
+    client = TestClient(app, raise_server_exceptions=False)
+    response = client.get("/retry")
+    assert response.status_code == 429
+    assert response.headers["retry-after"] == "7"
+    assert response.headers["x-ratelimit-remaining"] == "0"
+
+
 def test_timeout_error_returns_504_problem() -> None:
     app = FastAPI()
     install_error_handlers(app)

@@ -202,13 +202,16 @@ def install_error_handlers(app: FastAPI) -> None:
         """Render a raised HTTP status as an RFC 7807 problem-details body."""
         detail = exc.detail if isinstance(exc.detail, str) else None
         title = detail or "Request failed"
-        return problem_response(
+        response = problem_response(
             request,
             type=f"https://redax.ai/errors/http-{exc.status_code}",
             title=title,
             status=exc.status_code,
             detail=detail,
         )
+        if exc.headers:
+            response.headers.update(exc.headers)
+        return response
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
