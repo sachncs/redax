@@ -95,6 +95,7 @@ All settings read from environment variables prefixed with `REDAX_`. See
 | `REDAX_PIPELINE_BREAKER_COOLDOWN_S` | `5` | seconds before a circuit probe |
 | `REDAX_METRICS_BY_TENANT` | `false` | reserved setting; tenant labels are disabled by default |
 | `REDAX_WORKER_CONCURRENCY` | `1` | concurrent ARQ jobs per `redax-worker` process |
+| `REDAX_JOB_RETRY_JITTER_SECONDS` | `1.0` | maximum random delay added to exponential job retries |
 | `REDAX_OTLP_ENDPOINT` | `""` | OTLP gRPC endpoint for traces |
 
 ## Production checklist

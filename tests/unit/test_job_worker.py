@@ -41,6 +41,31 @@ async def test_process_job_retries_before_dead_letter(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_process_job_retry_uses_configured_jitter(monkeypatch):
+    delays: list[float] = []
+
+    async def failed_run(*_args, **_kwargs):
+        return False
+
+    class Settings:
+        job_retry_jitter_seconds = 0.5
+
+    class JitterState(State):
+        settings = Settings()
+
+    monkeypatch.setattr(queue, "run_job", failed_run)
+    monkeypatch.setattr(queue.random, "uniform", lambda _low, high: delays.append(high) or high)
+
+    with pytest.raises(queue.Retry) as raised:
+        await queue.process_job(
+            {"state": JitterState(), "job_try": 2}, "job-1", {"text": "x"}, "request-1"
+        )
+
+    assert delays == [0.5]
+    assert raised.value.defer_score == 2500
+
+
+@pytest.mark.asyncio
 async def test_process_job_records_failure_after_final_attempt(monkeypatch):
     before = next(iter(JOB_PERMANENT_FAILURES.collect())).samples[0].value
     calls: list[str] = []

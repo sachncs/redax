@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import random
 from typing import Any
 
 from arq import Retry
@@ -29,7 +30,11 @@ async def process_job(
     if success:
         return
     if int(ctx.get("job_try", 1)) < MAX_TRIES:
-        delay = min(60, 2 ** max(0, int(ctx.get("job_try", 1)) - 1))
+        attempt = int(ctx.get("job_try", 1))
+        base_delay = 2 ** max(0, attempt - 1)
+        settings = getattr(state, "settings", None)
+        jitter_limit = float(getattr(settings, "job_retry_jitter_seconds", 0.0))
+        delay = min(60, base_delay + random.uniform(0.0, jitter_limit))
         JOB_RETRIES.inc()
         raise Retry(defer=delay)
     JOB_PERMANENT_FAILURES.inc()
