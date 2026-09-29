@@ -11,6 +11,12 @@ from app.audit.backend import Event, event_to_dict, with_timestamp
 from app.logging import get_logger
 from app.observability import AUDIT_DROPPED, AUDIT_WRITE_FAILED
 
+APPEND_AUDIT_SCRIPT = """
+redis.call('RPUSH', KEYS[1], ARGV[1])
+redis.call('LTRIM', KEYS[1], -tonumber(ARGV[2]), -1)
+return 1
+"""
+
 
 class RedisAudit:
     """Persist metadata-only audit events in a bounded shared Redis list."""
@@ -46,8 +52,9 @@ class RedisAudit:
             event_to_dict(with_timestamp(event)), separators=(",", ":"), sort_keys=True
         )
         try:
-            await self.client.rpush(self.key, payload)  # type: ignore[misc]
-            await self.client.ltrim(self.key, -self.max_events, -1)  # type: ignore[misc]
+            await self.client.eval(  # type: ignore[misc]
+                APPEND_AUDIT_SCRIPT, 1, self.key, payload, str(self.max_events)
+            )
             self.failed = False
         except (OSError, RedisError, RuntimeError, TimeoutError, ValueError) as exc:
             self.failed = True

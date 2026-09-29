@@ -19,9 +19,19 @@ class FakeRedis:
     async def ltrim(self, _key: str, start: int, end: int) -> None:
         self.events = self.events[start : end + 1 if end >= 0 else None]
 
+    async def eval(self, _script: str, _key_count: int, key: str, value: str, limit: str) -> int:
+        del key
+        await self.rpush("", value)
+        await self.ltrim("", -int(limit), -1)
+        return 1
+
 
 class FailingRedis(FakeRedis):
     async def rpush(self, _key: str, value: str) -> int:
+        raise ConnectionError("redis unavailable")
+
+    async def eval(self, *args: str) -> int:
+        del args
         raise ConnectionError("redis unavailable")
 
 
