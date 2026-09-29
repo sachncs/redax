@@ -119,6 +119,26 @@ def register_request_context(app: FastAPI) -> None:
             state = getattr(request.app.state, "state", None)
             admission = getattr(state, "request_admission", None)
             probe = request.url.path in {"/healthz", "/readyz", "/metrics"}
+            content_length = request.headers.get("content-length")
+            if content_length is not None:
+                try:
+                    body_bytes = int(content_length)
+                except ValueError:
+                    body_bytes = -1
+                max_body_bytes = int(
+                    getattr(getattr(state, "settings", None), "max_body_bytes", 4_000_000)
+                )
+                if body_bytes < 0 or body_bytes > max_body_bytes:
+                    ADMISSION_REJECTIONS.labels(reason="body_too_large").inc()
+                    response = problem_response(
+                        request,
+                        type="https://redax.ai/errors/request-body-too-large",
+                        title="Request body too large",
+                        status=413,
+                        detail=f"request body exceeds {max_body_bytes} bytes",
+                    )
+                    status = response.status_code
+                    return response
             if admission is not None and not probe:
                 if not getattr(state, "ready", False):
                     ADMISSION_REJECTIONS.labels(reason="draining").inc()

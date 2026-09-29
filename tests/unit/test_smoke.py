@@ -173,6 +173,29 @@ def test_request_admission_rejects_when_saturated() -> None:
     assert response.headers["retry-after"] == "1"
 
 
+def test_request_body_limit_rejects_before_handler() -> None:
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from app.middleware import register_request_context
+    from app.state import State
+
+    test_state = State(ready=True)
+    test_state.settings = type("S", (), {"max_body_bytes": 32})()
+    app = FastAPI()
+    app.state.state = test_state
+    register_request_context(app)
+
+    @app.post("/v1/test")
+    async def test_route() -> dict[str, str]:
+        raise AssertionError("oversized request reached the handler")
+
+    with TestClient(app) as client:
+        response = client.post("/v1/test", json={"text": "x" * 100})
+    assert response.status_code == 413
+    assert response.json()["type"] == "https://redax.ai/errors/request-body-too-large"
+
+
 def test_request_admission_rejects_during_drain_but_keeps_healthz_alive() -> None:
     from fastapi import FastAPI
     from fastapi.testclient import TestClient

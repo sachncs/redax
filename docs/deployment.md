@@ -70,6 +70,7 @@ All settings read from environment variables prefixed with `REDAX_`. See
 | `REDAX_AUDIT_PATH` | `./audit.jsonl` | append-only audit log path |
 | `REDAX_AUDIT_REQUIRED` | `true` | fail redaction requests closed when audit is uninitialized, unavailable, or saturated |
 | `REDAX_HASH_SALT` | `change-me` | rejected at startup; set a unique random value |
+| `REDAX_MAX_BODY_BYTES` | `4000000` | reject requests whose declared body exceeds this byte limit before parsing |
 | `REDAX_MAX_TEXT_CHARS` | `100000` | reject inputs longer than this |
 | `REDAX_MAX_BATCH_CHARS` | `1000000` | aggregate character budget across one batch; excess returns 413 |
 | `REDAX_API_KEYS` | `""` | comma-separated; required when `REDAX_ENV=prod` |
