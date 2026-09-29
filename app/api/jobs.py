@@ -301,19 +301,6 @@ async def run_job(
                 entity_types=entity_types,
             )
         inference_ms = int((time.perf_counter() - start) * 1000)
-        terminalized = await store.set_result(
-            job_id,
-            {
-                "text": result.text,
-                "spans": [s.__dict__ for s in result.spans],
-                # Re-identification maps contain original values and must not
-                # be persisted in or returned from the job API.
-                "relex_map": {},
-                "inference_ms": inference_ms,
-            },
-        )
-        if terminalized is not False:
-            decrement_queue_depth()
         audit = state.audit
         if audit is not None:
             from app.observability.tracing import current_trace_id_hex
@@ -330,6 +317,19 @@ async def run_job(
                     trace_id=current_trace_id_hex() or "",
                 )
             )
+        terminalized = await store.set_result(
+            job_id,
+            {
+                "text": result.text,
+                "spans": [s.__dict__ for s in result.spans],
+                # Re-identification maps contain original values and must not
+                # be persisted in or returned from the job API.
+                "relex_map": {},
+                "inference_ms": inference_ms,
+            },
+        )
+        if terminalized is not False:
+            decrement_queue_depth()
     except TimeoutError:
         logger.error("redax.job_timeout", job_id=job_id)
         ERRORS.labels(type="job_timeout").inc()

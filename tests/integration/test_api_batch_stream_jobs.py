@@ -594,6 +594,24 @@ def test_failed_job_does_not_leak_internal_error(app_with_no_redactor):
     assert body["error"] == "job failed"
 
 
+def test_job_audit_failure_does_not_publish_success(app_with_state):
+    """Mandatory audit failure must leave the durable job failed, not done."""
+    app_with_state.state.state.audit = FailingAudit()
+    with TestClient(app_with_state) as client:
+        sub = client.post(
+            "/v1/jobs",
+            json={"text": "hi audit.failure@example.com"},
+            headers={"X-API-Key": "test-key"},
+        )
+        assert sub.status_code == 202
+        job_id = sub.json()["id"]
+        body = client.get(f"/v1/jobs/{job_id}", headers={"X-API-Key": "test-key"}).json()
+
+    assert body["status"] == "failed"
+    assert body["result"] is None
+    assert body["error"] == "job failed"
+
+
 def test_failed_job_does_not_leak_canary(app_with_no_redactor, capsys):
     canary = "job.failure.canary.7f8d@example.com"
     with TestClient(app_with_no_redactor) as client:
