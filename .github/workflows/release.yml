@@ -29,21 +29,29 @@ jobs:
                 --workflow "$workflow" \
                 --commit "$GITHUB_SHA" \
                 --limit 20 \
-                --json status,conclusion,databaseId)"
-              run_count="$(python -c 'import json,sys; print(len(json.load(sys.stdin)))' <<<"$run_json")"
-              if [ "$run_count" -eq 0 ]; then
-                all_success=false
-                continue
-              fi
-              if ! python -c '
+                --json status,conclusion,createdAt,databaseId)"
+              gate_state="$(python -c '
           import json, sys
           runs = json.load(sys.stdin)
-          completed = [run for run in runs if run["status"] == "completed"]
-          if not completed or completed[0]["conclusion"] != "success":
-              raise SystemExit(1)
-          ' <<<"$run_json"; then
-                all_success=false
-              fi
+          if not runs:
+              print("pending")
+          else:
+              latest = max(runs, key=lambda run: run["createdAt"])
+              if latest["status"] != "completed":
+                  print("pending")
+              elif latest["conclusion"] == "success":
+                  print("success")
+              else:
+                  print("failed")
+          ' <<<"$run_json")"
+              case "$gate_state" in
+                success) ;;
+                pending) all_success=false ;;
+                failed)
+                  echo "$workflow exact-commit gate failed" >&2
+                  exit 1
+                  ;;
+              esac
             done
             if [ "$all_success" = true ]; then
               break
