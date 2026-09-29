@@ -34,6 +34,20 @@ class MemoryAudit(Backend):
         self.records.append(event)
 
 
+class FailingAudit(Backend):
+    """Audit backend that rejects the terminal stream record."""
+
+    async def start(self) -> None:
+        return None
+
+    async def stop(self) -> None:
+        return None
+
+    async def record(self, event: Event) -> None:
+        del event
+        raise RuntimeError("audit unavailable")
+
+
 class StubDetector:
     """Stub that returns the email-looking word surrounding any '@' in the text."""
 
@@ -210,6 +224,22 @@ def test_stream_canary_is_absent_from_response_and_audit(app_with_state):
 
     assert canary not in "\n".join(chunks)
     assert canary not in repr(app_with_state.state.state.audit.records)
+
+
+def test_stream_does_not_emit_done_before_audit_acknowledgement(app_with_state):
+    """A failed mandatory audit must not look like a completed stream."""
+    app_with_state.state.state.audit = FailingAudit()
+    with TestClient(app_with_state) as client:
+        response = client.post(
+            "/v1/redact/stream",
+            json={"text": "Email stream.audit@example.com", "chunk_chars": 1000},
+            headers={"X-API-Key": "test-key"},
+        )
+        chunks = list(response.iter_lines())
+
+    assert response.status_code == 200
+    assert not any("[DONE]" in chunk for chunk in chunks)
+    assert any('"error": "internal error"' in chunk for chunk in chunks)
 
 
 def test_stream_emits_trace_without_input_values(monkeypatch, app_with_state):

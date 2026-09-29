@@ -134,7 +134,6 @@ def register(app: FastAPI) -> None:
                             "digest": None,
                         }
                         yield f"data: {json.dumps(payload)}\n\n"
-                    yield "data: [DONE]\n\n"
                     if audit is not None:
                         from app.observability.tracing import current_trace_id_hex
 
@@ -152,6 +151,9 @@ def register(app: FastAPI) -> None:
                                 trace_id=current_trace_id_hex() or "",
                             )
                         )
+                    # A completion marker is only valid after the mandatory
+                    # audit boundary has acknowledged the whole stream.
+                    yield "data: [DONE]\n\n"
                     REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
                     span.set_attribute("http.response.status_code", 200)
                 except TRANSIENT_EXC as exc:
