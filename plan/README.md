@@ -119,8 +119,8 @@ The local deployment phases are implemented and verified in order:
 |---|---|
 | 0. Baseline | This topology, service, port, volume, and environment contract |
 | 1. Compose foundation | `docker compose config --quiet`; image build; health-gated startup |
-| 2. Observability | `scripts/verify_local_compose.py` confirms Prometheus, Loki, Tempo, and Grafana paths |
-| 3. Security and persistence | `.env` is ignored; Redis AOF/RDB, named volumes, bounded JSON logs, and intentional published ports |
+| 2. Observability | `scripts/verify_local_compose.py` confirms Prometheus, Loki, Tempo, and Grafana paths; the dashboard covers readiness, Redis pool, queue/worker activity, response rejections, and telemetry export failures |
+| 3. Security and persistence | `.env` is ignored; Redis AOF/RDB, named volumes, bounded JSON logs, localhost-only published ports, and 1 MiB Compose request/response limits |
 | 4. Validation | API/worker redaction, Redis-backed job completion, and verification after container restart |
 | 5. Handoff | [`docs/local-deployment.md`](../docs/local-deployment.md), k6 scenario, backup/restore, reset, and troubleshooting instructions |
 

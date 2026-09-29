@@ -32,6 +32,46 @@
       "targets": [{"expr": "redax_queue_depth", "legendFormat": "queue depth", "refId": "A"}, {"expr": "redax_requests_inflight", "legendFormat": "in-flight", "refId": "B"}],
       "title": "Queue and in-flight work",
       "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "redax-prometheus"},
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "id": 4,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "targets": [{"expr": "up{job=\"redax\"}", "legendFormat": "readiness scrape", "refId": "A"}, {"expr": "redax_active_workers", "legendFormat": "active workers", "refId": "B"}],
+      "title": "Readiness and worker activity",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "redax-prometheus"},
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+      "id": 5,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "targets": [{"expr": "redax_redis_pool_connections_in_use", "legendFormat": "Redis in use", "refId": "A"}, {"expr": "redax_redis_pool_connections_available", "legendFormat": "Redis available", "refId": "B"}, {"expr": "redax_redis_pool_connections_max", "legendFormat": "Redis max", "refId": "C"}],
+      "title": "Redis pool health",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "redax-prometheus"},
+      "fieldConfig": {"defaults": {"unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+      "id": 6,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "targets": [{"expr": "sum(rate(redax_response_rejections_total[5m]))", "legendFormat": "response rejections", "refId": "A"}, {"expr": "sum(rate(redax_admission_rejections_total[5m]))", "legendFormat": "admission rejections", "refId": "B"}],
+      "title": "Limit rejections",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "redax-prometheus"},
+      "fieldConfig": {"defaults": {"unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+      "id": 7,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}},
+      "targets": [{"expr": "sum(rate(redax_tracing_export_failures_total[5m]))", "legendFormat": "trace export failures", "refId": "A"}, {"expr": "sum(rate(redax_errors_total[5m]))", "legendFormat": "errors", "refId": "B"}],
+      "title": "Telemetry and application failures",
+      "type": "timeseries"
     }
   ],
   "refresh": "10s",

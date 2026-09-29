@@ -4,6 +4,8 @@ services:
   redax:
     build: .
     image: redax/redax:0.1.0
+    cpus: "2.0"
+    mem_limit: 4g
     environment:
       # Compose service names are the only stable addresses inside this stack.
       REDAX_ENV: ${REDAX_ENV:?copy .env.example to .env}
@@ -13,6 +15,8 @@ services:
       REDAX_REDIS_NAMESPACE: ${REDAX_REDIS_NAMESPACE:-redax-local}
       REDAX_DETECTOR: ${REDAX_DETECTOR:-gliner2}
       REDAX_RATE_LIMIT_PER_MINUTE: ${REDAX_RATE_LIMIT_PER_MINUTE:-600}
+      REDAX_MAX_BODY_BYTES: ${REDAX_MAX_BODY_BYTES:-1048576}
+      REDAX_MAX_RESPONSE_BYTES: ${REDAX_MAX_RESPONSE_BYTES:-1048576}
       REDAX_REDIS_URL: redis://redis:6379/0
       REDAX_MODEL_CACHE: /models
       REDAX_AUDIT_PATH: /var/lib/redax/audit.jsonl
@@ -21,9 +25,10 @@ services:
       REDAX_TRUSTED_HOSTS: ${REDAX_TRUSTED_HOSTS:-localhost,127.0.0.1}
       REDAX_HASH_SALT: ${REDAX_HASH_SALT:?set REDAX_HASH_SALT in .env}
       REDAX_API_KEYS: ${REDAX_API_KEYS:?set REDAX_API_KEYS in .env}
+      REDAX_AUDIT_INTEGRITY_KEY: ${REDAX_AUDIT_INTEGRITY_KEY:-}
       REDAX_JOB_PAYLOAD_ENCRYPTION_KEY: ${REDAX_JOB_PAYLOAD_ENCRYPTION_KEY:?set REDAX_JOB_PAYLOAD_ENCRYPTION_KEY in .env}
     ports:
-      - "${REDAX_API_PORT:-8000}:8000"
+      - "127.0.0.1:${REDAX_API_PORT:-8000}:8000"
     volumes:
       - redax-models:/models
       - redax-audit:/var/lib/redax
@@ -56,6 +61,8 @@ services:
     build: .
     image: redax/redax:0.1.0
     command: ["redax-worker"]
+    cpus: "2.0"
+    mem_limit: 4g
     environment:
       REDAX_ENV: ${REDAX_ENV:?copy .env.example to .env}
       REDAX_LOG_LEVEL: ${REDAX_LOG_LEVEL:-INFO}
@@ -63,6 +70,8 @@ services:
       REDAX_REDIS_REQUIRED: ${REDAX_REDIS_REQUIRED:-true}
       REDAX_REDIS_NAMESPACE: ${REDAX_REDIS_NAMESPACE:-redax-local}
       REDAX_DETECTOR: ${REDAX_DETECTOR:-gliner2}
+      REDAX_MAX_BODY_BYTES: ${REDAX_MAX_BODY_BYTES:-1048576}
+      REDAX_MAX_RESPONSE_BYTES: ${REDAX_MAX_RESPONSE_BYTES:-1048576}
       REDAX_REDIS_URL: redis://redis:6379/0
       REDAX_MODEL_CACHE: /models
       REDAX_AUDIT_PATH: /var/lib/redax/audit.jsonl
@@ -71,6 +80,7 @@ services:
       REDAX_TRUSTED_HOSTS: ${REDAX_TRUSTED_HOSTS:-localhost,127.0.0.1}
       REDAX_HASH_SALT: ${REDAX_HASH_SALT:?set REDAX_HASH_SALT in .env}
       REDAX_API_KEYS: ${REDAX_API_KEYS:?set REDAX_API_KEYS in .env}
+      REDAX_AUDIT_INTEGRITY_KEY: ${REDAX_AUDIT_INTEGRITY_KEY:-}
       REDAX_JOB_PAYLOAD_ENCRYPTION_KEY: ${REDAX_JOB_PAYLOAD_ENCRYPTION_KEY:?set REDAX_JOB_PAYLOAD_ENCRYPTION_KEY in .env}
     volumes:
       - redax-models:/models
@@ -96,6 +106,8 @@ services:
 
   redis:
     image: redis:7-alpine
+    cpus: "0.5"
+    mem_limit: 512m
     volumes:
       - redax-redis:/data
     networks:
@@ -139,6 +151,9 @@ services:
       - ./observability/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
     networks:
       - redax
+    depends_on:
+      tempo:
+        condition: service_healthy
     healthcheck:
       test:
         [
@@ -166,12 +181,15 @@ services:
       - --storage.tsdb.retention.time=7d
       - --web.enable-lifecycle
     ports:
-      - "${PROMETHEUS_PORT:-9090}:9090"
+      - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
     volumes:
       - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - redax-prometheus:/prometheus
     networks:
       - redax
+    depends_on:
+      redax:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/ready"]
       interval: 10s
@@ -253,7 +271,7 @@ services:
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_AUTH_ANONYMOUS_ENABLED: "false"
     ports:
-      - "${GRAFANA_PORT:-3000}:3000"
+      - "127.0.0.1:${GRAFANA_PORT:-3000}:3000"
     volumes:
       - redax-grafana:/var/lib/grafana
       - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro

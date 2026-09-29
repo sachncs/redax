@@ -17,6 +17,9 @@ production launch gate.
 - Network access for the first image build. The Dockerfile downloads and
   verifies the pinned dependency wheels and model; subsequent starts use the
   local image and named volumes.
+- The Compose profile bounds the API and worker to 2 CPUs/4 GiB each and Redis
+  to 0.5 CPU/512 MiB. These are Compose resource limits, not a capacity claim;
+  increase the Docker VM memory if the model workload needs it.
 - `curl` for smoke checks.
 - Optional: [k6](https://k6.io/) for the load scenario.
 
@@ -67,7 +70,9 @@ curl http://localhost:8000/readyz
 | Promtail | Docker socket + Loki | Internal only |
 
 The API and worker use Compose service names. Only the API, Prometheus, and
-Grafana ports are published by default.
+Grafana ports are published by default, and Compose binds them to
+`127.0.0.1`. They are not reachable from another host interface unless an
+operator explicitly changes the port mapping.
 
 ## Redaction smoke test
 
@@ -125,8 +130,9 @@ BASE_URL=http://localhost:8000 VUS=20 DURATION=2m \
   REDAX_API_KEY='your-local-key' k6 run tests/load/basic.js
 ```
 
-The scenario checks liveness and a synthetic redaction request. Its thresholds
-are a local smoke signal, not a production SLO or capacity guarantee.
+The scenario checks liveness and a synthetic redaction request. Compose also
+limits request and response bodies to 1 MiB by default. Its thresholds are a
+local smoke signal, not a production SLO or capacity guarantee.
 
 ## Repeatable local verification
 
