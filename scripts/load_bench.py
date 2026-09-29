@@ -17,6 +17,8 @@ from typing import Any
 import httpx
 import psutil
 
+from app.bench.corpus import load_corpus
+
 
 def percentile(values: list[float], fraction: float) -> float:
     """Return a percentile using linear interpolation over sorted samples."""
@@ -75,6 +77,7 @@ async def run_load(
     duration_seconds: float = 0.0,
     api_key: str | None = None,
     job_poll_timeout: float = 30.0,
+    texts: list[str] | None = None,
 ) -> dict[str, Any]:
     """Issue bounded concurrent requests and return aggregate measurements."""
     semaphore = asyncio.Semaphore(concurrency)
@@ -92,7 +95,8 @@ async def run_load(
             async with semaphore:
                 request_started = time.perf_counter()
                 try:
-                    request_text = benchmark_text(mode, text, request_number)
+                    source_text = texts[request_number % len(texts)] if texts else text
+                    request_text = benchmark_text(mode, source_text, request_number)
                     if mode == "job":
                         status = await run_job_once(
                             client,
@@ -239,6 +243,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--text", default="Contact alice@example.com for a safe response.")
     parser.add_argument(
+        "--corpus",
+        type=Path,
+        help="cycle through documents.jsonl from a labeled benchmark corpus",
+    )
+    parser.add_argument(
         "--mode",
         choices=("redact", "model", "batch", "stream", "cache-hot", "cache-cold", "job"),
         default="redact",
@@ -254,6 +263,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--fail-on-error", action="store_true")
     parser.add_argument("--max-p99-ms", type=float)
     args = parser.parse_args()
+    if args.corpus is not None and not (args.corpus / "documents.jsonl").exists():
+        parser.error(f"missing {args.corpus / 'documents.jsonl'}")
     if (
         args.requests < 1
         or args.concurrency < 1
@@ -270,6 +281,16 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     """Run the load test and optionally write a machine-readable artifact."""
     args = parse_args()
+    corpus_texts = None
+    corpus_sha256 = None
+    corpus_documents = None
+    if args.corpus is not None:
+        corpus_path = args.corpus / "documents.jsonl"
+        corpus_texts = [document.text for document in load_corpus(corpus_path)]
+        corpus_sha256 = sha256_file(corpus_path)
+        corpus_documents = len(corpus_texts)
+        if not corpus_texts:
+            raise SystemExit("benchmark corpus contains no documents")
     result = {
         "schema_version": 1,
         "kind": "redax_api_load_baseline",
@@ -279,6 +300,12 @@ def main() -> None:
         "provenance": {
             "lockfile_sha256": sha256_file(Path("requirements.lock")),
             "model": pinned_model_metadata(),
+            "corpus": {
+                "documents": corpus_documents,
+                "documents_sha256": corpus_sha256,
+            }
+            if args.corpus is not None
+            else None,
         },
         "target": args.url,
         "workload": {
@@ -298,6 +325,7 @@ def main() -> None:
                 args.duration_seconds,
                 args.api_key,
                 args.job_poll_timeout,
+                corpus_texts,
             )
         ),
     }

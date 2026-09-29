@@ -12,9 +12,6 @@ spec:
     - from:
         - namespaceSelector:
             matchLabels:
-              kubernetes.io/metadata.name: redax
-        - namespaceSelector:
-            matchLabels:
               redax.ingress-access: "true"
       ports:
         - protocol: TCP

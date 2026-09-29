@@ -59,6 +59,9 @@ def test_kubernetes_reference_uses_shared_audit_without_rw_volume() -> None:
         "nginx.ingress.kubernetes.io/proxy-body-size": "4m",
         "nginx.ingress.kubernetes.io/proxy-read-timeout": "75",
         "nginx.ingress.kubernetes.io/proxy-send-timeout": "30",
+        "nginx.ingress.kubernetes.io/limit-rps": "20",
+        "nginx.ingress.kubernetes.io/limit-burst-multiplier": "5",
+        "nginx.ingress.kubernetes.io/limit-connections": "100",
     }
 
 

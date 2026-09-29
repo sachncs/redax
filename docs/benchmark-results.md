@@ -57,6 +57,32 @@ Earlier working-tree snapshots contained exploratory comparisons, but their
 raw result artifacts, model provenance, and reproducible environment were not
 part of the release contract.
 
+## PII200k real-workload run
+
+The checked-in `tests/fixtures/pii200k` corpus contains 5,060 labelled
+documents and is used only under its documented synthetic/licensing terms. The
+full regex run produced corpus mean R-Score `0.1301` (p50 `0.0`). A pinned
+Guardrails GLiNER2 run over the first 500 documents produced corpus mean
+`0.5439` (p50 `0.5`). The sample is an accuracy signal, not a release SLA;
+the category breakdown and per-document scores are retained in the generated
+JSON artifacts from `scripts/run_bench.py`.
+
+The HTTP harness can now cycle through the corpus without recording payloads:
+
+```bash
+python scripts/load_bench.py --url http://127.0.0.1:8000/v1/redact \
+  --corpus tests/fixtures/pii200k --requests 1000 --concurrency 4 \
+  --api-key "$REDAX_BENCH_API_KEY" --output /tmp/pii200k-load.json
+```
+
+On the recorded Python 3.13/macOS local stack, a 1,000-request, concurrency-4
+run returned 1,000/1,000 HTTP 200 responses at 379.386 requests/second,
+p50 10.118 ms, p95 13.330 ms, and p99 16.761 ms. A 2,000-request,
+concurrency-8 run returned 2,000/2,000 HTTP 200 responses at 362.706
+requests/second, p50 21.181 ms, p95 27.951 ms, and p99 33.226 ms. The local
+rate limit was raised only for this bounded test; these results are not a
+production capacity claim.
+
 ## Current supported detector set
 
 | Detector | Status | Reproducible command |

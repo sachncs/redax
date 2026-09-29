@@ -15,14 +15,21 @@ Before applying it:
 4. Install an ingress-nginx controller (or translate the checked-in ingress
    annotations for your controller), create the `redax-tls` TLS Secret, and
    review `ingress.yaml` for the production hostname. It enforces the 4 MiB
-   body limit and gives streaming responses a bounded 75-second read window.
+   body limit, bounded streaming timeouts, 20 requests/second per client with
+   a five-times burst, and 100 concurrent connections per client. Tune these
+   starting values against the measured workload and SLOs.
    The service's `/readyz` endpoint remains the pod readiness target.
 5. Label the ingress-controller namespace with
    `redax.ingress-access=true`. The checked-in NetworkPolicies deny other
    ingress and restrict API/worker egress to cluster DNS, HTTPS, and Redis
    ports; adjust the policy when the managed Redis endpoint uses a different
    port or the ingress controller uses a different namespace.
-6. Configure the Prometheus Adapter (or an equivalent custom-metrics adapter)
+6. Configure the cloud/VPC firewall or security groups so only TCP 443 is
+   public. Do not expose API 8000, Redis 6379/6380, OTLP 4317/4318,
+   Prometheus, Grafana, Loki, or Tempo to the internet. Restrict Redis and
+   telemetry egress to managed service endpoints; NetworkPolicy port rules
+   cannot identify provider-owned external IPs.
+7. Configure the Prometheus Adapter (or an equivalent custom-metrics adapter)
    to expose `redax_requests_inflight` as a per-pod metric and
    `redax_queue_depth` plus `redax_queue_oldest_age_seconds` as external
    metrics. The HPA combines these signals with CPU and scales on the highest

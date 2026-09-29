@@ -41,7 +41,7 @@ from app.bench.corpus import load_corpus
 from app.bench.rscore import rscore
 
 
-def build_bench_detector(name: str) -> Any:
+def build_bench_detector(name: str, model_cache: Path | None = None) -> Any:
     if name == "regex":
         from app.inference.regex import RegexDetector
 
@@ -49,7 +49,7 @@ def build_bench_detector(name: str) -> Any:
     if name == "gliner2":
         from app.inference.gliner2 import GLiNER2Detector
 
-        return GLiNER2Detector()
+        return GLiNER2Detector(model_cache=model_cache or "./models_cache")
     raise SystemExit(f"unknown detector: {name}")
 
 
@@ -98,8 +98,17 @@ def main() -> int:
         default="regex",
     )
     parser.add_argument("--threshold", type=float, default=None)
+    parser.add_argument("--model-cache", type=Path, default=None)
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="run only the first N documents after loading the complete corpus",
+    )
     parser.add_argument("--output", type=Path, default=None)
     args = parser.parse_args()
+    if args.limit is not None and args.limit < 1:
+        parser.error("--limit must be positive")
 
     documents_path = args.corpus / "documents.jsonl"
     annotations_path = args.corpus / "annotations.jsonl"
@@ -110,8 +119,10 @@ def main() -> int:
 
     documents = load_corpus(documents_path)
     annotations = load_annotations(annotations_path, {d.id: d.text for d in documents})
+    if args.limit is not None:
+        documents = documents[: args.limit]
     ann_by_id = {a.doc_id: a for a in annotations}
-    detector = build_bench_detector(args.detector)
+    detector = build_bench_detector(args.detector, args.model_cache)
     asyncio.run(warmup_bench_detector(detector))
 
     async def collect() -> list[tuple[str, str, list[LabelledSpan], list[LabelledSpan]]]:
