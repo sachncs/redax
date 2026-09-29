@@ -188,6 +188,24 @@ def test_pii_canary_is_absent_from_audit_and_failure_logs(app_with_redactor, cap
     assert canary not in output
 
 
+def test_invalid_policy_does_not_echo_user_controlled_field(capsys, app_with_redactor):
+    canary = "policy.field.canary.7f8d@example.com"
+    with TestClient(app_with_redactor, raise_server_exceptions=False) as client:
+        response = client.post(
+            "/v1/redact",
+            json={
+                "text": "safe input",
+                "policy": {"name": "custom", "version": "1", "fields": {canary: {}}},
+            },
+        )
+
+    output = capsys.readouterr().out
+    assert response.status_code == 422
+    assert response.json()["detail"] == "policy could not be validated"
+    assert canary not in response.text
+    assert canary not in output
+
+
 def test_audit_failure_rejects_request_without_leaking_canary(capsys):
     """An audit failure must not produce a successful raw-value response."""
     canary = "audit.failure.7f8d@example.com"

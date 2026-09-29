@@ -158,24 +158,30 @@ def register(app: FastAPI) -> None:
                     policy = effective_policy(settings, policy, body.entity_types)
                 except (TypeError, ValueError) as exc:
                     REQUESTS.labels(endpoint=endpoint, method=method, status="422").inc()
+                    get_logger("redax.api").warning(
+                        "redax.invalid_policy", error=exc.__class__.__name__
+                    )
                     return problem_response(
                         request,
                         type="https://redax.ai/errors/invalid-policy",
                         title="Invalid Policy",
                         status=422,
-                        detail=str(exc),
+                        detail="policy could not be validated",
                     )
             if policy is None and body.entity_types is None and not body.use_pipeline:
                 try:
                     policy = effective_policy(settings, None, None)
                 except (TypeError, ValueError) as exc:
                     REQUESTS.labels(endpoint=endpoint, method=method, status="422").inc()
+                    get_logger("redax.api").warning(
+                        "redax.invalid_policy", error=exc.__class__.__name__
+                    )
                     return problem_response(
                         request,
                         type="https://redax.ai/errors/invalid-policy",
                         title="Invalid Policy",
                         status=422,
-                        detail=str(exc),
+                        detail="policy could not be validated",
                     )
             pipeline = state.pipeline
             if body.use_pipeline and pipeline is None:
