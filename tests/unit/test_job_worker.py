@@ -14,6 +14,16 @@ class State:
     job_store = Store()
 
 
+def test_shutdown_wait_is_bounded_by_a_positive_second() -> None:
+    assert (
+        queue.shutdown_wait_seconds(type("Settings", (), {"shutdown_timeout_seconds": 45.0})())
+        == 45
+    )
+    assert (
+        queue.shutdown_wait_seconds(type("Settings", (), {"shutdown_timeout_seconds": 0.2})()) == 1
+    )
+
+
 @pytest.mark.asyncio
 async def test_process_job_retries_before_dead_letter(monkeypatch):
     before = next(iter(JOB_RETRIES.collect())).samples[0].value

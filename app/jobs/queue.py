@@ -25,6 +25,11 @@ FUNCTION_NAME = "process_job"
 MAX_TRIES = 5
 
 
+def shutdown_wait_seconds(settings: Any) -> int:
+    """Return the bounded ARQ signal-drain window from validated settings."""
+    return max(1, int(getattr(settings, "shutdown_timeout_seconds", 30.0)))
+
+
 async def process_job(
     ctx: dict[str, Any],
     job_id: str,
@@ -105,6 +110,7 @@ async def worker_main() -> None:
         max_jobs=settings.worker_concurrency,
         max_tries=MAX_TRIES,
         job_timeout=settings.request_timeout_seconds,
+        job_completion_wait=shutdown_wait_seconds(settings),
         retry_jobs=True,
     )
     worker_id = f"{os.getpid()}-{uuid.uuid4().hex[:8]}"

@@ -22,7 +22,9 @@ is understood.
 Restart or replace workers, allow expired leases to be reclaimed, and inspect
 the dead-letter path. Submit a synthetic job and verify one terminal result,
 bounded retries, and no duplicate completion. The ARQ worker path is wired,
-and startup reconciliation fails stale queued/running jobs after
+and SIGTERM stops new job pickup while allowing active jobs to drain for
+`REDAX_SHUTDOWN_TIMEOUT_SECONDS` before cancellation and lease recovery.
+Startup reconciliation fails stale queued/running jobs after
 `REDAX_JOB_STALE_SECONDS`. Permanent failures are also recorded in the
 bounded Redis `redax:jobs:dead-letter` list as schema-versioned metadata only
 (job ID, attempt count, safe error marker, timestamp; never request payload).
