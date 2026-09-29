@@ -219,6 +219,10 @@ class Settings(BaseSettings):
             raise ValueError("REDAX_API_KEY_REVOCATIONS cannot revoke every production API key")
         if self.env == "prod" and not self.trusted_host_list():
             raise ValueError("REDAX_TRUSTED_HOSTS must be configured when REDAX_ENV=prod.")
+        if self.env == "prod" and "*" in self.cors_origin_list():
+            raise ValueError(
+                "REDAX_CORS_ORIGINS must list explicit origins in production; wildcard CORS is unsafe"
+            )
         if self.env == "prod" and self.audit_backend == "redis" and not self.audit_integrity_key:
             raise ValueError(
                 "REDAX_AUDIT_INTEGRITY_KEY must be configured for production Redis audit"

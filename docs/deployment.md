@@ -65,7 +65,7 @@ All settings read from environment variables prefixed with `REDAX_`. See
 | `REDAX_SERVICE_NAME` | `redax` | service name used by tracing and diagnostics |
 | `REDAX_ENV` | `prod` | `dev` permits local unauthenticated development; `prod` requires API keys and trusted hosts |
 | `REDAX_TRUSTED_HOSTS` | `""` | comma-separated hostnames required in production |
-| `REDAX_CORS_ORIGINS` | `""` | comma-separated browser origins; empty disables browser CORS |
+| `REDAX_CORS_ORIGINS` | `""` | comma-separated explicit browser origins; empty disables browser CORS, and `*` is refused in production |
 | `REDAX_MODEL_CACHE` | `./models_cache` | HF_HOME redirect |
 | `REDAX_MODEL_NAME` | `fastino/gliner2-privacy-filter-PII-multi` | HF model id |
 | `REDAX_MODEL_REVISION` | pinned commit | model revision required for reproducible loading |

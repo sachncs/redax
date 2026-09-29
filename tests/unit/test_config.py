@@ -52,6 +52,23 @@ def test_validate_accepts_real_secrets() -> None:
     s.verify()
 
 
+def test_production_rejects_wildcard_cors(tmp_path) -> None:
+    settings = Settings(
+        api_keys="k1",
+        hash_salt="a-strong-secret",
+        trusted_hosts="localhost",
+        cors_origins="*",
+        policies_dir=str(tmp_path),
+        job_payload_encryption_key="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+    )
+    (tmp_path / "default.yaml").write_text(
+        "name: default\nversion: 1.0.0\nfields: {}\n", encoding="utf-8"
+    )
+
+    with pytest.raises(ValueError, match="wildcard CORS"):
+        settings.verify()
+
+
 def test_production_requires_a_valid_default_policy(tmp_path) -> None:
     settings = Settings(
         api_keys="k1",
