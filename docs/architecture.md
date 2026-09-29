@@ -67,16 +67,20 @@ separate and does not claim model or policy parity with the server.
 | `app/redaction/relex.py` | Hash-deterministic HIPS relexicalizer |
 | `app/redaction/policies.py` | YAML policy loader |
 | `app/audit/` | `AuditBackend` Protocol + local-file implementation |
-| `app/jobs/store.py` | Redis-backed job lifecycle store |
+| `app/jobs/store.py` | Redis-backed job lifecycle store and admission counters |
+| `app/jobs/queue.py` | ARQ worker entry point and retry policy |
 | `app/api/stream.py` | Byte- and char-budgeted SSE chunk splitting (`split_chunks`) |
 
 ## Job execution model
 
-Jobs currently run in-process: `POST /v1/jobs` admits a record (subject to
-`max_inflight` and per-key `max_jobs_per_key`) and FastAPI background tasks
-execute `run_job`. `REDAX_WORKER_CONCURRENCY` and the `redax-worker` entry point
-are reserved for the planned background arq worker; settings that only take
-effect there are documented but not yet active.
+`POST /v1/jobs` admits a record into Redis and enqueues an ARQ job on the
+`redax:jobs` queue. API replicas do not execute the redaction inline; run one
+or more `redax-worker` processes with `REDAX_WORKER_CONCURRENCY` set to the
+desired per-worker concurrency. ARQ retries failed attempts with bounded
+backoff, while the shared `JobStore` owns status, result, ownership, and
+in-flight admission state. Lease expiry and dead-letter recovery still need
+operational evidence before the asynchronous API is considered production
+ready.
 
 ## Observability
 

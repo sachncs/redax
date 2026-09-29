@@ -21,5 +21,5 @@ is understood.
 
 Restart or replace workers, allow expired leases to be reclaimed, and inspect
 the dead-letter path. Submit a synthetic job and verify one terminal result,
-bounded retries, and no duplicate completion. The current in-process job path
-does not meet this runbook's recovery guarantee and is not HA-supported.
+bounded retries, and no duplicate completion. The ARQ worker path is wired,
+but worker restart, lease recovery, and DLQ drills remain release gates.

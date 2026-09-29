@@ -13,6 +13,8 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as package_version
 from typing import Any
 
+from arq import create_pool
+from arq.connections import RedisSettings
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -194,6 +196,11 @@ async def teardown_state(state: State) -> None:
             await state.job_store.stop()
     except Exception as exc:
         log.warning("redax.job_store_stop_failed", error=exc.__class__.__name__)
+    try:
+        if state.job_queue is not None:
+            await state.job_queue.close()
+    except Exception as exc:
+        log.warning("redax.job_queue_stop_failed", error=exc.__class__.__name__)
     state.ready = False
 
 
@@ -214,6 +221,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     log = get_logger("redax.lifespan")
 
     state = await build_state(settings)
+    if state.job_store is not None:
+        try:
+            state.job_queue = await create_pool(RedisSettings.from_dsn(settings.redis_url))
+        except Exception as exc:
+            log.warning("redax.job_queue_unavailable", error=exc.__class__.__name__)
     app.state.state = state
 
     log.info(

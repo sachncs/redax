@@ -78,6 +78,9 @@ class InMemoryJobStore(JobStore):
         token = self.owner_token(owner)
         return sum(1 for record in self.records.values() if record.owner == token)
 
+    async def count_inflight(self):
+        return sum(record.status in {"queued", "running"} for record in self.records.values())
+
     async def get(self, job_id):
         return self.records.get(job_id)
 
@@ -91,6 +94,20 @@ class InMemoryJobStore(JobStore):
     async def set_error(self, job_id, error):
         self.records[job_id].error = error
         self.records[job_id].status = "failed"
+
+
+class InMemoryJobQueue:
+    def __init__(self, state: State) -> None:
+        self.state = state
+
+    async def enqueue_job(self, _function, job_id, payload, request_id, **_kwargs):
+        from app.api.jobs import run_job
+
+        await run_job(job_id, payload, self.state.job_store, request_id, self.state)
+        return object()
+
+    async def close(self):
+        return None
 
 
 @pytest.fixture
@@ -114,6 +131,7 @@ def app_with_state():
         },
     )
     test_state.job_store = InMemoryJobStore()
+    test_state.job_queue = InMemoryJobQueue(test_state)
     test_state.audit = MemoryAudit()
     test_state.ready = True
     app = FastAPI()
@@ -208,6 +226,7 @@ def app_with_no_redactor():
         "S", (), {"max_text_chars": 1000, "api_key_set": lambda self: {"test-key"}}
     )()
     test_state.job_store = InMemoryJobStore()
+    test_state.job_queue = InMemoryJobQueue(test_state)
     test_state.ready = True
     app = FastAPI()
     app.state.state = test_state
@@ -267,6 +286,7 @@ def app_with_slow_redactor():
     )()
     test_state.redactor = Redactor(detector=SlowDetector(), strategies={})
     test_state.job_store = InMemoryJobStore()
+    test_state.job_queue = InMemoryJobQueue(test_state)
     test_state.audit = MemoryAudit()
     test_state.ready = True
     app = FastAPI()
@@ -275,10 +295,7 @@ def app_with_slow_redactor():
     return app
 
 
-def test_queue_depth_tracks_in_flight_job_and_returns_to_zero(app_with_slow_redactor):
-    from app.observability.metrics import QUEUE_DEPTH
-
-    SlowDetector.seen.clear()
+def test_durable_worker_completes_slow_job(app_with_slow_redactor):
     with TestClient(app_with_slow_redactor) as client:
         sub = client.post(
             "/v1/jobs", json={"text": "hi a@b.com"}, headers={"X-API-Key": "test-key"}
@@ -295,9 +312,8 @@ def test_queue_depth_tracks_in_flight_job_and_returns_to_zero(app_with_slow_reda
                 break
             time.sleep(0.05)
     assert body["status"] == "done"
-    assert SlowDetector.seen == [1.0]
-    final = [s.value for m in QUEUE_DEPTH.collect() for s in m.samples]
-    assert final == [0.0]
+    assert app_with_slow_redactor.state.state.job_store.records[job_id].status == "done"
+    assert asyncio.run(app_with_slow_redactor.state.state.job_store.count_inflight()) == 0
 
 
 def test_job_records_audited_entity_summary(app_with_state):
@@ -380,6 +396,7 @@ def app_with_max_inflight():
     )()
     test_state.redactor = Redactor(detector=SlowDetector(), strategies={})
     test_state.job_store = InMemoryJobStore()
+    test_state.job_queue = InMemoryJobQueue(test_state)
     test_state.audit = MemoryAudit()
     test_state.ready = True
     app = FastAPI()
@@ -389,16 +406,12 @@ def app_with_max_inflight():
 
 
 def test_job_submission_rejected_when_inflight_full(app_with_max_inflight):
-    from app.observability.metrics import QUEUE_DEPTH
-
-    QUEUE_DEPTH.set(1.0)
-    try:
-        with TestClient(app_with_max_inflight) as client:
-            resp = client.post(
-                "/v1/jobs", json={"text": "more text"}, headers={"X-API-Key": "test-key"}
-            )
-    finally:
-        QUEUE_DEPTH.set(0.0)
+    store = app_with_max_inflight.state.state.job_store
+    asyncio.run(store.create(owner="test-key"))
+    with TestClient(app_with_max_inflight) as client:
+        resp = client.post(
+            "/v1/jobs", json={"text": "more text"}, headers={"X-API-Key": "test-key"}
+        )
     assert resp.status_code == 429
     assert resp.headers["content-type"].startswith("application/problem+json")
     assert resp.json()["title"] == "Queue Full"
@@ -417,6 +430,7 @@ def app_with_per_key_quota():
         },
     )()
     test_state.job_store = InMemoryJobStore()
+    test_state.job_queue = InMemoryJobQueue(test_state)
     test_state.ready = True
     app = FastAPI()
     app.state.state = test_state
@@ -451,6 +465,7 @@ def app_with_short_job_timeout():
     )()
     test_state.redactor = Redactor(detector=SlowDetector(), strategies={})
     test_state.job_store = InMemoryJobStore()
+    test_state.job_queue = InMemoryJobQueue(test_state)
     test_state.audit = MemoryAudit()
     test_state.ready = True
     app = FastAPI()

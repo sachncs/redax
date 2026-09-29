@@ -23,10 +23,11 @@ hosts are still required.
 | Standard | One or a few processes with the pinned local GLiNER2 model | Recommended for rate limits, cache, idempotency, and jobs | The default production starting point |
 | Scaled | Multiple identical API replicas behind an ingress | Shared, durable Redis with a unique namespace | Higher throughput with consistent model, policy, secret, and limit configuration |
 
-The current `/v1/jobs` implementation executes work in FastAPI background
-tasks inside the receiving process. It is bounded and useful for modest jobs,
-but it is not a durable distributed worker queue; use a separate worker design
-before treating jobs as a high-scale workload.
+The `/v1/jobs` API writes accepted work to Redis and enqueues it for the
+separate `redax-worker` process. Run API and worker replicas independently;
+the API tier can scale for request traffic while worker concurrency scales for
+model throughput. Redis persistence, failover, queue recovery, and worker
+drain behavior remain deployment acceptance gates.
 
 ## Configuration
 
@@ -76,7 +77,7 @@ All settings read from environment variables prefixed with `REDAX_`. See
 | `REDAX_PIPELINE_BREAKER_THRESHOLD` | `3` | consecutive model failures before opening the circuit |
 | `REDAX_PIPELINE_BREAKER_COOLDOWN_S` | `5` | seconds before a circuit probe |
 | `REDAX_METRICS_BY_TENANT` | `false` | reserved setting; tenant labels are disabled by default |
-| `REDAX_WORKER_CONCURRENCY` | `1` | reserved for the planned arq worker (`redax-worker`); jobs currently run in-process via FastAPI background tasks |
+| `REDAX_WORKER_CONCURRENCY` | `1` | concurrent ARQ jobs per `redax-worker` process |
 | `REDAX_OTLP_ENDPOINT` | `""` | OTLP gRPC endpoint for traces |
 
 ## Production checklist
@@ -86,6 +87,8 @@ All settings read from environment variables prefixed with `REDAX_`. See
 - Mount `REDAX_AUDIT_PATH` to durable storage (e.g. an EBS volume or a
   log shipper tail)
 - Set `REDAX_REDIS_URL` to a stable Redis (jobs and rate limit depend on it)
+- Run `redax-worker` as a separate deployment with the same model, policy, and
+  Redis configuration as the API tier
 - Behind a load balancer: configure `/readyz` as the readiness probe;
   `/healthz` is always 200
 

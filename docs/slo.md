@@ -30,8 +30,9 @@ measurement policy.
   policy, model/configuration, and input. Model-backed output is versioned and
   measured rather than promised deterministic.
 
-Current status: synchronous behavior is tested; durable accepted-job
-reliability is **not yet achieved** because jobs currently run in-process.
+Current status: synchronous behavior is tested and accepted jobs are handed to
+the separate ARQ worker. Durable accepted-job reliability is **not yet proven**
+until Redis failover, worker restart, lease recovery, and DLQ evidence exist.
 
 ## Latency and throughput measurements
 

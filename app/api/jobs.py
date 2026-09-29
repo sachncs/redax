@@ -1,7 +1,7 @@
 """Async job submission + status endpoints (``/v1/jobs``).
 
 Submission is rate-limited and per-key admission-capped; the actual
-redaction runs as a background task that writes its outcome back into
+redaction runs in the durable ARQ worker and writes its outcome back into
 the shared ``JobStore``. ``record_failure`` is a small helper for the
 failure path used by both the worker and the timeout handler.
 """
@@ -12,7 +12,7 @@ import asyncio
 import time
 from typing import Annotated, Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, Request
+from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
@@ -31,7 +31,7 @@ from app.errors import (
 from app.jobs.store import JobStore
 from app.logging import get_logger
 from app.middleware import get_request_id
-from app.observability import ERRORS, QUEUE_DEPTH, REQUESTS, queue_depth
+from app.observability import ERRORS, REQUESTS
 from app.ratelimit import rate_limit
 from app.state import State, get_state
 
@@ -54,7 +54,6 @@ def register(app: FastAPI) -> None:
     @router.post("/v1/jobs", status_code=202, response_model=None)
     async def submit_job(
         body: JobSubmit,
-        background_tasks: BackgroundTasks,
         request: Request,
         state: Annotated[State, Depends(get_state)],
         api_key: Annotated[str, Depends(require_api_key)],
@@ -84,11 +83,12 @@ def register(app: FastAPI) -> None:
                     ),
                 )
             store: JobStore | None = state.job_store
-            if store is None:
+            queue = state.job_queue
+            if store is None or queue is None:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
-                return job_store_unavailable(request, "job store not initialized")
+                return job_store_unavailable(request, "durable job queue not initialized")
             max_inflight = getattr(settings, "max_inflight", 32)
-            if queue_depth() >= max_inflight:
+            if await store.count_inflight() >= max_inflight:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="429").inc()
                 return queue_full(request)
             max_jobs_per_key = getattr(settings, "max_jobs_per_key", 50)
@@ -103,10 +103,24 @@ def register(app: FastAPI) -> None:
                 )
                 REQUESTS.labels(endpoint=endpoint, method=method, status="500").inc()
                 return internal_error(request, "job counter write failed")
-            QUEUE_DEPTH.inc()
-            background_tasks.add_task(
-                run_job, record.id, body.model_dump(), store, request_id, state
-            )
+            try:
+                queued = await queue.enqueue_job(
+                    "process_job",
+                    record.id,
+                    body.model_dump(),
+                    request_id,
+                    _job_id=record.id,
+                    _queue_name="redax:jobs",
+                )
+                if queued is None:
+                    raise RuntimeError("job was already queued")
+            except TRANSIENT_EXC as exc:
+                await record_failure(record.id, store, get_logger("redax.jobs"))
+                get_logger("redax.api").error(
+                    "redax.job_enqueue_failed", error=exc.__class__.__name__
+                )
+                REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
+                return job_store_unavailable(request, "durable job queue unavailable")
             REQUESTS.labels(endpoint=endpoint, method=method, status="202").inc()
             return {"id": record.id, "status": record.status}
         except TRANSIENT_EXC as exc:
@@ -155,12 +169,13 @@ async def run_job(
     store: JobStore,
     request_id: str,
     state: State,
-) -> None:
-    """Background-task worker that re-runs the redactor and writes back.
+    *,
+    mark_failure: bool = True,
+) -> bool:
+    """Execute one durable job attempt and return whether it succeeded.
 
-    The state is captured at submit time and passed in because the
-    background task runs after the originating request has returned;
-    there is no live request to read ``request.app.state`` from.
+    The state is passed explicitly because the worker runs independently of
+    the originating request; there is no live request to read from.
     """
     logger = get_logger("redax.jobs")
     try:
@@ -168,16 +183,15 @@ async def run_job(
     except (OSError, TimeoutError, RuntimeError) as exc:
         ERRORS.labels(type="job_store_unavailable").inc()
         logger.error("redax.job_store_unavailable", job_id=job_id, error=exc.__class__.__name__)
-        QUEUE_DEPTH.dec()
-        return
+        return False
     start = time.perf_counter()
     redactor = state.redactor
     if redactor is None:
         ERRORS.labels(type="job_redactor_unavailable").inc()
-        await record_failure(job_id, store, logger)
+        if mark_failure:
+            await record_failure(job_id, store, logger)
         logger.error("redax.job_failed", job_id=job_id, error="redactor not initialized")
-        QUEUE_DEPTH.dec()
-        return
+        return False
     try:
         timeout_seconds = getattr(state.settings, "request_timeout_seconds", 30.0)
         async with asyncio.timeout(timeout_seconds):
@@ -220,13 +234,16 @@ async def run_job(
     except TimeoutError:
         logger.error("redax.job_timeout", job_id=job_id)
         ERRORS.labels(type="job_timeout").inc()
-        await record_failure(job_id, store, logger)
+        if mark_failure:
+            await record_failure(job_id, store, logger)
+        return False
     except TRANSIENT_EXC as exc:
         logger.error("redax.job_failed", job_id=job_id, error=exc.__class__.__name__)
         ERRORS.labels(type="job_failed").inc()
-        await record_failure(job_id, store, logger)
-    finally:
-        QUEUE_DEPTH.dec()
+        if mark_failure:
+            await record_failure(job_id, store, logger)
+        return False
+    return True
 
 
 async def record_failure(job_id: str, store: JobStore, logger: Any) -> None:

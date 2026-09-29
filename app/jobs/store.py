@@ -56,6 +56,7 @@ class JobStore:
 
     KEY_TEMPLATE = "{ns}:job:{id}"
     COUNT_KEY_TEMPLATE = "{ns}:jobs:{owner}"
+    TOTAL_COUNT_KEY_TEMPLATE = "{ns}:jobs:inflight"
 
     def __init__(
         self,
@@ -74,6 +75,9 @@ class JobStore:
 
     def _count_key(self, owner: str) -> str:
         return self.COUNT_KEY_TEMPLATE.format(ns=self.namespace, owner=self.owner_token(owner))
+
+    def _total_count_key(self) -> str:
+        return self.TOTAL_COUNT_KEY_TEMPLATE.format(ns=self.namespace)
 
     @staticmethod
     def owner_token(owner: str) -> str:
@@ -124,6 +128,8 @@ class JobStore:
             count_key = self._count_key(owner)
             await client.incr(count_key)
             await client.expire(count_key, self.ttl_seconds)
+        await client.incr(self._total_count_key())
+        await client.expire(self._total_count_key(), self.ttl_seconds)
         return record
 
     async def count_for_key(self, owner: str) -> int:
@@ -132,6 +138,14 @@ class JobStore:
         if client is None:
             raise RuntimeError("JobStore.start() must run before count_for_key()")
         raw = await client.get(self._count_key(owner))
+        return int(raw) if raw else 0
+
+    async def count_inflight(self) -> int:
+        """Return the shared Redis count of non-terminal jobs."""
+        client = self.client
+        if client is None:
+            raise RuntimeError("JobStore.start() must run before count_inflight()")
+        raw = await client.get(self._total_count_key())
         return int(raw) if raw else 0
 
     async def get(self, job_id: str) -> JobRecord | None:
@@ -175,6 +189,7 @@ class JobStore:
         await client.hset(key, "status", "done")  # type: ignore[misc]
         await client.expire(key, self.ttl_seconds)
         await release_owner_count(client, key, self.namespace)
+        await release_total_count(client, self._total_count_key())
 
     async def set_error(self, job_id: str, error: str) -> None:
         """Mark the job as ``failed``, record the error, and release the per-key slot."""
@@ -186,6 +201,7 @@ class JobStore:
         await client.hset(key, "status", "failed")  # type: ignore[misc]
         await client.expire(key, self.ttl_seconds)
         await release_owner_count(client, key, self.namespace)
+        await release_total_count(client, self._total_count_key())
 
     async def set_record(self, record: JobRecord) -> None:
         """Write the full :class:`JobRecord` fields into the job hash.
@@ -219,6 +235,17 @@ async def release_owner_count(
     if not owner:
         return
     count_key = JobStore.COUNT_KEY_TEMPLATE.format(ns=namespace, owner=owner)
+    raw = await client.get(count_key)
+    if raw is None:
+        return
+    if int(raw) <= 1:
+        await client.delete(count_key)
+    else:
+        await client.decr(count_key, 1)
+
+
+async def release_total_count(client: aioredis.Redis, count_key: str) -> None:
+    """Decrement the shared in-flight job count without going negative."""
     raw = await client.get(count_key)
     if raw is None:
         return

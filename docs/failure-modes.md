@@ -11,7 +11,7 @@ HA”; gaps are marked explicitly.
 | Redis unavailable at startup | App logs and continues with no job store; cache/idempotency/jobs are disabled; rate limiting fails closed unless explicit fail-open. | Mixed, explicit. | Readiness must reflect required deployment mode; test recovery without restart. |
 | Redis unavailable during rate limit | Returns typed 503 by default; explicit `REDAX_RATE_LIMIT_FAIL_OPEN=true` allows traffic. | Configurable, documented. | Require explicit operator acknowledgement and alert on fail-open. |
 | Redis unavailable during cache | Request recomputes; cache is skipped. | Fail open for optimization only. | Never let cache failure change redaction semantics. |
-| Redis unavailable during jobs | Submission returns 503; current background work may lose its result. | Unsafe for durable jobs. | Durable enqueue/lease/retry worker required before jobs are production-supported. |
+| Redis unavailable during jobs | Submission returns 503; accepted jobs depend on Redis durability and recovery. | Unsafe without HA/failover evidence. | Verify Redis HA, enqueue recovery, lease expiry, and worker retry/DLQ behavior. |
 | Model cannot load in `prod` | Startup fails; dev may log and downgrade according to detector configuration. | Fail closed in prod. | Add readiness/startup and corrupted-model tests. |
 | Model inference failure | Pipeline can use explicit regex fallback and records fallback; policy path returns an error according to route handling. | Route-dependent. | One documented policy matrix; no raw pass-through. |
 | Model timeout | Synchronous request returns 504; job marks failure; stream emits timeout event. | Reject/fail closed. | Add cancellation and recovery tests. |
@@ -24,8 +24,8 @@ HA”; gaps are marked explicitly.
 | Invalid or adversarial Unicode | Pydantic and code-point chunking validate input; property tests cover parts of the transform path. | Bounded in tested paths. | Add fuzz suite and CPU/memory budgets. |
 | Client disconnects from stream | Generator cleanup is present; complete cancellation/release evidence is pending. | Incomplete evidence. | Add disconnect and shutdown integration tests. |
 | API process dies | In-flight synchronous work is lost; safe because no response is emitted, but client retry semantics apply. | Bounded. | Multi-replica retry/idempotency semantics must be atomic. |
-| Worker dies mid-job | Current in-process job is lost or may remain non-terminal. | FAIL for production jobs. | Lease expiry/requeue/dead-letter test required. |
-| Duplicate job delivery | No distributed worker delivery protocol yet. | Undefined. | Idempotent completion keyed by job ID and payload fingerprint. |
+| Worker dies mid-job | ARQ retries failed attempts; recovery after process death is not yet tested here. | PARTIAL. | Lease expiry/requeue/dead-letter test required. |
+| Duplicate job delivery | Shared job record completion is not yet proven under duplicate delivery. | PARTIAL. | Idempotent completion keyed by job ID and payload fingerprint. |
 | Rolling deployment | HTTP state mostly reconstructs; job/background and persisted schema compatibility are not proven. | Incomplete. | Mixed-version Redis/schema and rollback tests. |
 
 ## Operator rule

@@ -60,8 +60,7 @@ job age—not CPU alone.
 
 ## Current limitations
 
-`/v1/jobs` currently uses in-process FastAPI background tasks, so it cannot be
-used as the worker tier in this topology. There is no measured safe throughput,
-no HA Redis evidence, and no load/soak artifact in the current release. These
-are P0/P1 gaps in [`PRODUCTION_PLAN.md`](../PRODUCTION_PLAN.md), not hidden
-assumptions.
+`/v1/jobs` now uses a separate ARQ worker tier. There is still no measured safe
+throughput, no HA Redis evidence, and no load/soak artifact in the current
+release. These are P0/P1 gaps in [`PRODUCTION_PLAN.md`](../PRODUCTION_PLAN.md),
+not hidden assumptions.

@@ -5,6 +5,6 @@ Re-exports the public API of :mod:`app.jobs.store` so callers can
 without reaching into the submodule.
 """
 
-from app.jobs.store import JobRecord, JobStore, release_owner_count
+from app.jobs.store import JobRecord, JobStore, release_owner_count, release_total_count
 
-__all__ = ["JobRecord", "JobStore", "release_owner_count"]
+__all__ = ["JobRecord", "JobStore", "release_owner_count", "release_total_count"]
