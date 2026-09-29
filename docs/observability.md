@@ -28,3 +28,9 @@ consumers tolerant of additive fields and validate the version before parsing
 persisted records; migrations for future versions must preserve the no-PII
 event contract. Authenticated events also include a keyed `principal_id`; it
 is stable within a deployment salt but does not contain the API key.
+
+The HTTP middleware and streaming transport emit OpenTelemetry spans when
+tracing is configured. Span attributes are deliberately limited to the HTTP
+method and response status; request bodies, query values, headers, entity
+values, API keys, and Redis keys are not recorded. Keep exporter-side sampling
+and retention aligned with the same privacy contract.

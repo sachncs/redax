@@ -10,6 +10,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.responses import JSONResponse, StreamingResponse
+from opentelemetry import trace
 from pydantic import BaseModel, Field
 
 from app.api.policy import default_policy, policy_version
@@ -21,6 +22,8 @@ from app.middleware import get_request_id
 from app.observability import REQUEST_LATENCY, REQUESTS
 from app.ratelimit import rate_limit
 from app.state import State, get_state
+
+stream_tracer = trace.get_tracer("redax.stream")
 
 
 class StreamRequest(BaseModel):
@@ -90,70 +93,78 @@ def register(app: FastAPI) -> None:
 
         async def event_source() -> AsyncIterator[str]:
             """Async generator that yields one ``data:`` SSE event per chunk + a final ``[DONE]``."""
-            try:
-                text = body.text
-                stream_deadline = time.perf_counter() + stream_timeout_seconds
-                chunk = body.chunk_chars or default_chunk_chars
-                all_spans: list[Any] = []
-                inference_ms = 0
-                for piece in split_chunks(text, chunk, chunk_bytes):
-                    remaining_seconds = stream_deadline - time.perf_counter()
-                    if remaining_seconds <= 0:
-                        REQUESTS.labels(endpoint=endpoint, method=method, status="504").inc()
-                        yield f"data: {json.dumps({'error': 'stream timeout', 'status': 504})}\n\n"
-                        return
-                    try:
-                        async with asyncio.timeout(min(timeout_seconds, remaining_seconds)):
-                            inference_start = time.perf_counter()
-                            result = await redactor.redact(
-                                piece,
-                                policy=policy,
-                                entity_types=body.entity_types,
-                            )
-                            inference_ms += int((time.perf_counter() - inference_start) * 1000)
-                    except TimeoutError:
-                        REQUESTS.labels(endpoint=endpoint, method=method, status="504").inc()
-                        yield f"data: {json.dumps({'error': 'request timeout', 'status': 504})}\n\n"
-                        return
-                    all_spans.extend(result.spans)
-                    payload = {
-                        "text": result.text,
-                        "spans": [s.__dict__ for s in result.spans],
-                        # Streaming redaction must preserve the same privacy
-                        # contract as the non-streaming HTTP endpoints.
-                        "relex_map": {},
-                        "used_pipeline": False,
-                        "used_fallback": False,
-                        "digest": None,
-                    }
-                    yield f"data: {json.dumps(payload)}\n\n"
-                yield "data: [DONE]\n\n"
-                if audit is not None:
-                    from app.observability.tracing import current_trace_id_hex
+            with stream_tracer.start_as_current_span("redax.redact.stream") as span:
+                span.set_attribute("http.request.method", method)
+                try:
+                    text = body.text
+                    stream_deadline = time.perf_counter() + stream_timeout_seconds
+                    chunk = body.chunk_chars or default_chunk_chars
+                    all_spans: list[Any] = []
+                    inference_ms = 0
+                    for piece in split_chunks(text, chunk, chunk_bytes):
+                        remaining_seconds = stream_deadline - time.perf_counter()
+                        if remaining_seconds <= 0:
+                            REQUESTS.labels(endpoint=endpoint, method=method, status="504").inc()
+                            span.set_attribute("http.response.status_code", 504)
+                            yield f"data: {json.dumps({'error': 'stream timeout', 'status': 504})}\n\n"
+                            return
+                        try:
+                            async with asyncio.timeout(min(timeout_seconds, remaining_seconds)):
+                                inference_start = time.perf_counter()
+                                result = await redactor.redact(
+                                    piece,
+                                    policy=policy,
+                                    entity_types=body.entity_types,
+                                )
+                                inference_ms += int((time.perf_counter() - inference_start) * 1000)
+                        except TimeoutError:
+                            REQUESTS.labels(endpoint=endpoint, method=method, status="504").inc()
+                            span.set_attribute("http.response.status_code", 504)
+                            yield f"data: {json.dumps({'error': 'request timeout', 'status': 504})}\n\n"
+                            return
+                        all_spans.extend(result.spans)
+                        payload = {
+                            "text": result.text,
+                            "spans": [s.__dict__ for s in result.spans],
+                            # Streaming redaction must preserve the same privacy
+                            # contract as the non-streaming HTTP endpoints.
+                            "relex_map": {},
+                            "used_pipeline": False,
+                            "used_fallback": False,
+                            "digest": None,
+                        }
+                        yield f"data: {json.dumps(payload)}\n\n"
+                    yield "data: [DONE]\n\n"
+                    if audit is not None:
+                        from app.observability.tracing import current_trace_id_hex
 
-                    await audit.record(
-                        Event(
-                            request_id=request_id,
-                            ts="",
-                            policy_version=policy_version(policy),
-                            text_chars=len(text),
-                            principal_id=principal_id(api_key, getattr(settings, "hash_salt", "")),
-                            entities_detected=span_summary(all_spans),
-                            inference_ms=inference_ms,
-                            trace_id=current_trace_id_hex() or "",
+                        await audit.record(
+                            Event(
+                                request_id=request_id,
+                                ts="",
+                                policy_version=policy_version(policy),
+                                text_chars=len(text),
+                                principal_id=principal_id(
+                                    api_key, getattr(settings, "hash_salt", "")
+                                ),
+                                entities_detected=span_summary(all_spans),
+                                inference_ms=inference_ms,
+                                trace_id=current_trace_id_hex() or "",
+                            )
                         )
+                    REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
+                    span.set_attribute("http.response.status_code", 200)
+                except TRANSIENT_EXC as exc:
+                    yield f"data: {json.dumps({'error': 'internal error'})}\n\n"
+                    REQUESTS.labels(endpoint=endpoint, method=method, status="500").inc()
+                    span.set_attribute("http.response.status_code", 500)
+                    get_logger("redax.api").error(
+                        "redax.stream_chunk_failed", error=exc.__class__.__name__
                     )
-                REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
-            except TRANSIENT_EXC as exc:
-                yield f"data: {json.dumps({'error': 'internal error'})}\n\n"
-                REQUESTS.labels(endpoint=endpoint, method=method, status="500").inc()
-                get_logger("redax.api").error(
-                    "redax.stream_chunk_failed", error=exc.__class__.__name__
-                )
-            finally:
-                REQUEST_LATENCY.labels(endpoint=endpoint, method=method).observe(
-                    time.perf_counter() - latency_start
-                )
+                finally:
+                    REQUEST_LATENCY.labels(endpoint=endpoint, method=method).observe(
+                        time.perf_counter() - latency_start
+                    )
 
         return StreamingResponse(event_source(), media_type="text/event-stream")
 

@@ -4,6 +4,9 @@ import pytest
 import structlog
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 from app.middleware import register_request_context
 
@@ -77,6 +80,31 @@ def test_request_context_clears_context_after_request() -> None:
         client.get("/probe", headers={"X-Request-ID": "req-2"})
     assert seen["bound"] == "req-2"
     assert structlog.contextvars.get_contextvars().get("request_id") is None
+
+
+def test_request_span_contains_metadata_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app import middleware as mw
+
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    monkeypatch.setattr(mw, "request_tracer", provider.get_tracer("test"))
+    app = make_app_with_probe({})
+    canary = "trace.canary.7f8d@example.com"
+
+    with TestClient(app) as client:
+        response = client.get(f"/probe?value={canary}")
+
+    assert response.status_code == 200
+    spans = exporter.get_finished_spans()
+    assert len(spans) == 1
+    span = spans[0]
+    assert span.name == "redax.http.request"
+    assert span.attributes == {
+        "http.request.method": "GET",
+        "http.response.status_code": 200,
+    }
+    assert canary not in repr(span)
 
 
 def capture_access_line(monkeypatch: pytest.MonkeyPatch, captured: dict) -> None:

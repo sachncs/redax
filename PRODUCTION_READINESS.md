@@ -6,7 +6,7 @@ the cited evidence covers the stated scope; `FAIL` means implementation or
 evidence is still missing; `N/A` means the requirement is outside the current
 supported product surface.
 
-Review baseline: `80536c6` and the current `master` tree. Update this matrix
+Review baseline: `0c16f0e` and the current `master` tree. Update this matrix
 as each production milestone lands.
 
 ## Reliability and distributed correctness
@@ -26,8 +26,8 @@ as each production milestone lands.
 |---|---|---|
 | Production configuration fails securely | PASS | `Settings.verify()`, `tests/unit/test_config.py`, and production API-key/trusted-host/hash-salt checks. |
 | Scoped authorization | PARTIAL | Optional JSON scopes enforce redact, detect, jobs, policies, and metrics endpoints; external rotation/revocation and a control-plane audit are pending. |
-| Secrets stay out of telemetry | PARTIAL | Error, audit, cache, idempotency, metrics, and detector-failure log canaries exist; audit attribution uses keyed non-secret principal IDs, while full traces/Redis/jobs/failure coverage is pending. |
-| Automated PII leak suite | PARTIAL | Canaries cover synchronous response, metrics, audit, detector-failure logs, streaming response/audit, and durable-job output/store/audit; the complete Redis, trace, auth, validation, cancellation, and audit-failure matrix is pending. |
+| Secrets stay out of telemetry | PARTIAL | Error, audit, cache, idempotency, metrics, detector-failure log, and metadata-only request/stream trace canaries exist; audit attribution uses keyed non-secret principal IDs, while full Redis/jobs/failure coverage is pending. |
+| Automated PII leak suite | PARTIAL | Canaries cover synchronous response, metrics, audit, detector-failure logs, streaming response/audit/traces, and durable-job output/store/audit; the complete Redis, auth, validation, cancellation, and audit-failure matrix is pending. |
 | No silent raw pass-through after internal failure | PARTIAL | Model fallback, audit-required rejection, and error handlers are tested; policy, cancellation, stream disconnect, and full failure-matrix coverage remain. |
 | Threat model matches implementation | PASS | `docs/threat-model.md`, `docs/data-flow.md`, and `docs/failure-modes.md`; update when the worker/audit architecture lands. |
 | High/critical vulnerability gate | PARTIAL | GitHub security run `36560012477` passed SBOM generation and the filesystem Trivy gate; the successful `v0.1.0` release run `36130306271` also scanned the release image, but recurring release evidence is still required. |
@@ -57,7 +57,7 @@ as each production milestone lands.
 | Requirement | Status | Evidence / gap |
 |---|---|---|
 | Actionable RED/USE metrics | PARTIAL | RED metrics, Prometheus alert rules, accepted in-flight job depth, response-size histogram, shared Redis-backed oldest queue age, Redis pool gauges/alert, versioned audit records with non-secret principal IDs, and a Grafana dashboard are checked in; worker-runtime metrics still need implementation/evidence. |
-| Privacy-safe structured logs/traces | PARTIAL | Access/error/audit paths avoid values and metrics regression exists; trace exporter and all failure paths need canary tests. |
+| Privacy-safe structured logs/traces | PARTIAL | Access/error/audit paths avoid values; request and streaming spans emit only method/status metadata with canary assertions, while OTLP exporter delivery and all failure paths need evidence. |
 | Alerts and dashboards | PARTIAL | Checked-in Prometheus alert rules and a Grafana dashboard cover HTTP, audit, dependency, API replica, and worker availability; queue age, retries, and Redis-pool panels remain pending. |
 | Operational runbooks | PARTIAL | Current runbooks in `docs/runbooks/` describe safe response and evidence; they remain bounded by the current in-process job limitations. |
 

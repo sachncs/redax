@@ -21,11 +21,15 @@ from typing import Any
 import structlog
 from fastapi import FastAPI, Request
 from fastapi.responses import Response
+from opentelemetry import context, trace
+from opentelemetry.trace import Span
 
 from app.errors import problem_response
 from app.logging import get_logger
 from app.observability import ADMISSION_REJECTIONS, REQUESTS_INFLIGHT, RESPONSE_SIZE
 from app.observability.tracing import current_trace_id_hex
+
+request_tracer = trace.get_tracer("redax.http")
 
 
 def safe_request_id(value: str | None) -> str:
@@ -115,6 +119,9 @@ def register_request_context(app: FastAPI) -> None:
         admitted = False
         admission: Any | None = None
         response: Response
+        span = request_tracer.start_span("redax.http.request")
+        span_token = context.attach(trace.set_span_in_context(span))
+        span.set_attribute("http.request.method", request.method)
         try:
             state = getattr(request.app.state, "state", None)
             admission = getattr(state, "request_admission", None)
@@ -209,4 +216,12 @@ def register_request_context(app: FastAPI) -> None:
                 duration_ms=int((time.perf_counter() - start) * 1000),
                 request_id=request_id,
             )
+            span.set_attribute("http.response.status_code", status)
+            finish_span(span, span_token)
             structlog.contextvars.clear_contextvars()
+
+
+def finish_span(span: Span, span_token: Any) -> None:
+    """Detach and close a request span without retaining request context."""
+    context.detach(span_token)
+    span.end()

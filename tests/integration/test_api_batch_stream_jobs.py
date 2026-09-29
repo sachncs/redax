@@ -6,6 +6,9 @@ from typing import ClassVar
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 from app.api import register_batch, register_jobs, register_stream
 from app.audit.backend import Backend, Event
@@ -182,6 +185,35 @@ def test_stream_canary_is_absent_from_response_and_audit(app_with_state):
 
     assert canary not in "\n".join(chunks)
     assert canary not in repr(app_with_state.state.state.audit.records)
+
+
+def test_stream_emits_trace_without_input_values(monkeypatch, app_with_state):
+    from app.api import stream
+
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    monkeypatch.setattr(stream, "stream_tracer", provider.get_tracer("test"))
+    canary = "stream.trace.canary.7f8d@example.com"
+
+    with TestClient(app_with_state) as client:
+        response = client.post(
+            "/v1/redact/stream",
+            json={"text": f"Email {canary}", "chunk_chars": 1000},
+            headers={"X-API-Key": "test-key"},
+        )
+        list(response.iter_lines())
+
+    assert response.status_code == 200
+    spans = exporter.get_finished_spans()
+    assert len(spans) == 1
+    assert spans[0].name == "redax.redact.stream"
+    assert spans[0].attributes == {
+        "http.request.method": "POST",
+        "http.response.status_code": 200,
+    }
+    assert canary not in repr(spans[0])
+    assert app_with_state.state.state.audit.records[0].trace_id
 
 
 def stream_latency_count() -> float:
