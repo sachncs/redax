@@ -15,6 +15,45 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
+      - name: Wait for exact-commit CI and security gates
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          deadline=$(( $(date +%s) + 1800 ))
+          while true; do
+            all_success=true
+            for workflow in ci.yml security.yml; do
+              run_json="$(gh run list \
+                --repo "$GITHUB_REPOSITORY" \
+                --workflow "$workflow" \
+                --commit "$GITHUB_SHA" \
+                --limit 20 \
+                --json status,conclusion,databaseId)"
+              run_count="$(python -c 'import json,sys; print(len(json.load(sys.stdin)))' <<<"$run_json")"
+              if [ "$run_count" -eq 0 ]; then
+                all_success=false
+                continue
+              fi
+              if ! python -c '
+          import json, sys
+          runs = json.load(sys.stdin)
+          completed = [run for run in runs if run["status"] == "completed"]
+          if not completed or completed[0]["conclusion"] != "success":
+              raise SystemExit(1)
+          ' <<<"$run_json"; then
+                all_success=false
+              fi
+            done
+            if [ "$all_success" = true ]; then
+              break
+            fi
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "required exact-commit gates did not pass before timeout" >&2
+              exit 1
+            fi
+            sleep 15
+          done
+
       - name: Setup Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
