@@ -65,7 +65,8 @@ rate breaches the published threshold; it must be recorded, not guessed.
 ## Required evidence
 
 The current repository has machine-readable local regex API baseline,
-sustained-run, concurrency-matrix, and warm-ramp artifacts, but not
+sustained-run, concurrency-matrix, and warm-ramp artifacts, plus a CI
+500-request regression ramp at concurrency 10/40/80. It does not yet have
 release-grade capacity evidence. M6 must still add machine-readable spike,
 cache-cold, cache-hot, batch, stream, job, and multi-hour soak results under a
 documented environment, then link them from `docs/scaling.md` and this page.
