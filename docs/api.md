@@ -92,7 +92,12 @@ map is not an HTTP feature. Precedence is: inline `policy`, then
 `entity_types`, then the configured `REDAX_DEFAULT_POLICY`, then the plain
 detector path. Sending `policy` and `entity_types` together returns 422.
 Policy strategies and options are validated before execution; unknown
-strategies are rejected.
+strategies are rejected. Request entity-type lists contain at most 128
+non-empty labels, each at most 128 characters. Inline policies contain at most
+128 fields; field names are at most 128 characters; format and detector
+strings are at most 4096 characters; `multi_pass` is limited to 1--3; and hash
+`length` is limited to 1--64. Oversized or malformed policy structures return
+422 before detector execution.
 
 If the model stage is unavailable and the regex fallback finds no spans, the
 pipeline returns `503` rather than returning the original text.
