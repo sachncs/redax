@@ -3,7 +3,7 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from scripts.load_bench import request_payload, run_job_once, stream_completed
+from scripts.load_bench import benchmark_text, request_payload, run_job_once, stream_completed
 
 
 @pytest.mark.parametrize(
@@ -13,6 +13,8 @@ from scripts.load_bench import request_payload, run_job_once, stream_completed
         ("batch", {"items": [{"text": "synthetic"}, {"text": "synthetic"}]}),
         ("stream", {"text": "synthetic", "chunk_chars": 100}),
         ("job", {"text": "synthetic"}),
+        ("cache-hot", {"text": "synthetic"}),
+        ("cache-cold", {"text": "synthetic"}),
     ],
 )
 def test_request_payload_builds_bounded_synthetic_workload(mode: str, expected: dict) -> None:
@@ -22,6 +24,11 @@ def test_request_payload_builds_bounded_synthetic_workload(mode: str, expected: 
 def test_request_payload_rejects_unknown_mode() -> None:
     with pytest.raises(ValueError, match="unsupported benchmark mode"):
         request_payload("unknown", "synthetic")
+
+
+def test_benchmark_text_separates_cold_cache_requests() -> None:
+    assert benchmark_text("cache-hot", "synthetic", 4) == "synthetic"
+    assert benchmark_text("cache-cold", "synthetic", 4) == "synthetic request-4"
 
 
 @pytest.mark.parametrize(

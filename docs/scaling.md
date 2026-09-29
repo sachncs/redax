@@ -62,7 +62,7 @@ Run each scenario at increasing concurrency and record JSON output:
 |---|---|---|
 | Regex synchronous | 1 KB, configured maximum, warm process | p50/p95/p99/max, throughput, CPU, RSS, error rate |
 | Model synchronous | cold and warm model, same inputs | model queue, inference latency, RSS, CPU, timeout/fallback rate |
-| Cache hot/cold | identical and unique requests | Redis latency, hit rate, throughput, p99 |
+| Cache hot/cold | `scripts/load_bench.py --mode cache-hot` and `--mode cache-cold` | Redis latency, hit rate, throughput, p99 |
 | Batch | 1, 10, 100, maximum items | amplification, memory, semaphore saturation, errors |
 | Stream | small/maximum text, slow client, disconnect | buffer memory, chunk latency, cancellation cleanup |
 | Jobs | enqueue ramp, worker concurrency, retries | queue depth, oldest age, job duration, retry/DLQ rate |

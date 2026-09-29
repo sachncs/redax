@@ -165,6 +165,24 @@ jobs:
             --output performance-stream.json
           python scripts/load_bench.py \
             --url http://127.0.0.1:8010/v1/redact \
+            --mode cache-hot \
+            --api-key ci-job-key \
+            --requests 100 \
+            --concurrency 10 \
+            --fail-on-error \
+            --max-p99-ms 1000 \
+            --output performance-cache-hot.json
+          python scripts/load_bench.py \
+            --url http://127.0.0.1:8010/v1/redact \
+            --mode cache-cold \
+            --api-key ci-job-key \
+            --requests 100 \
+            --concurrency 10 \
+            --fail-on-error \
+            --max-p99-ms 1000 \
+            --output performance-cache-cold.json
+          python scripts/load_bench.py \
+            --url http://127.0.0.1:8010/v1/redact \
             --mode redact \
             --api-key ci-job-key \
             --duration-seconds 15 \

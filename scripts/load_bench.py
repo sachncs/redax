@@ -59,15 +59,16 @@ async def run_load(
 
     async with httpx.AsyncClient(timeout=30.0) as client:
 
-        async def request_once() -> None:
+        async def request_once(request_number: int) -> None:
             async with semaphore:
                 request_started = time.perf_counter()
                 try:
+                    request_text = benchmark_text(mode, text, request_number)
                     if mode == "job":
                         status = await run_job_once(
                             client,
                             url,
-                            text,
+                            request_text,
                             api_key=api_key,
                             timeout=job_poll_timeout,
                         )
@@ -75,7 +76,7 @@ async def run_load(
                         headers = {"X-API-Key": api_key} if api_key else None
                         response = await client.post(
                             url,
-                            json=request_payload(mode, text),
+                            json=request_payload(mode, request_text),
                             headers=headers,
                         )
                         status = str(response.status_code)
@@ -92,10 +93,13 @@ async def run_load(
 
         if deadline is None:
             assert total is not None
-            await asyncio.gather(*(request_once() for _ in range(total)))
+            await asyncio.gather(*(request_once(index) for index in range(total)))
         else:
+            request_number = 0
             while time.perf_counter() < deadline:
-                await asyncio.gather(*(request_once() for _ in range(concurrency)))
+                batch = range(request_number, request_number + concurrency)
+                await asyncio.gather(*(request_once(index) for index in batch))
+                request_number += concurrency
 
     elapsed = time.perf_counter() - started
     request_count = len(latencies)
@@ -160,13 +164,20 @@ async def run_job_once(
 
 def request_payload(mode: str, text: str) -> dict[str, Any]:
     """Build one of the supported synthetic, non-sensitive benchmark payloads."""
-    if mode in {"redact", "job"}:
+    if mode in {"redact", "cache-hot", "cache-cold", "job"}:
         return {"text": text}
     if mode == "batch":
         return {"items": [{"text": text}, {"text": text}]}
     if mode == "stream":
         return {"text": text, "chunk_chars": 100}
     raise ValueError(f"unsupported benchmark mode: {mode}")
+
+
+def benchmark_text(mode: str, text: str, request_number: int) -> str:
+    """Return deterministic synthetic text for hot or cold cache workloads."""
+    if mode == "cache-cold":
+        return f"{text} request-{request_number}"
+    return text
 
 
 def stream_completed(body: str) -> bool:
@@ -198,7 +209,11 @@ def parse_args() -> argparse.Namespace:
         help="sustain concurrent waves for this duration; overrides --requests when positive",
     )
     parser.add_argument("--text", default="Contact alice@example.com for a safe response.")
-    parser.add_argument("--mode", choices=("redact", "batch", "stream", "job"), default="redact")
+    parser.add_argument(
+        "--mode",
+        choices=("redact", "batch", "stream", "cache-hot", "cache-cold", "job"),
+        default="redact",
+    )
     parser.add_argument("--api-key", help="X-API-Key for authenticated HTTP and job benchmarks")
     parser.add_argument(
         "--job-poll-timeout",
