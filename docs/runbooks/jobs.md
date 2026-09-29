@@ -23,5 +23,7 @@ Restart or replace workers, allow expired leases to be reclaimed, and inspect
 the dead-letter path. Submit a synthetic job and verify one terminal result,
 bounded retries, and no duplicate completion. The ARQ worker path is wired,
 and startup reconciliation fails stale queued/running jobs after
-`REDAX_JOB_STALE_SECONDS`; worker restart, lease recovery, and DLQ drills
-remain release gates.
+`REDAX_JOB_STALE_SECONDS`. Permanent failures are also recorded in the
+bounded Redis `redax:jobs:dead-letter` list as schema-versioned metadata only
+(job ID, attempt count, safe error marker, timestamp; never request payload).
+Worker restart, lease recovery, and DLQ drills remain release gates.

@@ -25,7 +25,7 @@ HA”; gaps are marked explicitly.
 | Client disconnects from stream | Generator cleanup is present; complete cancellation/release evidence is pending. | Incomplete evidence. | Add disconnect and shutdown integration tests. |
 | API process dies | In-flight synchronous work is lost; safe because no response is emitted, but client retry semantics apply. | Bounded. | Multi-replica retry/idempotency semantics must be atomic. |
 | SIGTERM / graceful shutdown | Readiness drops before cleanup; queue, audit, and Redis closes share the validated `REDAX_SHUTDOWN_TIMEOUT_SECONDS` budget and log timed-out components. | Bounded, with forced cleanup after the deadline. | Add full active HTTP/stream/job signal-driven integration evidence. |
-| Worker dies mid-job | ARQ retries failed attempts; recovery after process death is not yet tested here. | PARTIAL. | Lease expiry/requeue/dead-letter test required. |
+| Worker dies mid-job | ARQ retries failed attempts; exhausted failures enter a bounded, payload-free Redis dead-letter list. Recovery after process death is not yet tested here. | PARTIAL. | Lease expiry/requeue/dead-letter drill and operator inspection procedure required. |
 | Duplicate job delivery | Shared job record completion is not yet proven under duplicate delivery. | PARTIAL. | Idempotent completion keyed by job ID and payload fingerprint. |
 | Rolling deployment | HTTP state mostly reconstructs; job/background and persisted schema compatibility are not proven. | Incomplete. | Mixed-version Redis/schema and rollback tests. |
 
