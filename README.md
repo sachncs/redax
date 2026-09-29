@@ -109,6 +109,7 @@ loading, CORS, and readiness behavior.
 - [Scaling and capacity](docs/scaling.md)
 - [Operational runbooks](docs/runbooks/README.md)
 - [Production launch gate](docs/runbooks/launch.md)
+- [Local Docker deployment](docs/local-deployment.md)
 - [Product status](https://sachncs.github.io/redax/docs/status)
 
 The polished entry point is the [Redax product site](https://sachncs.github.io/redax/).

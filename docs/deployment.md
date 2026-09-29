@@ -1,5 +1,10 @@
 # Deployment
 
+For the cloud-free single-machine setup, see
+[Local Docker deployment](local-deployment.md). It includes the Compose
+observability stack, backup/restore commands, and k6 smoke test. The sections
+below describe the broader deployment tiers and production-shaped topology.
+
 ## Docker Compose (default)
 
 ```bash
