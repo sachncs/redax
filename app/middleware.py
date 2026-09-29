@@ -32,6 +32,10 @@ from app.observability.tracing import current_trace_id_hex
 request_tracer = trace.get_tracer("redax.http")
 
 
+class RequestBodyTooLargeError(Exception):
+    """Raised when a streamed request exceeds the configured byte budget."""
+
+
 def safe_request_id(value: str | None) -> str:
     """Accept only bounded correlation IDs that are safe to place in logs."""
     if value and len(value) <= 128 and fullmatch(r"[A-Za-z0-9._:-]+", value):
@@ -127,14 +131,14 @@ def register_request_context(app: FastAPI) -> None:
             admission = getattr(state, "request_admission", None)
             probe = request.url.path in {"/healthz", "/readyz", "/metrics"}
             content_length = request.headers.get("content-length")
+            max_body_bytes = int(
+                getattr(getattr(state, "settings", None), "max_body_bytes", 4_000_000)
+            )
             if content_length is not None:
                 try:
                     body_bytes = int(content_length)
                 except ValueError:
                     body_bytes = -1
-                max_body_bytes = int(
-                    getattr(getattr(state, "settings", None), "max_body_bytes", 4_000_000)
-                )
                 if body_bytes < 0 or body_bytes > max_body_bytes:
                     ADMISSION_REJECTIONS.labels(reason="body_too_large").inc()
                     response = problem_response(
@@ -185,6 +189,54 @@ def register_request_context(app: FastAPI) -> None:
                 if state is not None:
                     state.active_requests += 1
                 REQUESTS_INFLIGHT.inc()
+            original_receive = request._receive
+            body_chunks: list[bytes] = []
+            received_body_bytes = 0
+            disconnect_message: dict[str, Any] | None = None
+            try:
+                while True:
+                    message = await original_receive()
+                    if message.get("type") == "http.disconnect":
+                        disconnect_message = dict(message)
+                        break
+                    if message.get("type") != "http.request":
+                        break
+                    chunk = bytes(message.get("body", b""))
+                    received_body_bytes += len(chunk)
+                    if received_body_bytes > max_body_bytes:
+                        raise RequestBodyTooLargeError
+                    body_chunks.append(chunk)
+                    if not message.get("more_body", False):
+                        break
+            except RequestBodyTooLargeError:
+                ADMISSION_REJECTIONS.labels(reason="body_too_large").inc()
+                response = problem_response(
+                    request,
+                    type="https://redax.ai/errors/request-body-too-large",
+                    title="Request body too large",
+                    status=413,
+                    detail=f"request body exceeds {max_body_bytes} bytes",
+                )
+                status = response.status_code
+                return response
+
+            replayed = False
+
+            async def replay_receive() -> dict[str, Any]:
+                """Replay the bounded body to downstream Starlette consumers."""
+                nonlocal replayed
+                if replayed:
+                    return {"type": "http.request", "body": b"", "more_body": False}
+                replayed = True
+                if disconnect_message is not None:
+                    return disconnect_message
+                return {
+                    "type": "http.request",
+                    "body": b"".join(body_chunks),
+                    "more_body": False,
+                }
+
+            request._receive = replay_receive
             response = await call_next(request)
             content_length = response.headers.get("content-length")
             if content_length is not None:

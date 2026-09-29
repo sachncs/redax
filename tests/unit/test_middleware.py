@@ -82,6 +82,33 @@ def test_request_context_clears_context_after_request() -> None:
     assert structlog.contextvars.get_contextvars().get("request_id") is None
 
 
+def test_chunked_request_body_is_bounded_before_handler_reads_it() -> None:
+    from types import SimpleNamespace
+
+    app = FastAPI()
+
+    @app.post("/body")
+    async def body(request: Request) -> dict[str, int]:
+        return {"size": len(await request.body())}
+
+    app.state.state = SimpleNamespace(
+        settings=SimpleNamespace(max_body_bytes=1024),
+        request_admission=None,
+    )
+    register_request_context(app)
+
+    def chunks():
+        yield b"a" * 800
+        yield b"b" * 400
+
+    with TestClient(app) as client:
+        response = client.post("/body", content=chunks())
+
+    assert response.status_code == 413
+    assert response.headers["content-type"].startswith("application/problem+json")
+    assert response.json()["title"] == "Request body too large"
+
+
 def test_request_span_contains_metadata_only(monkeypatch: pytest.MonkeyPatch) -> None:
     from app import middleware as mw
 
