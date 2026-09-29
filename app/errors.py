@@ -15,6 +15,7 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from redis.exceptions import RedisError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.logging import get_logger
@@ -26,6 +27,7 @@ TRANSIENT_EXC: tuple[type[BaseException], ...] = (
     TypeError,
     KeyError,
     TimeoutError,
+    RedisError,
 )
 
 __all__ = [

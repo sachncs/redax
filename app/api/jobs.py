@@ -15,6 +15,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+from redis.exceptions import RedisError
 
 from app.api.policy import default_policy, policy_version
 from app.audit.backend import Event, span_summary
@@ -100,7 +101,7 @@ def register(app: FastAPI) -> None:
                     REQUESTS.labels(endpoint=endpoint, method=method, status="429").inc()
                     return job_limit(request)
                 record = await store.create(owner=api_key)
-            except (OSError, RuntimeError, ValueError, KeyError, TimeoutError) as exc:
+            except (OSError, RedisError, RuntimeError, ValueError, KeyError, TimeoutError) as exc:
                 get_logger("redax.api").error(
                     "redax.job_create_failed", error=exc.__class__.__name__
                 )
@@ -263,7 +264,7 @@ async def run_job(
                 "failed",
                 "cancelled",
             }
-    except (OSError, TimeoutError, RuntimeError) as exc:
+    except (OSError, RedisError, TimeoutError, RuntimeError) as exc:
         ERRORS.labels(type="job_store_unavailable").inc()
         logger.error("redax.job_store_unavailable", job_id=job_id, error=exc.__class__.__name__)
         return False
@@ -342,9 +343,9 @@ async def record_failure(job_id: str, store: JobStore, logger: Any, *, attempts:
             decrement_queue_depth()
         try:
             await store.record_dead_letter(job_id, JOB_FAILED, attempts)
-        except (OSError, TimeoutError, RuntimeError):
+        except (OSError, RedisError, TimeoutError, RuntimeError):
             logger.error("redax.job_dead_letter_write_failed", job_id=job_id)
             ERRORS.labels(type="job_dead_letter_write_failed").inc()
-    except (OSError, TimeoutError, RuntimeError):
+    except (OSError, RedisError, TimeoutError, RuntimeError):
         logger.error("redax.job_store_write_failed", job_id=job_id)
         ERRORS.labels(type="job_store_write_failed").inc()

@@ -4,8 +4,9 @@ import asyncio
 
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
+from redis.exceptions import RedisError
 
-from app.errors import install_error_handlers, timeout_error
+from app.errors import TRANSIENT_EXC, install_error_handlers, timeout_error
 
 
 def make_error_test_app() -> tuple[FastAPI, TestClient]:
@@ -75,6 +76,10 @@ def test_http_exception_preserves_retry_headers() -> None:
     assert response.status_code == 429
     assert response.headers["retry-after"] == "7"
     assert response.headers["x-ratelimit-remaining"] == "0"
+
+
+def test_redis_client_errors_are_transient_dependency_failures() -> None:
+    assert RedisError in TRANSIENT_EXC
 
 
 def test_timeout_error_returns_504_problem() -> None:

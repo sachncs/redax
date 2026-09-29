@@ -17,6 +17,7 @@ from typing import Annotated, Any
 from fastapi import Depends, FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from redis.exceptions import RedisError
 
 from app.auth import require_scope
 from app.errors import problem_response
@@ -80,7 +81,7 @@ def register(app: FastAPI) -> None:
                         )
                         async with asyncio.timeout(timeout_seconds):
                             await ping()
-                    except (OSError, RuntimeError, TimeoutError):
+                    except (OSError, RedisError, RuntimeError, TimeoutError):
                         redis_ready = False
                 elif redis_ready:
                     redis_ready = False

@@ -12,6 +12,7 @@ from typing import Any
 from arq import Retry
 from arq.connections import RedisSettings
 from arq.worker import Worker
+from redis.exceptions import RedisError
 
 from app.api.jobs import record_failure, run_job
 from app.config import Settings
@@ -81,7 +82,7 @@ async def worker_heartbeat(ctx: dict[str, Any], worker_id: str, max_jobs: int) -
     while True:
         try:
             await store.worker_heartbeat(worker_id, int(ctx.get("active_jobs", 0)), max_jobs)
-        except (OSError, RuntimeError, TimeoutError, ValueError) as exc:
+        except (OSError, RedisError, RuntimeError, TimeoutError, ValueError) as exc:
             get_logger("redax.jobs").warning(
                 "redax.worker_heartbeat_failed", error=exc.__class__.__name__
             )
