@@ -93,6 +93,13 @@ job age—not CPU alone.
 
 ## Current limitations
 
+`scripts/load_bench.py --mode job --url http://127.0.0.1:8000/v1/jobs
+--api-key "$REDAX_BENCH_API_KEY" --requests 200 --concurrency 10
+--fail-on-error --output performance-jobs.json` measures enqueue-to-terminal
+latency and records `done`, `failed`, `cancelled`, timeout, and transport
+outcomes without storing job payloads or identifiers. Run it against a
+production-like worker/Redis topology; no checked-in job result is claimed yet.
+
 `/v1/jobs` now uses a separate ARQ worker tier. A reference Kubernetes
 topology is checked in under
 [`deploy/kubernetes/`](../deploy/kubernetes/README.md). There is still no

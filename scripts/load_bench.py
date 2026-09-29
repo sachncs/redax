@@ -44,6 +44,8 @@ async def run_load(
     text: str,
     mode: str = "redact",
     duration_seconds: float = 0.0,
+    api_key: str | None = None,
+    job_poll_timeout: float = 30.0,
 ) -> dict[str, Any]:
     """Issue bounded concurrent requests and return aggregate measurements."""
     semaphore = asyncio.Semaphore(concurrency)
@@ -61,14 +63,28 @@ async def run_load(
             async with semaphore:
                 request_started = time.perf_counter()
                 try:
-                    response = await client.post(url, json=request_payload(mode, text))
-                    status = str(response.status_code)
-                    if (
-                        mode == "stream"
-                        and response.status_code == 200
-                        and not stream_completed(response.text)
-                    ):
-                        status = "stream_error"
+                    if mode == "job":
+                        status = await run_job_once(
+                            client,
+                            url,
+                            text,
+                            api_key=api_key,
+                            timeout=job_poll_timeout,
+                        )
+                    else:
+                        headers = {"X-API-Key": api_key} if api_key else None
+                        response = await client.post(
+                            url,
+                            json=request_payload(mode, text),
+                            headers=headers,
+                        )
+                        status = str(response.status_code)
+                        if (
+                            mode == "stream"
+                            and response.status_code == 200
+                            and not stream_completed(response.text)
+                        ):
+                            status = "stream_error"
                 except httpx.HTTPError:
                     status = "transport_error"
                 latencies.append((time.perf_counter() - request_started) * 1000)
@@ -107,9 +123,44 @@ async def run_load(
     }
 
 
+async def run_job_once(
+    client: httpx.AsyncClient,
+    url: str,
+    text: str,
+    *,
+    api_key: str | None,
+    timeout: float,
+) -> str:
+    """Submit one durable job and measure its terminal outcome.
+
+    The benchmark never records job payloads or identifiers. A missing API
+    key is left to the service's normal authentication contract so the tool
+    can be used against both authenticated and intentionally anonymous test
+    deployments.
+    """
+    headers = {"X-API-Key": api_key} if api_key else None
+    response = await client.post(url, json=request_payload("job", text), headers=headers)
+    if response.status_code != 202:
+        return str(response.status_code)
+    job_id = response.json().get("id")
+    if not isinstance(job_id, str) or not job_id:
+        return "invalid_job_response"
+    status_url = f"{url.rstrip('/')}/{job_id}"
+    deadline = time.perf_counter() + timeout
+    while time.perf_counter() < deadline:
+        status_response = await client.get(status_url, headers=headers)
+        if status_response.status_code != 200:
+            return str(status_response.status_code)
+        status = status_response.json().get("status")
+        if status in {"done", "failed", "cancelled"}:
+            return str(status)
+        await asyncio.sleep(0.05)
+    return "job_timeout"
+
+
 def request_payload(mode: str, text: str) -> dict[str, Any]:
     """Build one of the supported synthetic, non-sensitive benchmark payloads."""
-    if mode == "redact":
+    if mode in {"redact", "job"}:
         return {"text": text}
     if mode == "batch":
         return {"items": [{"text": text}, {"text": text}]}
@@ -147,13 +198,28 @@ def parse_args() -> argparse.Namespace:
         help="sustain concurrent waves for this duration; overrides --requests when positive",
     )
     parser.add_argument("--text", default="Contact alice@example.com for a safe response.")
-    parser.add_argument("--mode", choices=("redact", "batch", "stream"), default="redact")
+    parser.add_argument("--mode", choices=("redact", "batch", "stream", "job"), default="redact")
+    parser.add_argument("--api-key", help="X-API-Key for authenticated HTTP and job benchmarks")
+    parser.add_argument(
+        "--job-poll-timeout",
+        type=float,
+        default=30.0,
+        help="maximum seconds to wait for each durable job to reach a terminal state",
+    )
     parser.add_argument("--output", type=Path)
     parser.add_argument("--fail-on-error", action="store_true")
     parser.add_argument("--max-p99-ms", type=float)
     args = parser.parse_args()
-    if args.requests < 1 or args.concurrency < 1 or args.duration_seconds < 0:
-        parser.error("--requests and --concurrency must be positive; duration cannot be negative")
+    if (
+        args.requests < 1
+        or args.concurrency < 1
+        or args.duration_seconds < 0
+        or args.job_poll_timeout <= 0
+    ):
+        parser.error(
+            "--requests and --concurrency must be positive; duration cannot be negative; "
+            "job poll timeout must be positive"
+        )
     return args
 
 
@@ -180,6 +246,8 @@ def main() -> None:
                 args.text,
                 args.mode,
                 args.duration_seconds,
+                args.api_key,
+                args.job_poll_timeout,
             )
         ),
     }
@@ -190,7 +258,8 @@ def main() -> None:
     print(rendered, end="")
     status_counts = result["result"]["status_counts"]
     p99 = result["result"]["latency_ms"]["p99"]
-    if args.fail_on_error and any(status != "200" for status in status_counts):
+    successful_statuses = {"done"} if args.mode == "job" else {"200"}
+    if args.fail_on_error and any(status not in successful_statuses for status in status_counts):
         raise SystemExit("load benchmark observed a non-200 response")
     if args.max_p99_ms is not None and p99 > args.max_p99_ms:
         raise SystemExit(f"p99 latency {p99}ms exceeds {args.max_p99_ms}ms")

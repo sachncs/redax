@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import httpx
 import pytest
 
-from scripts.load_bench import request_payload, stream_completed
+from scripts.load_bench import request_payload, run_job_once, stream_completed
 
 
 @pytest.mark.parametrize(
@@ -11,6 +12,7 @@ from scripts.load_bench import request_payload, stream_completed
         ("redact", {"text": "synthetic"}),
         ("batch", {"items": [{"text": "synthetic"}, {"text": "synthetic"}]}),
         ("stream", {"text": "synthetic", "chunk_chars": 100}),
+        ("job", {"text": "synthetic"}),
     ],
 )
 def test_request_payload_builds_bounded_synthetic_workload(mode: str, expected: dict) -> None:
@@ -32,3 +34,26 @@ def test_request_payload_rejects_unknown_mode() -> None:
 )
 def test_stream_completed_requires_terminal_success(body: str, expected: bool) -> None:
     assert stream_completed(body) is expected
+
+
+@pytest.mark.asyncio
+async def test_run_job_once_measures_terminal_state_without_exposing_job_id() -> None:
+    calls: list[tuple[str, str]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append((request.method, request.url.path))
+        if request.method == "POST":
+            return httpx.Response(202, json={"id": "sensitive-job-id", "status": "queued"})
+        return httpx.Response(200, json={"id": "sensitive-job-id", "status": "done"})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        status = await run_job_once(
+            client,
+            "http://redax.test/v1/jobs",
+            "synthetic",
+            api_key="benchmark-key",
+            timeout=1.0,
+        )
+
+    assert status == "done"
+    assert calls == [("POST", "/v1/jobs"), ("GET", "/v1/jobs/sensitive-job-id")]
