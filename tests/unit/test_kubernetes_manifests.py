@@ -76,3 +76,19 @@ def test_hpas_use_concurrency_and_durable_queue_signals() -> None:
         if metric["type"] == "External"
     }
     assert external_names == {"redax_queue_depth", "redax_queue_oldest_age_seconds"}
+
+
+def test_kubernetes_rollouts_preserve_replica_floor_and_are_undoable() -> None:
+    root = Path(__file__).parents[2]
+    api = yaml.safe_load((root / "deploy/kubernetes/api-deployment.yaml").read_text())
+    worker = yaml.safe_load((root / "deploy/kubernetes/worker-deployment.yaml").read_text())
+    pdbs = list(yaml.safe_load_all((root / "deploy/kubernetes/pdb.yaml").read_text()))
+    deployment_docs = (root / "deploy/kubernetes/README.md").read_text()
+
+    for deployment in (api, worker):
+        rolling = deployment["spec"]["strategy"]["rollingUpdate"]
+        assert rolling == {"maxUnavailable": 0, "maxSurge": 1}
+        assert "digest:" in (root / "deploy/kubernetes/kustomization.yaml").read_text()
+    assert {pdb["spec"]["minAvailable"] for pdb in pdbs} == {1, 2}
+    assert "rollout undo deployment/redax-api" in deployment_docs
+    assert "rollout undo deployment/redax-worker" in deployment_docs

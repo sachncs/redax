@@ -50,4 +50,29 @@ kubectl -n redax rollout status deployment/redax-api
 kubectl -n redax rollout status deployment/redax-worker
 ```
 
+## Rollout and rollback
+
+Apply a new release only after verifying its signed image digest and
+`RELEASE-METADATA.json`. The API and worker Deployments use one-at-a-time
+surges with zero voluntary unavailability, and their PDBs preserve the
+minimum replica floor during node maintenance.
+
+```bash
+kubectl -n redax rollout status deployment/redax-api --watch
+kubectl -n redax rollout status deployment/redax-worker --watch
+kubectl -n redax rollout history deployment/redax-api
+kubectl -n redax rollout history deployment/redax-worker
+kubectl -n redax rollout undo deployment/redax-api --to-revision=<known-good>
+kubectl -n redax rollout undo deployment/redax-worker --to-revision=<known-good>
+kubectl -n redax rollout status deployment/redax-api --watch
+kubectl -n redax rollout status deployment/redax-worker --watch
+```
+
+Do not undo only one tier across a persisted-schema change. Confirm the
+previous release's metadata schema versions are compatible with the live Redis
+namespace, then verify `/readyz`, a synthetic `/v1/redact`, idempotency replay,
+job status, and audit delivery before restoring traffic. A disposable-cluster
+rollout/rollback drill is still required before treating this reference as
+fully production-proven.
+
 Do not commit generated Secrets or plaintext production credentials.
