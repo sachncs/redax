@@ -1,10 +1,18 @@
 from __future__ import annotations
 
+import json
+
 import hypothesis.strategies as st
+import pytest
 from hypothesis import given
 
-from app.api.cache import redaction_cache_key, redaction_cache_payload
-from app.api.idempotency import complete, release, reserve
+from app.api.cache import (
+    CACHE_SCHEMA_VERSION,
+    decode_cache_envelope,
+    redaction_cache_key,
+    redaction_cache_payload,
+)
+from app.api.idempotency import IDEMPOTENCY_VERSION, complete, release, reserve
 from app.api.redact import idempotency_storage_key
 
 
@@ -52,6 +60,32 @@ def test_idempotency_storage_key_does_not_include_header_value() -> None:
     key = idempotency_storage_key("redax", "email=alice@example.com")
     assert "alice@example.com" not in key
     assert key.startswith("redax:idem:")
+
+
+@pytest.mark.parametrize("version", [IDEMPOTENCY_VERSION - 1, IDEMPOTENCY_VERSION + 1])
+async def test_idempotency_does_not_replay_incompatible_versions(version: int) -> None:
+    client = FakeIdempotencyRedis()
+    storage_key = "redax:idem:mixed-version"
+    client.values[storage_key] = json.dumps(
+        {
+            "version": version,
+            "state": "complete",
+            "fingerprint": "same",
+            "response": {"text": "old"},
+        }
+    )
+
+    reservation = await reserve(client, storage_key, "same", 60)
+
+    assert reservation.status == "acquired"
+    assert reservation.response is None
+
+
+@pytest.mark.parametrize("version", [CACHE_SCHEMA_VERSION - 1, CACHE_SCHEMA_VERSION + 1])
+def test_cache_decoder_treats_mixed_versions_as_misses(version: int) -> None:
+    payload = {"schema_version": version, "response": {"text": "old"}}
+
+    assert decode_cache_envelope(json.dumps(payload)) is None
 
 
 async def test_idempotency_reservation_is_atomic_and_fingerprint_bound() -> None:

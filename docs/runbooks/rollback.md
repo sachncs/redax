@@ -21,5 +21,6 @@ across an untested persisted-schema migration.
 
 Verify readiness, synthetic `/v1/redact`, idempotency reuse, rate limiting,
 worker/job state, audit metadata, and telemetry privacy. Document RPO/RTO and
-restore from a tested backup before declaring recovery. The current repository
-has no restore-tested DR procedure; that is a required P1/P2 gate.
+restore from a tested backup before declaring recovery. The repository includes
+a disposable Redis RDB restore drill; managed Redis and audit-volume restore
+evidence remain deployment acceptance gates.
