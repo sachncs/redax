@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redax-worker
+  labels:
+    app.kubernetes.io/name: redax
+    app.kubernetes.io/component: worker
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redax
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redax
+        app.kubernetes.io/component: worker
+    spec:
+      terminationGracePeriodSeconds: 90
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: worker
+          image: ghcr.io/sachncs/redax
+          command: [redax-worker]
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: redax-config
+            - secretRef:
+                name: redax-api
+          env:
+            - name: REDAX_REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: redax-redis
+                  key: url
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            readOnlyRootFilesystem: true
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+          livenessProbe:
+            exec:
+              command: [python, -c, "import os; raise SystemExit(0 if os.path.exists('/proc/1/status') else 1)"]
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - {name: audit, mountPath: /var/lib/redax}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: audit
+          persistentVolumeClaim:
+            claimName: redax-audit
+        - name: tmp
+          emptyDir: {}

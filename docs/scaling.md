@@ -60,7 +60,9 @@ job age—not CPU alone.
 
 ## Current limitations
 
-`/v1/jobs` now uses a separate ARQ worker tier. There is still no measured safe
-throughput, no HA Redis evidence, and no load/soak artifact in the current
+`/v1/jobs` now uses a separate ARQ worker tier. A reference Kubernetes
+topology is checked in under
+[`deploy/kubernetes/`](../deploy/kubernetes/README.md). There is still no
+measured safe throughput, no HA Redis evidence, and no load/soak artifact in the current
 release. These are P0/P1 gaps in [`PRODUCTION_PLAN.md`](../PRODUCTION_PLAN.md),
 not hidden assumptions.

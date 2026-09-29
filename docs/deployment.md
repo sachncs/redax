@@ -7,8 +7,19 @@ docker compose up
 curl http://localhost:8000/healthz
 ```
 
-Brings up `redax` and `redis` with healthcheck-gated dependency. Volumes
-persist the model cache and audit log.
+Brings up `redax`, `redax-worker`, and `redis` with healthcheck-gated
+dependency. Volumes persist the model cache and audit log. This remains a
+development topology with ephemeral Redis and shared local audit storage.
+
+## Kubernetes reference topology
+
+Production-shaped Kubernetes assets live in
+[`deploy/kubernetes/`](../deploy/kubernetes/README.md). They define three API
+replicas, two worker replicas, rolling-update budgets,
+readiness/startup/liveness probes, CPU/memory bounds, restricted security
+contexts, and CPU-based autoscaling. Redis is intentionally external and must
+be supplied through the `redax-redis` Secret. Replace the example image tag
+with the signed release digest before applying the manifests.
 
 ## Deployment tiers
 

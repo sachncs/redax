@@ -35,7 +35,7 @@ as each production milestone lands.
 
 | Requirement | Status | Evidence / gap |
 |---|---|---|
-| Horizontally scalable API | PARTIAL | Redaction state is composed in lifespan, but local audit, breaker, and job execution are not a complete scaled topology. |
+| Horizontally scalable API | PARTIAL | Reference Kubernetes API replicas, probes, and rolling budgets now exist; HA Redis, centralized audit, and multi-replica failure evidence remain pending. |
 | Independently scalable workers | PARTIAL | `redax-worker` and Redis-backed ARQ enqueueing exist; capacity, lease recovery, and deployment evidence are pending. |
 | Measured performance characteristics | FAIL | Benchmark harness exists, but no current machine-readable capacity result is published. |
 | Known saturation limits | FAIL | No ramp/spike/soak artifact records p99, queueing, CPU, memory, Redis, or model saturation. |
@@ -64,7 +64,7 @@ as each production milestone lands.
 | Requirement | Status | Evidence / gap |
 |---|---|---|
 | Hardened container | PARTIAL | Non-root, pinned dependencies, model verification, slim runtime, and a digest-pinned Python base exist; read-only filesystem, capabilities, image SBOM, and release scan evidence remain pending. |
-| Reference HA deployment | FAIL | Compose is development/local; Kubernetes/Helm or equivalent reference assets are absent. |
+| Reference HA deployment | PARTIAL | `deploy/kubernetes/` defines API/worker replicas, PDBs, probes, resource bounds, and autoscaling; external Redis HA and deployment smoke/failure evidence remain pending. |
 | Health/readiness/startup probes | PARTIAL | `/healthz`, `/readyz`, and Docker probes exist; readiness drops before teardown, but dependency-aware readiness and full drain semantics need evidence. |
 | Rolling deployment and rollback | FAIL | Versioned release exists, but mixed-version state compatibility and rollback procedure are not tested. |
 | Backup/restore and RPO/RTO | FAIL | No restore-tested Redis/audit backup procedure or measured RPO/RTO. |

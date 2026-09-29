@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redax-config
+data:
+  REDAX_ENV: prod
+  REDAX_REDIS_NAMESPACE: redax-prod
+  REDAX_DETECTOR: gliner2
+  REDAX_MODEL_CACHE: /models
+  REDAX_POLICIES_DIR: /policies
+  REDAX_AUDIT_PATH: /var/lib/redax/audit.jsonl
+  REDAX_TRUSTED_HOSTS: redax.example.com
+  REDAX_CORS_ORIGINS: https://app.example.com
+  REDAX_MAX_TEXT_CHARS: "100000"
+  REDAX_MAX_INFLIGHT: "32"
+  REDAX_MAX_JOBS_PER_KEY: "50"
+  REDAX_WORKER_CONCURRENCY: "2"
+  REDAX_REQUEST_TIMEOUT_SECONDS: "30"
+  REDAX_RATE_LIMIT_FAIL_OPEN: "false"
