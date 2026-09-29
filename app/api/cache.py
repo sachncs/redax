@@ -6,6 +6,8 @@ import hashlib
 import json
 from typing import Any
 
+CACHE_SCHEMA_VERSION = 1
+
 
 def redaction_cache_payload(
     text: str,
@@ -60,3 +62,20 @@ def redaction_cache_key(payload: dict[str, Any]) -> str:
     return hashlib.sha256(
         json.dumps(payload, sort_keys=True, ensure_ascii=False).encode()
     ).hexdigest()
+
+
+def cache_envelope(response: dict[str, Any]) -> dict[str, Any]:
+    """Wrap a cached response in a versioned persisted-value envelope."""
+    return {"schema_version": CACHE_SCHEMA_VERSION, "response": response}
+
+
+def decode_cache_envelope(raw: str | bytes) -> dict[str, Any] | None:
+    """Decode only the current cache schema; invalid values become cache misses."""
+    try:
+        envelope = json.loads(raw)
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(envelope, dict) or envelope.get("schema_version") != CACHE_SCHEMA_VERSION:
+        return None
+    response = envelope.get("response")
+    return response if isinstance(response, dict) else None

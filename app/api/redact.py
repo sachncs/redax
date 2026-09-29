@@ -16,7 +16,12 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, FastAPI, Header, Request
 from pydantic import BaseModel, Field
 
-from app.api.cache import redaction_cache_key, redaction_cache_payload
+from app.api.cache import (
+    cache_envelope,
+    decode_cache_envelope,
+    redaction_cache_key,
+    redaction_cache_payload,
+)
 from app.api.idempotency import complete as complete_idempotency
 from app.api.idempotency import release as release_idempotency
 from app.api.idempotency import reserve as reserve_idempotency
@@ -243,9 +248,11 @@ def register(app: FastAPI) -> None:
                     ns = getattr(settings, "redis_namespace", "redax")
                     cache_raw = await job_store.client.get(f"{ns}:cache:{cache_key}")
                     if cache_raw:
-                        CACHE_HITS.labels(cache="response").inc()
-                        REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
-                        return json.loads(cache_raw)
+                        cached_response = decode_cache_envelope(cache_raw)
+                        if cached_response is not None:
+                            CACHE_HITS.labels(cache="response").inc()
+                            REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
+                            return cached_response
 
                 inference_start = time.perf_counter()
                 used_pipeline = False
@@ -297,7 +304,7 @@ def register(app: FastAPI) -> None:
                     ns = getattr(settings, "redis_namespace", "redax")
                     await job_store.client.set(
                         f"{ns}:cache:{cache_key}",
-                        json.dumps(response_body),
+                        json.dumps(cache_envelope(response_body)),
                         ex=ttl,
                     )
                     if x_idempotency_key:
