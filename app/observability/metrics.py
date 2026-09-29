@@ -166,6 +166,12 @@ AUDIT_DROPPED = Counter(
     registry=REGISTRY,
 )
 
+TRACING_EXPORT_FAILURES = Counter(
+    "redax_tracing_export_failures_total",
+    "Bounded tracing flush/export failures observed by the process.",
+    registry=REGISTRY,
+)
+
 
 def queue_depth() -> float:
     """Read the current ``QUEUE_DEPTH`` gauge.

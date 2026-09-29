@@ -7,6 +7,8 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
+from app.observability.metrics import TRACING_EXPORT_FAILURES
+
 OTLP_MAX_QUEUE_SIZE = 2_048
 OTLP_MAX_EXPORT_BATCH_SIZE = 512
 OTLP_SCHEDULE_DELAY_MILLIS = 5_000.0
@@ -109,6 +111,10 @@ def flush_tracing(timeout_millis: int = 30_000) -> bool:
     if not callable(force_flush):
         return True
     try:
-        return bool(force_flush(timeout_millis))
+        flushed = bool(force_flush(timeout_millis))
+        if not flushed:
+            TRACING_EXPORT_FAILURES.inc()
+        return flushed
     except (RuntimeError, TimeoutError, TypeError, ValueError):
+        TRACING_EXPORT_FAILURES.inc()
         return False

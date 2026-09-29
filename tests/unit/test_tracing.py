@@ -5,6 +5,7 @@ from importlib import import_module
 import pytest
 
 from app.observability import tracing
+from app.observability.metrics import TRACING_EXPORT_FAILURES
 
 
 def test_otlp_exporter_uses_bounded_batch_settings(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -56,6 +57,10 @@ def test_flush_tracing_delegates_to_provider(monkeypatch: pytest.MonkeyPatch) ->
 
 
 def test_flush_tracing_contains_exporter_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    before = sum(
+        sample.value for metric in TRACING_EXPORT_FAILURES.collect() for sample in metric.samples
+    )
+
     class Provider:
         def force_flush(self, _timeout_millis: int) -> bool:
             raise RuntimeError("collector unavailable")
@@ -63,3 +68,7 @@ def test_flush_tracing_contains_exporter_failure(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr(tracing.trace, "get_tracer_provider", lambda: Provider())
 
     assert not tracing.flush_tracing(1234)
+    after = sum(
+        sample.value for metric in TRACING_EXPORT_FAILURES.collect() for sample in metric.samples
+    )
+    assert after == before + 1

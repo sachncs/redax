@@ -61,6 +61,15 @@ spec:
           annotations:
             summary: Redax audit writes are failing
             runbook_url: https://github.com/sachncs/redax/blob/master/docs/runbooks/audit.md
+        - alert: RedaxTracingExportFailures
+          expr: increase(redax_tracing_export_failures_total[10m]) > 0
+          for: 5m
+          labels:
+            severity: ticket
+            service: redax
+          annotations:
+            summary: Redax tracing exporter flushes are failing
+            runbook_url: https://github.com/sachncs/redax/blob/master/docs/runbooks/rollback.md
         - alert: RedaxQueueAgeHigh
           expr: redax_queue_oldest_age_seconds > 300
           for: 10m

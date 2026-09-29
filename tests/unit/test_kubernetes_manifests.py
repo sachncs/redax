@@ -58,6 +58,7 @@ def test_monitoring_assets_cover_queue_age_retries_and_job_latency() -> None:
         "RedaxQueueAgeHigh",
         "RedaxJobRetriesIncreasing",
         "RedaxWorkerCapacitySaturated",
+        "RedaxTracingExportFailures",
     } <= rule_names
 
     dashboard = json.loads((root / "deploy/monitoring/redax-dashboard.json").read_text())
