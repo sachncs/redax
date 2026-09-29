@@ -154,6 +154,8 @@ def register_request_context(app: FastAPI) -> None:
                     status = response.status_code
                     return response
                 admitted = True
+                if state is not None:
+                    state.active_requests += 1
                 REQUESTS_INFLIGHT.inc()
             response = await call_next(request)
             response.headers.setdefault("X-Content-Type-Options", "nosniff")
@@ -168,6 +170,11 @@ def register_request_context(app: FastAPI) -> None:
             return response
         finally:
             if admitted and admission is not None:
+                state = getattr(request.app.state, "state", None)
+                if state is not None:
+                    state.active_requests = max(0, state.active_requests - 1)
+                    if state.active_requests == 0 and state.drain_event is not None:
+                        state.drain_event.set()
                 REQUESTS_INFLIGHT.dec()
                 admission.release()
             emit_access_line(

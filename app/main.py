@@ -184,6 +184,7 @@ async def build_state(settings: Settings) -> State:
         job_store=job_store,
         pipeline=pipeline,
         request_admission=asyncio.Semaphore(settings.max_concurrent_requests),
+        drain_event=asyncio.Event(),
     )
 
 
@@ -204,6 +205,19 @@ async def teardown_state(state: State) -> None:
     # can stop routing new work while the process drains existing work.
     timeout_seconds = float(getattr(state.settings, "shutdown_timeout_seconds", 30.0))
     deadline = asyncio.get_running_loop().time() + timeout_seconds
+
+    if state.drain_event is not None and state.active_requests:
+        remaining = deadline - asyncio.get_running_loop().time()
+        if remaining > 0:
+            try:
+                async with asyncio.timeout(remaining):
+                    await state.drain_event.wait()
+            except TimeoutError:
+                log.warning(
+                    "redax.shutdown_timeout",
+                    component="active_requests",
+                    active_requests=state.active_requests,
+                )
 
     async def close_component(name: str, close: Any) -> None:
         remaining = deadline - asyncio.get_running_loop().time()

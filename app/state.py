@@ -37,6 +37,7 @@ Attributes:
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -62,6 +63,8 @@ class State:
     job_store: Any | None = None
     job_queue: Any | None = None
     request_admission: Any | None = None
+    active_requests: int = 0
+    drain_event: asyncio.Event | None = None
     extras: dict[str, Any] = field(default_factory=dict)
     pipeline: Pipeline | None = None
 

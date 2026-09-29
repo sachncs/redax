@@ -63,6 +63,25 @@ def test_teardown_bounds_hanging_dependency() -> None:
     assert state.ready is False
 
 
+def test_teardown_waits_for_active_requests_before_closing_dependencies() -> None:
+    from app.main import teardown_state
+    from app.state import State
+
+    async def scenario() -> None:
+        state = State(ready=True, settings=type("S", (), {"shutdown_timeout_seconds": 1.0})())
+        state.active_requests = 1
+        state.drain_event = asyncio.Event()
+
+        teardown = asyncio.create_task(teardown_state(state))
+        await asyncio.sleep(0)
+        assert not teardown.done()
+        state.active_requests = 0
+        state.drain_event.set()
+        await teardown
+
+    asyncio.run(scenario())
+
+
 def test_healthz(client) -> None:
     from app.api.health import register
 
