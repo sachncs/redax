@@ -30,7 +30,9 @@ from app.api import (
     register_redact,
     register_stream,
 )
+from app.audit.backend import Backend
 from app.audit.file import FileAudit
+from app.audit.redis import RedisAudit
 from app.config import Settings
 from app.errors import install_error_handlers
 from app.inference.gliner2 import GLiNER2Detector
@@ -170,14 +172,24 @@ async def build_state(settings: Settings) -> State:
             note="idempotency and response caches skipped until Redis recovers",
         )
 
-    audit = FileAudit(
-        settings.audit_path,
-        required=settings.audit_required,
-        fsync=settings.audit_fsync,
-        max_bytes=settings.audit_max_bytes,
-        rotation_backups=settings.audit_rotation_backups,
-        retention_seconds=settings.audit_retention_seconds,
-    )
+    audit: Backend
+    if settings.audit_backend == "redis":
+        if job_store is None:
+            raise RuntimeError("REDAX_AUDIT_BACKEND=redis requires Redis to be available")
+        audit = RedisAudit(
+            job_store.client,
+            namespace=settings.redis_namespace,
+            max_events=settings.audit_redis_max_events,
+        )
+    else:
+        audit = FileAudit(
+            settings.audit_path,
+            required=settings.audit_required,
+            fsync=settings.audit_fsync,
+            max_bytes=settings.audit_max_bytes,
+            rotation_backups=settings.audit_rotation_backups,
+            retention_seconds=settings.audit_retention_seconds,
+        )
     await audit.start()
 
     return State(

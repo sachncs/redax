@@ -36,7 +36,7 @@ as each production milestone lands.
 
 | Requirement | Status | Evidence / gap |
 |---|---|---|
-| Horizontally scalable API | PARTIAL | Reference Kubernetes API replicas, probes, and rolling budgets now exist; HA Redis, centralized audit, and multi-replica failure evidence remain pending. |
+| Horizontally scalable API | PARTIAL | Reference Kubernetes API replicas, probes, rolling budgets, and an opt-in shared Redis audit sink now exist; HA Redis and multi-replica failure evidence remain pending. |
 | Independently scalable workers | PARTIAL | `redax-worker` and Redis-backed ARQ enqueueing exist; capacity, lease recovery, and deployment evidence are pending. |
 | Measured performance characteristics | PARTIAL | `docs/benchmarks/regex-local-baseline.json` plus current Python 3.13 API baseline and sustained artifacts record detector/API p50-p99, throughput, CPU, and RSS locally; worker/model/cache/batch/stream capacity and soak evidence remain pending. |
 | Known saturation limits | FAIL | Local baselines exist, but no ramp/spike/soak artifact establishes p99, queueing, CPU, memory, Redis, or model saturation limits. |
@@ -59,7 +59,7 @@ as each production milestone lands.
 | Actionable RED/USE metrics | PARTIAL | RED metrics, Prometheus alert rules, accepted in-flight job depth, response-size histogram, shared Redis-backed oldest queue age, Redis pool gauges/alert, versioned audit records with non-secret principal IDs, and a Grafana dashboard are checked in; worker-runtime metrics still need implementation/evidence. |
 | Privacy-safe structured logs/traces | PARTIAL | Access/error/audit paths avoid values; request and streaming spans emit only method/status metadata with canary assertions, while OTLP exporter delivery and all failure paths need evidence. |
 | Alerts and dashboards | PARTIAL | Checked-in Prometheus alert rules and a Grafana dashboard cover HTTP, audit, dependency, API replica, and worker availability; queue age, retries, and Redis-pool panels remain pending. |
-| Operational runbooks | PARTIAL | Current runbooks in `docs/runbooks/` describe safe response and evidence; they remain bounded by the current in-process job limitations. |
+| Operational runbooks | PARTIAL | Current runbooks in `docs/runbooks/` describe safe response and evidence, including the Redis audit mode; managed durability and in-process job limitations remain. |
 
 ## Deployment, recovery, and release
 

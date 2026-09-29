@@ -60,12 +60,14 @@ class Settings(BaseSettings):
     policies_dir: str = "./policies"
     default_policy: str = "default"
 
+    audit_backend: Literal["file", "redis"] = "file"
     audit_path: str = "./audit.jsonl"
     audit_required: bool = True
     audit_fsync: bool = True
     audit_max_bytes: int = Field(default=1_000_000_000, ge=1)
     audit_rotation_backups: int = Field(default=5, ge=0)
     audit_retention_seconds: int = Field(default=90 * 24 * 3600, ge=1)
+    audit_redis_max_events: int = Field(default=100_000, ge=1)
 
     hash_salt: str = "change-me"
     max_body_bytes: int = Field(default=4_000_000, ge=1024)
