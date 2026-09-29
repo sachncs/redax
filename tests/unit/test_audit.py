@@ -74,6 +74,20 @@ async def test_drops_increment_audit_dropped_metric(tmp_path: Path) -> None:
     await backend.stop()
 
 
+@pytest.mark.asyncio
+async def test_stop_is_idempotent_and_clears_resources(tmp_path: Path) -> None:
+    backend = FileAudit(str(tmp_path / "audit.jsonl"))
+    await backend.start()
+    await backend.record(Event(request_id="x", ts="t", policy_version="p", text_chars=0))
+
+    await backend.stop()
+    await backend.stop()
+
+    assert backend.queue is None
+    assert backend.task is None
+    assert backend.loop is None
+
+
 def audit_dropped_count(registry, backend_label: str) -> float:
     """Read the current value of the redax_audit_dropped_total counter for ``backend_label``."""
     from app.observability.metrics import AUDIT_DROPPED

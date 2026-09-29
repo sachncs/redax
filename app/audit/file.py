@@ -90,10 +90,30 @@ class FileAudit:
 
     async def stop(self) -> None:
         """Flush pending writes and stop the background flusher."""
-        if self.queue is not None:
-            await self.queue.put(SENTINEL)
-        if self.task is not None:
-            await self.task
+        task = self.task
+        queue = self.queue
+        if task is None:
+            self.queue = None
+            self.loop = None
+            return
+        if not task.done() and queue is not None:
+            try:
+                async with asyncio.timeout(1.0):
+                    await queue.put(SENTINEL)
+            except (TimeoutError, RuntimeError):
+                task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+        except Exception as exc:
+            # Shutdown must remain best-effort; consume a failed drain task so
+            # its exception cannot become an unobserved-task warning.
+            get_logger("redax.audit").warning(
+                "redax.audit_drain_stop_failed", error=exc.__class__.__name__
+            )
+        self.task = None
+        self.queue = None
         self.loop = None
 
     async def record(self, event: Event) -> None:
