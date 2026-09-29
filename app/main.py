@@ -299,6 +299,10 @@ async def refresh_job_metrics(state: State) -> None:
                 )
                 with suppress(OSError, RedisError, RuntimeError, TimeoutError, ValueError):
                     await state.job_store.stop()
+                if state.job_queue is not None:
+                    with suppress(Exception):
+                        await state.job_queue.close()
+                    state.job_queue = None
             if state.job_queue is None and state.job_store.client is not None:
                 try:
                     assert state.settings is not None

@@ -34,6 +34,28 @@ class RecoveringStore:
         return {"in_use": 0, "available": 1, "max": 1}
 
 
+class DisconnectingClient:
+    async def ping(self) -> None:
+        raise ConnectionError("redis disconnected")
+
+
+class DisconnectingStore(RecoveringStore):
+    def __init__(self) -> None:
+        super().__init__()
+        self.client = DisconnectingClient()
+
+    async def stop(self) -> None:
+        self.client = None
+
+
+class ClosableQueue:
+    def __init__(self) -> None:
+        self.closed = False
+
+    async def close(self) -> None:
+        self.closed = True
+
+
 @pytest.mark.asyncio
 async def test_refresh_job_metrics_reconnects_store_and_queue(
     monkeypatch: pytest.MonkeyPatch,
@@ -56,3 +78,23 @@ async def test_refresh_job_metrics_reconnects_store_and_queue(
 
     assert store.started == 1
     assert state.job_queue is queue
+
+
+@pytest.mark.asyncio
+async def test_refresh_job_metrics_drops_queue_after_redis_disconnect(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = DisconnectingStore()
+    queue = ClosableQueue()
+    state = State(settings=SimpleNamespace(), job_store=store, job_queue=queue)
+
+    async def stop_after_one_cycle(_seconds: float) -> None:
+        raise StopRefresh
+
+    monkeypatch.setattr(main.asyncio, "sleep", stop_after_one_cycle)
+
+    with pytest.raises(StopRefresh):
+        await main.refresh_job_metrics(state)
+
+    assert queue.closed
+    assert state.job_queue is None

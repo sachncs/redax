@@ -406,6 +406,19 @@ def test_job_reads_fail_closed_during_redis_reconnect(app_with_state):
     assert cancellation.status_code == 503
 
 
+def test_job_submission_fails_closed_with_stale_queue(app_with_state):
+    """A stale queue must not admit work while the store is disconnected."""
+    app_with_state.state.state.job_store = JobStore("redis://127.0.0.1:6399")
+    with TestClient(app_with_state, raise_server_exceptions=False) as client:
+        response = client.post(
+            "/v1/jobs",
+            json={"text": "Email stale.queue@example.com"},
+            headers={"X-API-Key": "test-key"},
+        )
+
+    assert response.status_code == 503
+
+
 def test_running_job_cannot_be_cancelled(app_with_state):
     app_with_state.state.state.job_queue = PassiveJobQueue()
     with TestClient(app_with_state) as client:

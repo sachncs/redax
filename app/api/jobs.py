@@ -96,9 +96,10 @@ def register(app: FastAPI) -> None:
                 )
             store: JobStore | None = state.job_store
             queue = state.job_queue
-            if store is None or queue is None:
+            if not store_available(store) or queue is None:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
                 return job_store_unavailable(request, "durable job queue not initialized")
+            assert store is not None
             max_inflight = getattr(settings, "max_inflight", 32)
             max_jobs_per_key = getattr(settings, "max_jobs_per_key", 50)
             try:
