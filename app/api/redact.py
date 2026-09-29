@@ -289,7 +289,8 @@ def register(app: FastAPI) -> None:
                 response_body: dict[str, Any]
                 spans: list[Span]
                 if body.use_pipeline:
-                    assert pipeline is not None  # checked above
+                    if pipeline is None:
+                        raise RuntimeError("redaction pipeline is not initialized")
                     pipeline_result = await pipeline(body.text)
                     spans = list(pipeline_result.spans)
                     inference_ms = int(pipeline_result.total_latency_ms)

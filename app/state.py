@@ -85,5 +85,6 @@ def get_state(request: Request) -> State:
         The ``State`` attached to ``app.state.state`` during lifespan.
     """
     state_any: Any = request.app.state.state
-    assert isinstance(state_any, State)
+    if not isinstance(state_any, State):
+        raise RuntimeError("application state is not initialized")
     return state_any

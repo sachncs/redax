@@ -127,7 +127,8 @@ class OpenMedPIIDetector:
         self.load_model()
         import torch
 
-        assert self.tokenizer is not None and self.model is not None
+        if self.tokenizer is None or self.model is None:
+            raise RuntimeError("OpenMed model is not loaded")
         tokenizer_kwargs: dict[str, Any] = dict(
             truncation=True,
             max_length=384,

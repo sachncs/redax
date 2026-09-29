@@ -99,7 +99,9 @@ def register(app: FastAPI) -> None:
             if not store_available(store) or queue is None:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
                 return job_store_unavailable(request, "durable job queue not initialized")
-            assert store is not None
+            if store is None:
+                REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
+                return job_store_unavailable(request, "durable job queue not initialized")
             max_inflight = getattr(settings, "max_inflight", 32)
             max_jobs_per_key = getattr(settings, "max_jobs_per_key", 50)
             try:
@@ -165,7 +167,9 @@ def register(app: FastAPI) -> None:
         if not store_available(store):
             REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
             return job_store_unavailable(request, "durable job store unavailable")
-        assert store is not None
+        if store is None:
+            REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
+            return job_store_unavailable(request, "durable job store unavailable")
         record = await store.get(job_id)
         if record is None or record.owner != store.owner_token(api_key):
             REQUESTS.labels(endpoint=endpoint, method=method, status="404").inc()
@@ -198,7 +202,9 @@ def register(app: FastAPI) -> None:
         if not store_available(store):
             REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
             return job_store_unavailable(request, "durable job store unavailable")
-        assert store is not None
+        if store is None:
+            REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
+            return job_store_unavailable(request, "durable job store unavailable")
         try:
             record = await store.get(job_id)
             if record is None or record.owner != store.owner_token(api_key):

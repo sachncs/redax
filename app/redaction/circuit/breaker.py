@@ -97,7 +97,8 @@ class Breaker:
         if self.state == "closed":
             return True, False
         if self.state == "open":
-            assert self.opened_at is not None
+            if self.opened_at is None:
+                return False, False
             if (time.monotonic() - self.opened_at) >= self.cooldown_s:
                 if self.probe_in_flight:
                     return False, False

@@ -69,12 +69,17 @@ line-length = 100
 target-version = "py313"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP", "N", "SIM", "RUF"]
-ignore = ["E501"]
+select = ["E", "F", "I", "B", "UP", "N", "SIM", "RUF", "S"]
+# S104 is intentional because the API binds to all interfaces inside its
+# container and relies on ingress/trusted-host controls at the boundary.
+# S311 is intentional because retry jitter is not used for cryptography.
+ignore = ["E501", "S104", "S311"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["B", "N"]
-"scripts/*" = ["RUF001"]
+# Test assertions, subprocess fixtures, and synthetic secrets are test-only;
+# production modules remain covered by the Bandit-compatible rules above.
+"tests/*" = ["B", "N", "S101", "S105", "S108", "S603", "S607"]
+"scripts/*" = ["RUF001", "S101", "S108", "S603", "S607"]
 
 [tool.mypy]
 # Python 3.13 is the supported runtime baseline and CI interpreter.

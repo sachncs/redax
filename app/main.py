@@ -92,7 +92,7 @@ async def build_state(settings: Settings) -> State:
     detectors: list[Any] = [regex]
     active: Any = regex
     if settings.detector == "gliner2":
-        gliner2: GLiNER2Detector | None = GLiNER2Detector(
+        gliner2 = GLiNER2Detector(
             model_name=settings.model_name,
             model_revision=settings.model_revision,
             model_cache=settings.model_cache,
@@ -102,7 +102,6 @@ async def build_state(settings: Settings) -> State:
             local_files_only=True,
         )
         try:
-            assert gliner2 is not None
             await gliner2.load()
             await gliner2.warmup()
         except (OSError, RuntimeError, ValueError, TimeoutError) as exc:
@@ -117,9 +116,7 @@ async def build_state(settings: Settings) -> State:
                 revision=settings.model_revision,
                 error=exc.__class__.__name__,
             )
-            gliner2 = None
         else:
-            assert gliner2 is not None
             detectors.append(gliner2)
             active = gliner2
     # else: REDAX_DETECTOR=regex is the only opt-in for the fallback path.
@@ -317,13 +314,14 @@ async def refresh_job_metrics(state: State) -> None:
                         await state.job_queue.close()
                     state.job_queue = None
             if state.job_queue is None and state.job_store.client is not None:
-                try:
-                    assert state.settings is not None
-                    state.job_queue = await create_job_queue(state.settings)
-                except (OSError, RedisError, RuntimeError, TimeoutError, ValueError) as exc:
-                    get_logger("redax.lifespan").warning(
-                        "redax.job_queue_reconnect_failed", error=exc.__class__.__name__
-                    )
+                settings = state.settings
+                if settings is not None:
+                    try:
+                        state.job_queue = await create_job_queue(settings)
+                    except (OSError, RedisError, RuntimeError, TimeoutError, ValueError) as exc:
+                        get_logger("redax.lifespan").warning(
+                            "redax.job_queue_reconnect_failed", error=exc.__class__.__name__
+                        )
             try:
                 age = await state.job_store.oldest_job_age_seconds()
             except (OSError, RedisError, RuntimeError, TimeoutError, ValueError):

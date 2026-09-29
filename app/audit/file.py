@@ -113,7 +113,8 @@ class FileAudit:
         if self.failed and self.required:
             raise RuntimeError("audit backend is unavailable")
         if self.required:
-            assert self.loop is not None
+            if self.loop is None:
+                raise RuntimeError("audit backend loop is not initialized")
             line = json.dumps(signed_event_payload(event, self.integrity_key)) + "\n"
             try:
                 await self.loop.run_in_executor(
@@ -145,7 +146,8 @@ class FileAudit:
 
     async def drain(self) -> None:
         """Drain queued events to disk until a sentinel arrives."""
-        assert self.queue is not None and self.loop is not None
+        if self.queue is None or self.loop is None:
+            raise RuntimeError("audit backend is not initialized")
         log = get_logger("redax.audit")
         loop = self.loop
         while True:
