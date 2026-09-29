@@ -98,6 +98,11 @@ loading, CORS, and readiness behavior.
 - [Benchmark results](docs/benchmark-results.md)
 - [Model survey and provenance](docs/models-survey.md)
 - [Launch audit and remaining limitations](docs/launch-audit.md)
+- [Production readiness review](PRODUCTION_READINESS.md)
+- [Service-level objectives](docs/slo.md)
+- [Failure-mode matrix](docs/failure-modes.md)
+- [Scaling and capacity](docs/scaling.md)
+- [Operational runbooks](docs/runbooks/README.md)
 - [Product status](https://sachncs.github.io/redax/docs/status)
 
 The polished entry point is the [Redax product site](https://sachncs.github.io/redax/).
