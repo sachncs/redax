@@ -78,6 +78,38 @@ def test_http_exception_preserves_retry_headers() -> None:
     assert response.headers["x-ratelimit-remaining"] == "0"
 
 
+def test_error_instance_uses_route_template_for_identifier_path() -> None:
+    app = FastAPI()
+    install_error_handlers(app)
+
+    @app.get("/users/{user_id}")
+    async def user(user_id: str) -> None:
+        del user_id
+        raise HTTPException(status_code=404, detail="not found")
+
+    client = TestClient(app, raise_server_exceptions=False)
+    canary = "email-alice@example.com"
+    response = client.get(f"/users/{canary}")
+
+    assert response.status_code == 404
+    body = response.json()
+    assert body["instance"] == "/users/{user_id}"
+    assert canary not in response.text
+
+
+def test_error_instance_uses_fixed_marker_for_unmatched_path() -> None:
+    app = FastAPI()
+    install_error_handlers(app)
+    client = TestClient(app, raise_server_exceptions=False)
+    canary = "email-alice@example.com"
+
+    response = client.get(f"/missing/{canary}")
+
+    assert response.status_code == 404
+    assert response.json()["instance"] == "<unmatched>"
+    assert canary not in response.text
+
+
 def test_redis_client_errors_are_transient_dependency_failures() -> None:
     assert RedisError in TRANSIENT_EXC
 

@@ -67,12 +67,24 @@ class Problem:
         if self.instance is not None:
             body["instance"] = self.instance
         else:
-            body["instance"] = str(request.url.path)
+            body["instance"] = safe_problem_instance(request)
         return JSONResponse(
             content=body,
             status_code=self.status,
             media_type="application/problem+json",
         )
+
+
+def safe_problem_instance(request: Request) -> str:
+    """Return a non-sensitive route identifier for an RFC 7807 response.
+
+    Concrete URL paths may contain account IDs, email addresses, or other
+    user-controlled values. Use the matched route template when available and
+    a fixed marker for unmatched requests instead of echoing the raw path.
+    """
+    route = request.scope.get("route")
+    route_path = getattr(route, "path", None)
+    return route_path if isinstance(route_path, str) else "<unmatched>"
 
 
 def problem_response(
