@@ -1,8 +1,8 @@
 .PHONY: help dev test test-cov lint typecheck download-models bench load-bench eval build-server build-wasm build-all clean install verify verify-determinism load
 
-# pyproject.toml requires Python 3.13+; set PYTHON explicitly when using a
+# pyproject.toml requires Python 3.13+. Set PYTHON explicitly when using a
 # virtualenv managed by uv, pyenv, or another environment manager.
-PYTHON ?= python3
+PYTHON ?= python3.13
 HOST ?= 0.0.0.0
 PORT ?= 8000
 
