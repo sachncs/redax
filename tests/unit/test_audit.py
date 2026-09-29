@@ -37,6 +37,15 @@ async def test_writes_jsonl_line(tmp_path: Path) -> None:
     assert obj["ts"]  # auto-stamped
 
 
+def test_timestamping_preserves_principal_id() -> None:
+    from app.audit.file import with_timestamp
+
+    event = with_timestamp(
+        Event(request_id="req", ts="", policy_version="p", text_chars=1, principal_id="p-1")
+    )
+    assert event.principal_id == "p-1"
+
+
 @pytest.mark.asyncio
 async def test_drops_when_queue_full(tmp_path: Path, monkeypatch) -> None:
     path = tmp_path / "audit.jsonl"

@@ -215,6 +215,7 @@ def with_timestamp(event: Event) -> Event:
         ts=datetime.now(UTC).isoformat(),
         policy_version=event.policy_version,
         text_chars=event.text_chars,
+        principal_id=event.principal_id,
         entities_detected=event.entities_detected,
         inference_ms=event.inference_ms,
         redactor_version=event.redactor_version,
