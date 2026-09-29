@@ -104,6 +104,7 @@ loading, CORS, and readiness behavior.
 - [Failure-mode matrix](docs/failure-modes.md)
 - [Scaling and capacity](docs/scaling.md)
 - [Operational runbooks](docs/runbooks/README.md)
+- [Production launch gate](docs/runbooks/launch.md)
 - [Product status](https://sachncs.github.io/redax/docs/status)
 
 The polished entry point is the [Redax product site](https://sachncs.github.io/redax/).
