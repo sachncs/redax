@@ -23,6 +23,10 @@ pinned to the signed `v0.1.0` release digest. NetworkPolicies deny unapproved
 ingress and constrain API/worker egress; label the ingress-controller namespace
 as described in the Kubernetes README before applying the topology.
 
+The runtime image and CI install paths use `requirements.lock` with pip's
+`--require-hashes` enforcement. Do not bypass the lockfile or install an
+unhashed dependency into a release image.
+
 ## Deployment tiers
 
 Choose the smallest tier that matches the boundary you need. Redis is not

@@ -65,7 +65,7 @@ as each production milestone lands.
 
 | Requirement | Status | Evidence / gap |
 |---|---|---|
-| Hardened container | PARTIAL | Non-root, pinned dependencies, model verification, slim runtime, and a digest-pinned Python base exist; Kubernetes config supplies read-only filesystem/capability restrictions, and release run `36130306271` generated an image SBOM and passed the release scan; standalone Docker runtime restrictions remain deployment-specific. |
+| Hardened container | PARTIAL | Non-root, hash-enforced locked dependencies, model verification, slim runtime, and a digest-pinned Python base exist; Kubernetes config supplies read-only filesystem/capability restrictions, and release run `36130306271` generated an image SBOM and passed the release scan; standalone Docker runtime restrictions remain deployment-specific. |
 | Reference HA deployment | PARTIAL | `deploy/kubernetes/` defines API/worker replicas, PDBs, probes, resource bounds, autoscaling, immutable signed image digest, and fail-closed NetworkPolicies; external Redis HA, ingress/TLS, and deployment smoke/failure evidence remain pending. |
 | Health/readiness/startup probes | PARTIAL | `/healthz`, `/readyz`, and Docker probes exist; required Redis readiness now performs a bounded ping and readiness drops before teardown, while full deployment drain evidence remains. |
 | Rolling deployment and rollback | FAIL | Versioned release exists, but mixed-version state compatibility and rollback procedure are not tested. |

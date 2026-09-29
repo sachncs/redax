@@ -10,7 +10,7 @@ help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 install: ## Install pinned deps from the lockfile, then the package
-	$(PYTHON) -m pip install -r requirements.lock
+	$(PYTHON) -m pip install --require-hashes -r requirements.lock
 	$(PYTHON) -m pip install -e . --no-deps
 
 dev: ## Run the API server with autoreload

@@ -12,7 +12,7 @@ WORKDIR /build
 # by `make install` locally, so the production image and dev environment
 # are bit-for-bit reproducible.
 COPY requirements.lock /build/requirements.lock
-RUN pip install --prefix=/install --no-deps -r /build/requirements.lock
+RUN pip install --prefix=/install --no-deps --require-hashes -r /build/requirements.lock
 
 # Install the package itself with no deps (deps were resolved above).
 COPY pyproject.toml /build/
