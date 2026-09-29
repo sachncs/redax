@@ -26,6 +26,7 @@ from app.api.cache import (
 from app.api.idempotency import complete as complete_idempotency
 from app.api.idempotency import release as release_idempotency
 from app.api.idempotency import reserve as reserve_idempotency
+from app.api.models import EntityTypes
 from app.api.policy import PolicyUnavailableError, effective_policy, policy_version
 from app.audit.backend import Event, span_summary
 from app.auth import principal_id, require_scope
@@ -51,7 +52,7 @@ class RedactRequest(BaseModel):
     """Request body for POST /v1/redact."""
 
     text: str = Field(min_length=1)
-    entity_types: list[str] | None = None
+    entity_types: EntityTypes | None = None
     policy: dict[str, Any] | None = None
     use_pipeline: bool = False
 

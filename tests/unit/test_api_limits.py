@@ -143,6 +143,36 @@ def test_batch_payload_too_large_returns_413() -> None:
     assert resp.headers["content-type"].startswith("application/problem+json")
 
 
+def test_batch_entity_type_count_is_bounded() -> None:
+    app = build_app(
+        redactor=FastRedactor(),
+        client=FakeClient([1]),
+        settings=StubSettings(5),
+    )
+    with TestClient(app) as client:
+        resp = client.post(
+            "/v1/redact/batch",
+            json={"items": [{"text": "hi", "entity_types": ["EMAIL"] * 129}]},
+            headers={"X-API-Key": "limited-key"},
+        )
+    assert resp.status_code == 422
+
+
+def test_batch_entity_type_length_is_bounded() -> None:
+    app = build_app(
+        redactor=FastRedactor(),
+        client=FakeClient([1]),
+        settings=StubSettings(5),
+    )
+    with TestClient(app) as client:
+        resp = client.post(
+            "/v1/redact/batch",
+            json={"items": [{"text": "hi", "entity_types": ["x" * 129]}]},
+            headers={"X-API-Key": "limited-key"},
+        )
+    assert resp.status_code == 422
+
+
 def test_batch_aggregate_payload_too_large_returns_413() -> None:
     app = build_app(
         redactor=FastRedactor(),

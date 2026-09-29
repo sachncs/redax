@@ -14,6 +14,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, FastAPI, Request
 from pydantic import BaseModel, Field
 
+from app.api.models import EntityTypes
 from app.audit.backend import Event, span_summary
 from app.auth import principal_id, require_scope
 from app.errors import TRANSIENT_EXC, internal_error, payload_too_large, timeout_error
@@ -30,7 +31,7 @@ class DetectRequest(BaseModel):
     """Request body for ``POST /v1/detect``."""
 
     text: str = Field(min_length=1)
-    entity_types: list[str] | None = None
+    entity_types: EntityTypes | None = None
 
 
 class DetectResponse(BaseModel):

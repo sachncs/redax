@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from redis.exceptions import RedisError
 
+from app.api.models import EntityTypes
 from app.api.policy import default_policy, policy_version
 from app.audit.backend import Event, span_summary
 from app.auth import principal_id, require_scope
@@ -55,7 +56,7 @@ class JobSubmit(BaseModel):
 
     text: str = Field(min_length=1)
     policy: dict[str, Any] | None = None
-    entity_types: list[str] | None = None
+    entity_types: EntityTypes | None = None
 
 
 def register(app: FastAPI) -> None:
