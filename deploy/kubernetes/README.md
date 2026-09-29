@@ -12,8 +12,11 @@ Before applying it:
 3. The reference topology uses Redis-backed audit events so multiple API
    replicas share one bounded audit stream. If file audit is selected instead,
    provide organisation-managed durable storage and its retention/backup policy.
-4. Configure an ingress with TLS, request-body limits, timeouts, and the
-   service's `/readyz` endpoint as its readiness target.
+4. Install an ingress-nginx controller (or translate the checked-in ingress
+   annotations for your controller), create the `redax-tls` TLS Secret, and
+   review `ingress.yaml` for the production hostname. It enforces the 4 MiB
+   body limit and gives streaming responses a bounded 75-second read window.
+   The service's `/readyz` endpoint remains the pod readiness target.
 5. Label the ingress-controller namespace with
    `redax.ingress-access=true`. The checked-in NetworkPolicies deny other
    ingress and restrict API/worker egress to cluster DNS, HTTPS, and Redis
@@ -45,6 +48,8 @@ kubectl -n redax create secret generic redax-api \
   --from-literal=REDAX_JOB_PAYLOAD_ENCRYPTION_KEY="$(python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')"
 kubectl -n redax create secret generic redax-redis \
   --from-literal=url='rediss://redis.example.internal:6380/0'
+kubectl -n redax create secret tls redax-tls \
+  --cert=/path/to/fullchain.pem --key=/path/to/privkey.pem
 kubectl apply -k deploy/kubernetes
 kubectl -n redax rollout status deployment/redax-api
 kubectl -n redax rollout status deployment/redax-worker

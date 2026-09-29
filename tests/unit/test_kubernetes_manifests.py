@@ -30,6 +30,7 @@ def test_kubernetes_reference_uses_shared_audit_without_rw_volume() -> None:
     worker_deployment = yaml.safe_load(
         (root / "deploy/kubernetes/worker-deployment.yaml").read_text()
     )
+    ingress = yaml.safe_load((root / "deploy/kubernetes/ingress.yaml").read_text())
 
     assert configmap["data"]["REDAX_AUDIT_BACKEND"] == "redis"
     assert configmap["data"]["REDAX_AUDIT_REDIS_MAX_EVENTS"] == "100000"
@@ -40,6 +41,13 @@ def test_kubernetes_reference_uses_shared_audit_without_rw_volume() -> None:
     assert worker_deployment["spec"]["template"]["spec"]["volumes"] == [
         {"name": "tmp", "emptyDir": {}}
     ]
+    assert ingress["spec"]["ingressClassName"] == "nginx"
+    assert ingress["spec"]["tls"] == [{"hosts": ["redax.example.com"], "secretName": "redax-tls"}]
+    assert ingress["metadata"]["annotations"] == {
+        "nginx.ingress.kubernetes.io/proxy-body-size": "4m",
+        "nginx.ingress.kubernetes.io/proxy-read-timeout": "75",
+        "nginx.ingress.kubernetes.io/proxy-send-timeout": "30",
+    }
 
 
 def test_monitoring_assets_cover_queue_age_retries_and_job_latency() -> None:
