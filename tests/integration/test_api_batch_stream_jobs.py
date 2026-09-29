@@ -11,6 +11,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 from app.api import register_batch, register_jobs, register_stream
+from app.api.stream import StreamRequest
 from app.audit.backend import Backend, Event
 from app.inference.detector import Span
 from app.jobs.store import JobStore
@@ -214,6 +215,38 @@ def test_stream_emits_trace_without_input_values(monkeypatch, app_with_state):
     }
     assert canary not in repr(spans[0])
     assert app_with_state.state.state.audit.records[0].trace_id
+
+
+async def test_stream_cancellation_is_bounded_and_does_not_audit(app_with_state, capsys):
+    class BlockingRedactor:
+        async def redact(self, text, policy=None, entity_types=None):
+            await asyncio.Event().wait()
+
+    app_with_state.state.state.redactor = BlockingRedactor()
+    stream_router = next(
+        included.original_router
+        for included in app_with_state.routes
+        if getattr(getattr(included, "original_router", None), "routes", None)
+        and any(route.path == "/v1/redact/stream" for route in included.original_router.routes)
+    )
+    route = next(route for route in stream_router.routes if route.path == "/v1/redact/stream")
+    canary = "stream.cancel.canary.7f8d@example.com"
+    response = await route.endpoint(
+        None,
+        StreamRequest(text=f"Email {canary}", chunk_chars=1000),
+        app_with_state.state.state,
+        "test-key",
+        "request-cancelled",
+    )
+
+    task = asyncio.create_task(response.body_iterator.__anext__())
+    await asyncio.sleep(0)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert app_with_state.state.state.audit.records == []
+    assert canary not in capsys.readouterr().out
 
 
 def stream_latency_count() -> float:

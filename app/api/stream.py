@@ -161,6 +161,11 @@ def register(app: FastAPI) -> None:
                     get_logger("redax.api").error(
                         "redax.stream_chunk_failed", error=exc.__class__.__name__
                     )
+                except asyncio.CancelledError:
+                    REQUESTS.labels(endpoint=endpoint, method=method, status="499").inc()
+                    span.set_attribute("http.response.status_code", 499)
+                    get_logger("redax.api").info("redax.stream_cancelled")
+                    raise
                 finally:
                     REQUEST_LATENCY.labels(endpoint=endpoint, method=method).observe(
                         time.perf_counter() - latency_start

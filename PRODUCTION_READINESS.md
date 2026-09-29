@@ -16,7 +16,7 @@ as each production milestone lands.
 | API correctness across replicas | FAIL | Redis is shared for some state, but jobs and circuit breakers still have process-local behavior; no multi-replica integration gate. |
 | Durable jobs survive worker failure | PARTIAL | ARQ worker, jittered retries, atomic admission/completion, startup stale-job reconciliation, bounded payload-free DLQ records, and real-Redis recovery after a killed worker process are tested; Redis failover and production-scale evidence remain pending. |
 | Redis failure behavior is explicit | PASS | `docs/failure-modes.md`, `app/ratelimit.py`, and configuration tests define current cache/job/rate-limit degradation. Durable-job behavior remains pending. |
-| Graceful shutdown is verified | PARTIAL | Readiness drops before teardown, admitted HTTP requests drain within `REDAX_SHUTDOWN_TIMEOUT_SECONDS`, and cleanup is bounded; stream/job SIGTERM integration evidence is still pending. |
+| Graceful shutdown is verified | PARTIAL | Readiness drops before teardown, admitted HTTP requests drain within `REDAX_SHUTDOWN_TIMEOUT_SECONDS`, and stream client cancellation is bounded and classified; active stream/job SIGTERM integration evidence is still pending. |
 | Overload is bounded | PARTIAL | Declared request-body, text, aggregate batch, chunk, total stream duration, HTTP, inference, and job admission limits exist; chunked slow-client, Redis-pool, worker queue, and sustained overload recovery evidence remain. |
 | Dependency recovery works | PARTIAL | Real-Redis worker lease recovery and disposable Redis server restart/reconnect are tested; mandatory file-audit recovery after backend restart is covered, while managed Redis failover and automatic audit-storage recovery evidence remain missing. |
 
@@ -28,7 +28,7 @@ as each production milestone lands.
 | Scoped authorization | PARTIAL | Optional JSON scopes enforce redact, detect, jobs, policies, and metrics endpoints; external rotation/revocation and a control-plane audit are pending. |
 | Secrets stay out of telemetry | PARTIAL | Error, audit, cache, idempotency, metrics, detector-failure log, and metadata-only request/stream trace canaries exist; audit attribution uses keyed non-secret principal IDs, while full Redis/jobs/failure coverage is pending. |
 | Automated PII leak suite | PARTIAL | Canaries cover synchronous response, metrics, audit, detector-failure logs, streaming response/audit/traces, and durable-job output/store/audit; the complete Redis, auth, validation, cancellation, and audit-failure matrix is pending. |
-| No silent raw pass-through after internal failure | PARTIAL | Model fallback, audit-required rejection, and error handlers are tested; policy, cancellation, stream disconnect, and full failure-matrix coverage remain. |
+| No silent raw pass-through after internal failure | PARTIAL | Model fallback, audit-required rejection, error handlers, and stream cancellation are tested; policy, shutdown, and full failure-matrix coverage remain. |
 | Threat model matches implementation | PASS | `docs/threat-model.md`, `docs/data-flow.md`, and `docs/failure-modes.md`; update when the worker/audit architecture lands. |
 | High/critical vulnerability gate | PARTIAL | GitHub security run `36560012477` passed SBOM generation and the filesystem Trivy gate; the successful `v0.1.0` release run `36130306271` also scanned the release image, but recurring release evidence is still required. |
 
