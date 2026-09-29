@@ -193,6 +193,23 @@ def test_redact_recomputes_when_redis_store_is_disconnected(app_with_redactor):
     assert resp.json()["text"] == "Email me at [REDACTED] tomorrow"
 
 
+def test_explicit_idempotency_fails_closed_when_redis_is_disconnected(app_with_redactor):
+    """An idempotency request must not degrade into duplicate-prone execution."""
+    app_with_redactor.state.state.job_store = SimpleNamespace(client=None)
+
+    with TestClient(app_with_redactor) as client:
+        response = client.post(
+            "/v1/redact",
+            json={"text": "Email idempotency-outage@example.com"},
+            headers={"Idempotency-Key": "redis-disconnected"},
+        )
+
+    assert response.status_code == 503
+    assert response.headers["content-type"].startswith("application/problem+json")
+    assert response.json()["type"] == "https://redax.ai/errors/idempotency-unavailable"
+    assert "idempotency-outage@example.com" not in response.text
+
+
 def test_redacted_value_does_not_appear_in_metrics(app_with_redactor):
     """Prometheus output must remain metadata-only after a redaction request."""
     from app.api.health import register as register_health

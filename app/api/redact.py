@@ -32,6 +32,7 @@ from app.audit.backend import Event, span_summary
 from app.auth import principal_id, require_scope
 from app.errors import (
     TRANSIENT_EXC,
+    idempotency_unavailable,
     internal_error,
     payload_too_large,
     policy_unavailable,
@@ -212,7 +213,8 @@ def register(app: FastAPI) -> None:
                 # Idempotency short-circuit
                 if x_idempotency_key:
                     if job_store is None or job_store.client is None:
-                        _log_cache_skipped("idempotency")
+                        REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
+                        return idempotency_unavailable(request)
                     else:
                         ns = getattr(settings, "redis_namespace", "redax")
                         idempotency_storage = idempotency_storage_key(ns, x_idempotency_key)

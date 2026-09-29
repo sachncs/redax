@@ -118,7 +118,9 @@ fingerprint returns the cached response (24h TTL); a different body returns
 409, and a concurrent request receives 409 until the first call completes or
 its lease expires. The idempotency record is published before the optional
 response cache, so a lease-expiry race cannot leave a cache hit without a
-replayable same-key record.
+replayable same-key record. If Redis cannot provide the lease, the request is
+rejected with a typed 503 instead of silently degrading to non-idempotent
+execution.
 
 ```python
 httpx.post(url, json=body, headers={"Idempotency-Key": "abc-123"})

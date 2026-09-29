@@ -33,6 +33,7 @@ TRANSIENT_EXC: tuple[type[BaseException], ...] = (
 __all__ = [
     "TRANSIENT_EXC",
     "Problem",
+    "idempotency_unavailable",
     "install_error_handlers",
     "internal_error",
     "invalid_policy",
@@ -162,6 +163,19 @@ def rate_limit_unavailable(
         request,
         type="https://redax.ai/errors/rate-limit-unavailable",
         title="Rate Limit Unavailable",
+        status=503,
+        detail=detail,
+    )
+
+
+def idempotency_unavailable(
+    request: Request, detail: str = "Idempotency storage is not available"
+) -> JSONResponse:
+    """RFC 7807 503 when an explicitly requested idempotency lease cannot be held."""
+    return problem_response(
+        request,
+        type="https://redax.ai/errors/idempotency-unavailable",
+        title="Idempotency Unavailable",
         status=503,
         detail=detail,
     )
