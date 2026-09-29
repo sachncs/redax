@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import multiprocessing
 import os
 import shutil
@@ -287,6 +288,28 @@ async def test_real_redis_pii_canary_is_absent_from_job_and_audit_values(
         else:
             persisted.append(await client.get(key))
     assert canary not in repr(persisted)
+
+
+@pytest.mark.asyncio
+async def test_real_redis_audit_expires_events_by_retention(real_job_store: JobStore) -> None:
+    audit = RedisAudit(
+        real_job_store.client,
+        namespace=f"{real_job_store.namespace}:retention",
+        max_events=100,
+        retention_seconds=1,
+        required=True,
+    )
+    await audit.start()
+    await audit.record(Event(request_id="expired", ts="", policy_version="p", text_chars=1))
+    await asyncio.sleep(1.1)
+    await audit.record(Event(request_id="current", ts="", policy_version="p", text_chars=1))
+
+    client = real_job_store.client
+    assert client is not None
+    events = await client.lrange(audit.key, 0, -1)
+    timestamps = await client.lrange(audit.timestamp_key, 0, -1)
+    assert [json.loads(event)["request_id"] for event in events] == ["current"]
+    assert len(timestamps) == 1
 
 
 @pytest.mark.asyncio
