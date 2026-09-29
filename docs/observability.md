@@ -21,3 +21,7 @@ The rules assume `kube-state-metrics` for replica availability and
 `PrometheusRule` only in clusters that install the Prometheus Operator CRD.
 Alerts are intentionally conservative starting points; tune thresholds only
 after the SLO benchmark and error-budget evidence exists.
+Audit JSONL events include `schema_version: 1` alongside the event fields. Keep
+consumers tolerant of additive fields and validate the version before parsing
+persisted records; migrations for future versions must preserve the no-PII
+event contract.

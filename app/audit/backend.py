@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
+AUDIT_SCHEMA_VERSION = 1
+
 
 @dataclass
 class Event:
@@ -71,7 +73,9 @@ class Backend(Protocol):
 
 def event_to_dict(event: Event) -> dict[str, Any]:
     """Convert an ``Event`` into a JSON-serialisable dict."""
-    return asdict(event)
+    payload = asdict(event)
+    payload["schema_version"] = AUDIT_SCHEMA_VERSION
+    return payload
 
 
 def span_summary(spans: list[Any]) -> list[dict[str, Any]]:
