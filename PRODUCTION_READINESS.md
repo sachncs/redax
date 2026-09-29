@@ -38,8 +38,8 @@ as each production milestone lands.
 |---|---|---|
 | Horizontally scalable API | PARTIAL | Reference Kubernetes API replicas, probes, rolling budgets, and shared Redis audit now exist without a shared filesystem dependency; HA Redis and multi-replica failure evidence remain pending. |
 | Independently scalable workers | PARTIAL | `redax-worker` and Redis-backed ARQ enqueueing exist; capacity, lease recovery, and deployment evidence are pending. |
-| Measured performance characteristics | PARTIAL | `docs/benchmarks/regex-local-baseline.json`, current Python 3.13 API baseline/sustained artifacts, and a 300-request concurrency matrix at 1/10/20/40 record detector/API p50-p99, throughput, CPU, and RSS locally; worker/model/cache/batch/stream capacity and soak evidence remain pending. |
-| Known saturation limits | FAIL | Local baselines exist, but no ramp/spike/soak artifact establishes p99, queueing, CPU, memory, Redis, or model saturation limits. |
+| Measured performance characteristics | PARTIAL | `docs/benchmarks/regex-local-baseline.json`, current Python 3.13 API baseline/sustained artifacts, a 300-request concurrency matrix at 1/10/20/40, and a 1,000-request warm ramp at 1/20/40/80/128/160 record detector/API p50-p99, throughput, CPU, and RSS locally; worker/model/cache/batch/stream capacity and soak evidence remain pending. |
+| Known saturation limits | PARTIAL | The local warm ramp identifies a regression knee near concurrency 80 and p99 degradation at 128/160; this is not a production safe limit until server-side resource metrics, representative workloads, and HA/soak evidence exist. |
 | Autoscaling guidance | FAIL | No production deployment or measured scaling model exists. |
 
 ## Maintainability and interfaces

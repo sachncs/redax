@@ -34,6 +34,21 @@ All four runs returned 300/300 HTTP 200 responses. They are local regression
 measurements only; the harness's RSS/CPU fields describe the load-generator
 process, not a production server capacity limit.
 
+The warm ramp artifacts record 1,000 requests at concurrency 1, 20, 40, 80,
+128, and 160:
+
+- [`regex-api-ramp-1.json`](benchmarks/regex-api-ramp-1.json)
+- [`regex-api-ramp-20.json`](benchmarks/regex-api-ramp-20.json)
+- [`regex-api-ramp-40.json`](benchmarks/regex-api-ramp-40.json)
+- [`regex-api-ramp-80.json`](benchmarks/regex-api-ramp-80.json)
+- [`regex-api-ramp-128.json`](benchmarks/regex-api-ramp-128.json)
+- [`regex-api-ramp-160.json`](benchmarks/regex-api-ramp-160.json)
+
+The local knee was concurrency 80 (633.723 requests/sec, p99 133.351 ms);
+concurrency 160 fell to 405.3 requests/sec with p99 558.202 ms. These results
+are local regression evidence only; the harness process metrics describe the
+load generator, and no production safe limit is claimed.
+
 For sustained-load checks, replace `--requests 100` with
 `--duration-seconds 3600`; the harness reports request count, throughput,
 percentiles, and RSS drift over the bounded run.

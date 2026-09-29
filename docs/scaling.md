@@ -1,7 +1,7 @@
 # Scaling and capacity
 
-Current status: **local capacity evidence exists; production capacity is not
-yet established**. The checked-in artifacts are useful for regression tracking,
+Current status: **local capacity and ramp evidence exists; production capacity
+is not yet established**. The checked-in artifacts are useful for regression tracking,
 but they are not evidence of a safe HA service throughput limit. Do not infer
 production capacity from a local laptop run.
 
@@ -20,6 +20,14 @@ The current concurrency matrix adds 300-request regex runs at concurrency 1,
 HTTP 200 responses. The matrix shows p99 rising from 3.398 ms at concurrency 1
 to 111.732 ms at concurrency 20 and 74.606 ms at concurrency 40 on this local
 host; it is useful for regression tracking, not a production saturation limit.
+
+The 1,000-request warm ramp at concurrency 1/20/40/80/128/160 is recorded in
+the `regex-api-ramp-*.json` artifacts under `docs/benchmarks/`. Every point
+returned 100% HTTP 200 responses. On the recorded host, throughput peaked at
+633.723 requests/sec and p99 was 133.351 ms at concurrency 80; p99 rose to
+325.873 ms at 128 and 558.202 ms at 160 while throughput fell to 405.3
+requests/sec. This identifies a local regression knee near concurrency 80,
+not a production operating limit.
 
 ## Reference topology
 
