@@ -1,75 +1,131 @@
+name: redax-local
+
 services:
   redax:
     build: .
     image: redax/redax:0.1.0
-    container_name: redax
-    ports:
-      - "8000:8000"
     environment:
-      REDAX_LOG_LEVEL: INFO
+      # Compose service names are the only stable addresses inside this stack.
+      REDAX_ENV: ${REDAX_ENV:?copy .env.example to .env}
+      REDAX_LOG_LEVEL: ${REDAX_LOG_LEVEL:-INFO}
+      REDAX_SERVICE_NAME: ${REDAX_SERVICE_NAME:-redax-local}
+      REDAX_REDIS_REQUIRED: ${REDAX_REDIS_REQUIRED:-true}
+      REDAX_REDIS_NAMESPACE: ${REDAX_REDIS_NAMESPACE:-redax-local}
+      REDAX_DETECTOR: ${REDAX_DETECTOR:-gliner2}
       REDAX_REDIS_URL: redis://redis:6379/0
       REDAX_MODEL_CACHE: /models
       REDAX_AUDIT_PATH: /var/lib/redax/audit.jsonl
       REDAX_POLICIES_DIR: /policies
-      REDAX_ENV: dev
-      REDAX_HASH_SALT: local-compose-salt-change-before-sharing
-      REDAX_API_KEYS: local-compose-key
-      REDAX_TRUSTED_HOSTS: localhost,127.0.0.1
-      REDAX_JOB_PAYLOAD_ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      REDAX_TRUSTED_HOSTS: ${REDAX_TRUSTED_HOSTS:-localhost,127.0.0.1}
+      REDAX_HASH_SALT: ${REDAX_HASH_SALT:?set REDAX_HASH_SALT in .env}
+      REDAX_API_KEYS: ${REDAX_API_KEYS:?set REDAX_API_KEYS in .env}
+      REDAX_JOB_PAYLOAD_ENCRYPTION_KEY: ${REDAX_JOB_PAYLOAD_ENCRYPTION_KEY:?set REDAX_JOB_PAYLOAD_ENCRYPTION_KEY in .env}
+    ports:
+      - "${REDAX_API_PORT:-8000}:8000"
     volumes:
       - redax-models:/models
       - redax-audit:/var/lib/redax
       - ./policies:/policies:ro
+    networks:
+      - redax
     healthcheck:
-      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/readyz', timeout=2).raise_for_status()"]
-      interval: 30s
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import httpx; httpx.get('http://localhost:8000/readyz', timeout=2).raise_for_status()",
+        ]
+      interval: 10s
       timeout: 5s
-      retries: 3
-      start_period: 20s
+      retries: 6
+      start_period: 30s
     depends_on:
       redis:
         condition: service_healthy
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   redax-worker:
     build: .
     image: redax/redax:0.1.0
     command: ["redax-worker"]
     environment:
-      REDAX_LOG_LEVEL: INFO
+      REDAX_ENV: ${REDAX_ENV:?copy .env.example to .env}
+      REDAX_LOG_LEVEL: ${REDAX_LOG_LEVEL:-INFO}
+      REDAX_SERVICE_NAME: ${REDAX_SERVICE_NAME:-redax-local}
+      REDAX_REDIS_REQUIRED: ${REDAX_REDIS_REQUIRED:-true}
+      REDAX_REDIS_NAMESPACE: ${REDAX_REDIS_NAMESPACE:-redax-local}
+      REDAX_DETECTOR: ${REDAX_DETECTOR:-gliner2}
       REDAX_REDIS_URL: redis://redis:6379/0
       REDAX_MODEL_CACHE: /models
       REDAX_AUDIT_PATH: /var/lib/redax/audit.jsonl
       REDAX_POLICIES_DIR: /policies
-      REDAX_ENV: dev
-      REDAX_HASH_SALT: local-compose-salt-change-before-sharing
-      REDAX_API_KEYS: local-compose-key
-      REDAX_JOB_PAYLOAD_ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      REDAX_TRUSTED_HOSTS: ${REDAX_TRUSTED_HOSTS:-localhost,127.0.0.1}
+      REDAX_HASH_SALT: ${REDAX_HASH_SALT:?set REDAX_HASH_SALT in .env}
+      REDAX_API_KEYS: ${REDAX_API_KEYS:?set REDAX_API_KEYS in .env}
+      REDAX_JOB_PAYLOAD_ENCRYPTION_KEY: ${REDAX_JOB_PAYLOAD_ENCRYPTION_KEY:?set REDAX_JOB_PAYLOAD_ENCRYPTION_KEY in .env}
     volumes:
       - redax-models:/models
       - redax-audit:/var/lib/redax
       - ./policies:/policies:ro
+    networks:
+      - redax
     depends_on:
       redis:
         condition: service_healthy
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   redis:
     image: redis:7-alpine
-    container_name: redax-redis
-    # DEV ONLY: in-memory only. For production swap the line below for
-    #   ["redis-server", "--save", "60", "1", "--appendonly", "yes"]
-    # or a managed Redis offering; ephemeral state breaks rate-limit
-    # counters and any in-flight /v1/jobs admission on a restart.
-    command: ["redis-server", "--save", "", "--appendonly", "no"]
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
     volumes:
       - redax-redis:/data
+    networks:
+      - redax
+    # AOF gives local job/rate-limit state a bounded recovery point. RDB
+    # snapshots provide a second, portable backup format for operators.
+    command:
+      [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--appendfsync",
+        "everysec",
+        "--save",
+        "900",
+        "1",
+        "--save",
+        "300",
+        "10",
+        "--save",
+        "60",
+        "10000",
+      ]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+networks:
+  redax:
+    driver: bridge
 
 volumes:
   redax-models:
