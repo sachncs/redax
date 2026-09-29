@@ -334,6 +334,11 @@ def register(app: FastAPI) -> None:
                         inference_ms=inference_ms,
                         trace_id=current_trace_id_hex() or "",
                     )
+                    if used_fallback:
+                        audit_kwargs["entities_detected"] = [
+                            {"type": "__used_fallback__", "count": 1, "confidence_avg": 0.0},
+                            *audit_kwargs["entities_detected"],
+                        ]
                     if used_pipeline:
                         audit_kwargs["model_name"] = state.detector.name if state.detector else ""
                     await audit.record(Event(**audit_kwargs))
