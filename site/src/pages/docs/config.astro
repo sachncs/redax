@@ -1,0 +1,99 @@
+---
+import DocsLayout from "~/layouts/DocsLayout.astro";
+
+type ConfigRow = { name: string; type: string; required: string; defaultValue: string; example: string; notes: string };
+const row = (name: string, type: string, required: string, defaultValue: string, example: string, notes: string): ConfigRow => ({ name, type, required, defaultValue, example, notes });
+
+const groups: { title: string; rows: ConfigRow[] }[] = [
+  { title: "Runtime and network", rows: [
+    row("REDAX_LOG_LEVEL", "string", "no", "INFO", "INFO", "Structured log level."),
+    row("REDAX_HOST", "string", "no", "0.0.0.0", "0.0.0.0", "Bind address inside the container."),
+    row("REDAX_PORT", "integer", "no", "8000", "8000", "HTTP listen port."),
+    row("REDAX_ENV", "dev | prod", "prod", "prod", "prod", "Production requires API keys, trusted hosts, encryption, and a valid policy."),
+    row("REDAX_SERVICE_NAME", "string", "no", "redax", "redax-api", "Service name used in diagnostics and traces."),
+    row("REDAX_TRUSTED_HOSTS", "CSV", "prod", "empty", "redax.example.com", "Exact hostnames accepted by HTTP middleware."),
+    row("REDAX_CORS_ORIGINS", "CSV", "no", "empty", "https://app.example.com", "Explicit browser origins; wildcard is rejected in production."),
+  ] },
+  { title: "Redis and shared state", rows: [
+    row("REDAX_REDIS_URL", "URL", "shared state", "redis://localhost:6379/0", "rediss://redis.internal:6380/0", "TLS/authenticated Redis for cache, rate limits, idempotency, jobs, and workers."),
+    row("REDAX_REDIS_REQUIRED", "boolean", "prod recommended", "false", "true", "Readiness fails when Redis is unavailable."),
+    row("REDAX_REDIS_NAMESPACE", "string", "no", "redax", "redax-prod-acme", "Prevents key collisions when deployments share Redis."),
+    row("REDAX_REDIS_CONNECT_TIMEOUT_SECONDS", "number", "no", "1.0", "1.0", "Bounded connection timeout."),
+    row("REDAX_REDIS_SOCKET_TIMEOUT_SECONDS", "number", "no", "1.0", "1.0", "Bounded command timeout."),
+    row("REDAX_REDIS_MAX_CONNECTIONS", "integer", "no", "64", "64", "Per-process connection-pool ceiling."),
+  ] },
+  { title: "Detector and policy", rows: [
+    row("REDAX_DETECTOR", "gliner2 | regex", "no", "gliner2", "regex", "Choose deterministic structured detection or the pinned local model path."),
+    row("REDAX_MODEL_CACHE", "path", "model mode", "./models_cache", "/var/lib/redax/models", "Local model cache; preload it when startup must not fetch."),
+    row("REDAX_MODEL_NAME", "string", "model mode", "fastino/gliner2-privacy-filter-PII-multi", "fastino/gliner2-privacy-filter-PII-multi", "Model identifier."),
+    row("REDAX_MODEL_REVISION", "string", "model mode", "pinned commit", "c153999da5f4c509df4322b0c6a1baf3d2c284d7", "Pin and record the exact revision for reproducibility."),
+    row("REDAX_MODEL_THRESHOLD", "0..1", "no", "0.5", "0.5", "Model threshold; validate against your corpus."),
+    row("REDAX_POLICIES_DIR", "path", "no", "./policies", "/etc/redax/policies", "Directory containing policy YAML files."),
+    row("REDAX_DEFAULT_POLICY", "string", "prod", "default", "default", "Policy loaded and validated before production startup."),
+  ] },
+  { title: "Audit and privacy", rows: [
+    row("REDAX_AUDIT_BACKEND", "file | redis", "no", "file", "redis", "File JSONL for local use or bounded metadata-only Redis audit."),
+    row("REDAX_AUDIT_PATH", "path", "file backend", "./audit.jsonl", "/var/lib/redax/audit.jsonl", "Mount durable storage or ship according to retention policy."),
+    row("REDAX_AUDIT_REQUIRED", "boolean", "no", "true", "true", "Fail closed when audit is unavailable or saturated."),
+    row("REDAX_AUDIT_INTEGRITY_KEY", "secret", "Redis audit in prod", "empty", "secret-manager-value", "HMAC key for verifiable metadata-only records."),
+    row("REDAX_AUDIT_FSYNC", "boolean", "no", "true", "true", "Fsync each file audit line."),
+    row("REDAX_AUDIT_MAX_BYTES", "integer", "no", "1000000000", "1000000000", "Rotate file audit at this size."),
+    row("REDAX_AUDIT_ROTATION_BACKUPS", "integer", "no", "5", "5", "Rotated audit files to retain."),
+    row("REDAX_AUDIT_RETENTION_SECONDS", "integer", "no", "7776000", "7776000", "Audit retention window."),
+    row("REDAX_AUDIT_REDIS_MAX_EVENTS", "integer", "Redis audit", "100000", "100000", "Bounded metadata events in the Redis list."),
+    row("REDAX_HASH_SALT", "secret", "prod", "change-me (rejected)", "secret-manager-value", "Unique deployment value; changes correlation and cache identity."),
+  ] },
+  { title: "Authentication and limits", rows: [
+    row("REDAX_API_KEYS", "CSV secret", "prod", "empty", "key-from-secret-manager", "Configured client keys; overlap before revocation."),
+    row("REDAX_API_KEY_SCOPES", "JSON", "no", "empty", "{key:[redact]}", "Optional least-privilege scopes for configured keys."),
+    row("REDAX_API_KEY_REVOCATIONS", "CSV secret", "no", "empty", "old-key", "Revokes configured keys during rotation."),
+    row("REDAX_MAX_BODY_BYTES", "integer", "no", "4000000", "4000000", "Reject request bodies above this byte limit."),
+    row("REDAX_MAX_RESPONSE_BYTES", "integer", "no", "4000000", "4000000", "Bound buffered response amplification."),
+    row("REDAX_MAX_TEXT_CHARS", "integer", "no", "100000", "100000", "Maximum text length."),
+    row("REDAX_MAX_BATCH_CHARS", "integer", "no", "1000000", "1000000", "Aggregate batch character budget."),
+    row("REDAX_RATE_LIMIT_PER_MINUTE", "integer", "no", "60", "120", "Per-key fixed-window limit; zero disables."),
+    row("REDAX_RATE_LIMIT_FAIL_OPEN", "boolean", "no", "false", "false", "Do not allow traffic through when Redis is unavailable."),
+    row("REDAX_CACHE_TTL_SECONDS", "integer", "no", "3600", "3600", "Response-cache lifetime."),
+    row("REDAX_CACHE_SHARED", "boolean", "no", "false", "false", "Share only with identical hash salt and policy."),
+    row("REDAX_IDEMPOTENCY_TTL_SECONDS", "integer", "no", "86400", "86400", "Replay window for idempotent requests."),
+  ] },
+  { title: "Jobs, streaming, and model execution", rows: [
+    row("REDAX_INFERENCE_CONCURRENCY", "integer", "no", "2", "2", "Concurrent model detector calls per process."),
+    row("REDAX_WORKER_CONCURRENCY", "integer", "no", "1", "2", "Concurrent ARQ jobs per worker process."),
+    row("REDAX_JOB_PAYLOAD_ENCRYPTION_KEY", "Fernet secret", "prod", "empty", "generated Fernet key", "Encrypts queued payloads; rotation needs a queued-job plan."),
+    row("REDAX_JOB_DEAD_LETTER_MAX", "integer", "no", "1000", "1000", "Bounded permanent-failure records."),
+    row("REDAX_MAX_INFLIGHT", "integer", "no", "32", "32", "Admitted jobs/inference units."),
+    row("REDAX_MAX_JOBS_PER_KEY", "integer", "no", "50", "50", "Per-key job admission ceiling."),
+    row("REDAX_MAX_CONCURRENT_REQUESTS", "integer", "no", "128", "128", "Per-process HTTP admission cap."),
+    row("REDAX_REQUEST_ADMISSION_TIMEOUT_SECONDS", "number", "no", "0.01", "0.01", "Maximum wait for an admission slot."),
+    row("REDAX_JOB_TTL_SECONDS", "integer", "no", "86400", "86400", "Job record lifetime in Redis."),
+    row("REDAX_JOB_STALE_SECONDS", "integer", "no", "300", "300", "Recovery threshold for jobs without state updates."),
+    row("REDAX_STREAM_CHUNK_CHARS", "integer", "no", "2000", "2000", "Default SSE chunk size."),
+    row("REDAX_STREAM_CHUNK_BYTES", "integer", "no", "4096", "4096", "Per-event UTF-8 ceiling."),
+    row("REDAX_STREAM_TIMEOUT_SECONDS", "number", "no", "60", "60", "Total streaming response budget."),
+    row("REDAX_REQUEST_TIMEOUT_SECONDS", "number", "no", "30", "30", "Inference/request timeout."),
+    row("REDAX_REQUEST_BODY_TIMEOUT_SECONDS", "number", "no", "30", "30", "Time allowed to receive a chunked body."),
+    row("REDAX_SHUTDOWN_TIMEOUT_SECONDS", "number", "no", "30", "30", "Dependency cleanup budget."),
+    row("REDAX_MULTI_PASS_MAX", "integer", "no", "3", "3", "Maximum detector passes for multi-pass policies."),
+    row("REDAX_PIPELINE_ENABLED", "boolean", "no", "true", "true", "Enable staged regex/model/consensus pipeline."),
+    row("REDAX_PIPELINE_BREAKER_THRESHOLD", "integer", "no", "3", "3", "Model failures before the circuit opens."),
+    row("REDAX_PIPELINE_BREAKER_COOLDOWN_S", "number", "no", "5", "5", "Seconds before a circuit probe."),
+    row("REDAX_JOB_RETRY_JITTER_SECONDS", "number", "no", "1.0", "1.0", "Maximum random retry delay."),
+  ] },
+  { title: "Telemetry", rows: [
+    row("REDAX_METRICS_BY_TENANT", "boolean", "no", "false", "false", "Reserved; tenant labels are disabled by default."),
+    row("REDAX_OTLP_ENDPOINT", "URL", "no", "empty", "http://otel-collector:4317", "OTLP gRPC traces; validate collector privacy and retention."),
+  ] },
+];
+---
+<DocsLayout active="config" title="Configuration reference" description="The runtime configuration contract for Redax, including types, defaults, examples, restart behavior, and production implications.">
+  <section class="rdx-docs-callout"><b>One runtime contract.</b><p>These rows mirror the typed <code>Settings</code> model in <code>app/config.py</code> and the deployment reference. Environment names are exact. Most changes require a restart or redeploy because settings are validated at process startup; region, DNS, TLS, and managed Redis plan live outside this application contract.</p></section>
+  <section><h2>How to read this page</h2><p class="mt-3">“Required” describes when the setting is needed, not whether Pydantic supplies a default. Secret values are examples of sources, never credentials. Restart the API and worker together when both consume a value.</p><div class="mt-4 card p-5"><pre class="code-shell overflow-x-auto p-5 text-[13px] leading-[1.7] text-ink-100"><code>{`REDAX_ENV=prod
+REDAX_API_KEYS=inject-from-your-secret-manager
+REDAX_HASH_SALT=generate-a-unique-random-value
+REDAX_REDIS_URL=rediss://redis.internal:6380/0
+REDAX_REDIS_REQUIRED=true
+REDAX_TRUSTED_HOSTS=redax.example.com`}</code></pre><p class="mt-4 text-[13px] text-ink-400">Use the platform’s secret injection and the exact hostname served by your ingress.</p></div></section>
+  {groups.map((group) => <section><h2>{group.title}</h2><div class="rdx-config-table" role="table" aria-label={group.title}>{group.rows.map((item) => <div class="rdx-config-row" role="row"><div role="cell"><code>{item.name}</code><span>{item.notes}</span></div><div role="cell"><b>TYPE</b><span>{item.type}</span></div><div role="cell"><b>REQUIRED</b><span>{item.required}</span></div><div role="cell"><b>DEFAULT</b><span>{item.defaultValue}</span></div><div role="cell"><b>EXAMPLE</b><span>{item.example}</span></div><div role="cell"><b>CHANGE</b><span>Restart / redeploy</span></div></div>)}</div></section>)}
+  <section class="rdx-docs-callout rdx-docs-warning"><b>Platform settings are intentionally separate.</b><p>Hosting region, managed Redis HA/backups, workload identity, telemetry retention, DNS, TLS issuer, and SLO thresholds cannot be safe universal environment defaults. Record them with the release and validate them through the <a href="/redax/docs/launch">production launch gate</a>.</p></section>
+</DocsLayout>
