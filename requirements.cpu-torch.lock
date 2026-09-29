@@ -1,0 +1,10 @@
+# CPU-only Torch wheels used by the Linux production image.
+#
+# The general requirements.lock is intentionally platform-universal and its
+# torch entry resolves to the default PyPI build. Production containers run
+# without CUDA libraries, so Docker installs this separately from the PyTorch
+# CPU index with hashes for the supported Linux architectures.
+torch==2.14.0 \
+    --hash=sha256:caf6359d64c0074bcb9f8641a169239118c8165a0a0fef79110c72bfd6474bec \
+    --hash=sha256:160e1bc46aeded3111d2801f8ae10dc9a1b946843a7e126b4dbf5e19c5706e95 \
+    --hash=sha256:092d5c12938850dfbd90a654b3c8dac34c33e300f88eb19ee6f4ef93992c6347

@@ -12,7 +12,12 @@ WORKDIR /build
 # by `make install` locally, so the production image and dev environment
 # are bit-for-bit reproducible.
 COPY requirements.lock /build/requirements.lock
-RUN pip install --prefix=/install --no-deps --require-hashes -r /build/requirements.lock
+COPY requirements.cpu-torch.lock /build/requirements.cpu-torch.lock
+RUN sed '/^torch==/,/^tqdm==/{ /^tqdm==/!d; }' /build/requirements.lock > /tmp/requirements.without-torch.lock \
+    && pip install --prefix=/install --no-deps --require-hashes -r /tmp/requirements.without-torch.lock \
+    && pip install --prefix=/install --no-deps --require-hashes \
+        --index-url https://download.pytorch.org/whl/cpu \
+        -r /build/requirements.cpu-torch.lock
 
 # Install the package itself with no deps (deps were resolved above).
 COPY pyproject.toml /build/
