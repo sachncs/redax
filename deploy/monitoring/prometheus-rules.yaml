@@ -31,6 +31,15 @@ spec:
           annotations:
             summary: Redax p99 request latency is above 2 seconds
             runbook_url: https://github.com/sachncs/redax/blob/master/docs/runbooks/jobs.md
+        - alert: RedaxResponseSizeRejections
+          expr: increase(redax_response_rejections_total[10m]) > 0
+          for: 5m
+          labels:
+            severity: ticket
+            service: redax
+          annotations:
+            summary: Redax is rejecting oversized buffered responses
+            runbook_url: https://github.com/sachncs/redax/blob/master/docs/runbooks/capacity.md
         - alert: RedaxRateLimitDependencyUnavailable
           expr: increase(redax_rate_limit_unavailable_total[10m]) > 0
           for: 5m

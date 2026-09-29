@@ -28,7 +28,8 @@
       "title": "Audit and dependency failures",
       "targets": [
         {"expr": "sum(rate(redax_audit_write_failed_total[5m]))", "legendFormat": "audit write failures"},
-        {"expr": "sum(rate(redax_rate_limit_unavailable_total[5m]))", "legendFormat": "rate-limit unavailable"}
+        {"expr": "sum(rate(redax_rate_limit_unavailable_total[5m]))", "legendFormat": "rate-limit unavailable"},
+        {"expr": "sum(rate(redax_response_rejections_total[5m]))", "legendFormat": "oversized responses rejected"}
       ]
     },
     {

@@ -11,6 +11,11 @@ and Redis-backed admission limits rather than treating one replica's value
 as global queue depth. Do not add request text,
 entity values, API keys, or Redis keys as labels.
 
+`redax_response_rejections_total` counts buffered responses rejected by the
+`REDAX_MAX_RESPONSE_BYTES` ceiling. Streaming responses remain governed by
+their chunk and total-duration limits; this counter is intended to surface
+unexpected response amplification without recording response content.
+
 The checked-in assets are:
 
 - [`deploy/monitoring/prometheus-rules.yaml`](../deploy/monitoring/prometheus-rules.yaml)
