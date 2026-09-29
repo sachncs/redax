@@ -22,6 +22,18 @@ def test_kubernetes_network_policies_are_fail_closed_and_bound() -> None:
     assert api["spec"]["ingress"][0]["ports"] == [{"protocol": "TCP", "port": 8000}]
 
 
+def test_compose_api_and_worker_share_job_payload_key() -> None:
+    root = Path(__file__).parents[2]
+    compose = yaml.safe_load((root / "docker-compose.yml").read_text())
+    api_env = compose["services"]["redax"]["environment"]
+    worker_env = compose["services"]["redax-worker"]["environment"]
+
+    assert (
+        worker_env["REDAX_JOB_PAYLOAD_ENCRYPTION_KEY"]
+        == api_env["REDAX_JOB_PAYLOAD_ENCRYPTION_KEY"]
+    )
+
+
 def test_kubernetes_reference_uses_shared_audit_without_rw_volume() -> None:
     root = Path(__file__).parents[2]
     configmap = yaml.safe_load((root / "deploy/kubernetes/configmap.yaml").read_text())
