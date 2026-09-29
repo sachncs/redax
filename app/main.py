@@ -194,6 +194,7 @@ async def build_state(settings: Settings) -> State:
             job_store.client,
             namespace=settings.redis_namespace,
             max_events=settings.audit_redis_max_events,
+            retention_seconds=settings.audit_retention_seconds,
             required=settings.audit_required,
             integrity_key=settings.audit_integrity_key,
         )

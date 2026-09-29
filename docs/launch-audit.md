@@ -70,7 +70,7 @@ DLP program.
 - Browser/WASM model parity and a supported browser package remain experimental
   and regex-only because model packaging, bundle provenance, and parity are not
   yet verified.
-- Managed Redis HA/failover evidence, durable audit retention, external
+- Managed Redis HA/failover evidence, managed audit durability/restore, external
   telemetry collector canaries, SBOM/signing attestations for every future
   release, and a supported Python SDK remain outside the `0.1.0` contract.
 - A release-grade accuracy/latency benchmark remains deferred until a licensed
