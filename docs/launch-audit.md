@@ -14,6 +14,9 @@ DLP program.
 - HTTP responses never carry the Python re-identification map. API-key
   ownership, idempotency, cache, rate-limit, job, audit, log, metric, and
   exception paths avoid storing raw API keys or entity values.
+- Request entity-type lists and inline policy structures are bounded before
+  detector execution, including field count, option-string size, detector pass
+  count, and hash output length.
 - Production configuration rejects missing API keys, trusted hosts, and the
   default hash salt. Authenticated rate limiting fails closed when Redis is
   unavailable unless the operator explicitly enables fail-open mode.
@@ -89,6 +92,8 @@ DLP program.
 - Error logging is exception-class-only at the request boundary.
 - Cache and idempotency identities include policy, detector, model, and mode;
   old envelopes are not trusted blindly.
+- Policy validation rejects oversized field graphs and unbounded execution
+  options before they can amplify detector work.
 - Audit, metrics, traces, and job responses are documented as metadata-only
   boundaries, with operator-owned retention and exporter controls.
 

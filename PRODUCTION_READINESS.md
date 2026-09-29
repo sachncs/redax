@@ -6,9 +6,10 @@ the cited evidence covers the stated scope; `FAIL` means implementation or
 evidence is still missing; `N/A` means the requirement is outside the current
 supported product surface.
 
-Review baseline: `23b01d8` and the current `master` tree. The latest review
+Review baseline: `2827adc` and the current `master` tree. The latest review
 also includes constant-time API-key rotation checks, production wildcard-CORS
-rejection, bounded audit shutdown, and a real OTLP delivery/privacy canary.
+rejection, bounded audit shutdown, a real OTLP delivery/privacy canary, and
+bounded entity-type and inline-policy structures.
 Update this matrix as each production milestone lands.
 
 ## Reliability and distributed correctness
@@ -30,7 +31,7 @@ Update this matrix as each production milestone lands.
 | Scoped authorization | PARTIAL | Optional JSON scopes enforce redact, detect, jobs, policies, and metrics endpoints; overlapping active keys and deployment-native revocation are supported, while external rotation/control-plane audit remain pending. |
 | Secrets stay out of telemetry | PARTIAL | Error, audit, cache, idempotency, metrics, detector-failure log, metadata-only request/stream trace, bounded OTLP exporter configuration, asynchronous export-failure counting, auth/validation failures, invalid-policy diagnostics, job identifiers, real-Redis job/audit canaries, and a real OTLP gRPC delivery/privacy canary exist; collector-side delivery evidence is incomplete. |
 | Automated PII leak suite | PARTIAL | Canaries cover synchronous response, metrics, audit, detector-failure logs, auth/validation failures, invalid policies, job lookup errors, Redis outage, timeout, streaming response/audit/traces/cancellation, durable-job success/failure/cancellation output/store/audit, and real-Redis persisted values; exporter delivery matrix coverage remains pending. Required file-audit first-write failure now rejects the request before success. |
-| No silent raw pass-through after internal failure | PARTIAL | Model fallback is explicit and audited; an unavailable model with no regex matches now returns 503; a missing or invalid configured default policy returns a generic 503 across synchronous, batch, and streaming transports; batch/stream detector exceptions are covered by canary tests; synchronous, batch, stream, and durable-job audit failures are covered by regression tests; shutdown and full failure-matrix coverage remain. |
+| No silent raw pass-through after internal failure | PARTIAL | Model fallback is explicit and audited; an unavailable model with no regex matches now returns 503; a missing or invalid configured default policy returns a generic 503 across synchronous, batch, and streaming transports; batch/stream detector exceptions are covered by canary tests; synchronous, batch, stream, and durable-job audit failures are covered by regression tests; request entity types and inline policy structures are bounded before execution; shutdown and full failure-matrix coverage remain. |
 | Threat model matches implementation | PASS | `docs/threat-model.md`, `docs/data-flow.md`, and `docs/failure-modes.md`; update when the worker/audit architecture lands. |
 | High/critical vulnerability gate | PARTIAL | GitHub security run `36560012477` passed SBOM generation and the filesystem Trivy gate; the successful `v0.1.0` release run `36130306271` also scanned the release image, but recurring release evidence is still required. |
 
@@ -52,6 +53,7 @@ Update this matrix as each production milestone lands.
 | Versioned persisted schemas | PARTIAL | Idempotency, response-cache, durable-job, and audit-event records carry schema versions; incompatible durable-job records are now refused by reads, status updates, terminal transitions, and stale reaping; migration evidence for all persisted stores is still pending. |
 | Configuration validation and documentation | PASS | `Settings` plus documented configuration drift tests. |
 | API/OpenAPI contract | PASS | API contract tests and documented paths; generated OpenAPI advertises the `X-API-Key` scheme and the scope matrix is documented as the runtime authorization contract. |
+| Bounded policy and request structures | PASS | `app/api/models.py` bounds request entity-type lists and labels; `app/redaction/policies.py` bounds field count, field names, option strings, entity types, detector passes, and hash output length; `tests/unit/test_api_limits.py` and `tests/unit/test_policies.py` exercise rejection boundaries. |
 | Meaningful coverage threshold | PASS | `pyproject.toml` enforces 80% branch-aware coverage through `make test-cov`; the Python 3.13 suite currently measures 83.43%. |
 
 ## Observability and operations
