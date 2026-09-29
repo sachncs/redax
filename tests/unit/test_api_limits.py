@@ -33,13 +33,10 @@ class FakeClient:
         self.responses = list(responses or [1])
         self.error = error
 
-    async def incr(self, key: str) -> int:
+    async def eval(self, script: str, numkeys: int, key: str, seconds: str) -> int:
         if self.error is not None:
             raise self.error
         return self.responses.pop(0)
-
-    async def expire(self, key: str, seconds: int) -> None:
-        return None
 
 
 class FakeStore:
