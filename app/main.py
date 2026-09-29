@@ -182,6 +182,7 @@ async def build_state(settings: Settings) -> State:
         settings=settings,
         job_store=job_store,
         pipeline=pipeline,
+        request_admission=asyncio.Semaphore(settings.max_concurrent_requests),
     )
 
 

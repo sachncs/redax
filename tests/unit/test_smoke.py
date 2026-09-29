@@ -130,6 +130,55 @@ def test_readyz_fails_when_required_redis_is_unavailable() -> None:
     assert response.json()["detail"] == "Required dependencies are not ready"
 
 
+def test_request_admission_rejects_when_saturated() -> None:
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from app.middleware import register_request_context
+    from app.state import State
+
+    test_state = State(ready=True, request_admission=asyncio.Semaphore(0))
+    test_state.settings = type("S", (), {"request_admission_timeout_seconds": 0.0})()
+    app = FastAPI()
+    app.state.state = test_state
+    register_request_context(app)
+
+    @app.get("/v1/test")
+    async def test_route() -> dict[str, str]:
+        return {"status": "ok"}
+
+    with TestClient(app) as client:
+        response = client.get("/v1/test")
+    assert response.status_code == 503
+    assert response.json()["type"] == "https://redax.ai/errors/request-capacity"
+    assert response.headers["retry-after"] == "1"
+
+
+def test_request_admission_rejects_during_drain_but_keeps_healthz_alive() -> None:
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from app.api.health import register
+    from app.middleware import register_request_context
+    from app.state import State
+
+    test_state = State(ready=False, request_admission=asyncio.Semaphore(1))
+    app = FastAPI()
+    app.state.state = test_state
+    register_request_context(app)
+    register(app)
+
+    @app.get("/v1/test")
+    async def test_route() -> dict[str, str]:
+        return {"status": "ok"}
+
+    with TestClient(app) as client:
+        assert client.get("/healthz").status_code == 200
+        response = client.get("/v1/test")
+    assert response.status_code == 503
+    assert response.json()["type"] == "https://redax.ai/errors/not-ready"
+
+
 def test_health_metrics_instrumented() -> None:
     from fastapi import FastAPI
     from fastapi.testclient import TestClient

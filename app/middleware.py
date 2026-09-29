@@ -10,16 +10,20 @@ re-implementing the ``X-Request-ID or uuid`` fallback.
 
 from __future__ import annotations
 
+import asyncio
 import time
 import uuid
 from collections.abc import Awaitable, Callable
 from re import fullmatch
+from typing import Any
 
 import structlog
 from fastapi import FastAPI, Request
 from fastapi.responses import Response
 
+from app.errors import problem_response
 from app.logging import get_logger
+from app.observability import ADMISSION_REJECTIONS, REQUESTS_INFLIGHT
 from app.observability.tracing import current_trace_id_hex
 
 
@@ -107,7 +111,50 @@ def register_request_context(app: FastAPI) -> None:
         structlog.contextvars.bind_contextvars(request_id=request_id)
         start = time.perf_counter()
         status = 500
+        admitted = False
+        admission: Any | None = None
+        response: Response
         try:
+            state = getattr(request.app.state, "state", None)
+            admission = getattr(state, "request_admission", None)
+            probe = request.url.path in {"/healthz", "/readyz", "/metrics"}
+            if admission is not None and not probe:
+                if not getattr(state, "ready", False):
+                    ADMISSION_REJECTIONS.labels(reason="draining").inc()
+                    response = problem_response(
+                        request,
+                        type="https://redax.ai/errors/not-ready",
+                        title="Not ready",
+                        status=503,
+                        detail="Service is draining or has not finished initializing",
+                    )
+                    response.headers["Retry-After"] = "1"
+                    status = response.status_code
+                    return response
+                timeout_seconds = float(
+                    getattr(
+                        getattr(state, "settings", None),
+                        "request_admission_timeout_seconds",
+                        0.01,
+                    )
+                )
+                try:
+                    async with asyncio.timeout(timeout_seconds):
+                        await admission.acquire()
+                except TimeoutError:
+                    ADMISSION_REJECTIONS.labels(reason="saturated").inc()
+                    response = problem_response(
+                        request,
+                        type="https://redax.ai/errors/request-capacity",
+                        title="Request capacity exhausted",
+                        status=503,
+                        detail="Request capacity is temporarily exhausted",
+                    )
+                    response.headers["Retry-After"] = "1"
+                    status = response.status_code
+                    return response
+                admitted = True
+                REQUESTS_INFLIGHT.inc()
             response = await call_next(request)
             response.headers.setdefault("X-Content-Type-Options", "nosniff")
             response.headers.setdefault("X-Frame-Options", "DENY")
@@ -120,6 +167,9 @@ def register_request_context(app: FastAPI) -> None:
             status = response.status_code
             return response
         finally:
+            if admitted and admission is not None:
+                REQUESTS_INFLIGHT.dec()
+                admission.release()
             emit_access_line(
                 method=request.method,
                 path=request.url.path,

@@ -85,6 +85,8 @@ class Settings(BaseSettings):
     job_dead_letter_max: int = Field(default=1000, ge=1)
     max_inflight: int = Field(default=32, ge=1)
     max_jobs_per_key: int = Field(default=50, ge=1)
+    max_concurrent_requests: int = Field(default=128, ge=1)
+    request_admission_timeout_seconds: float = Field(default=0.01, ge=0.0, le=1.0)
     job_ttl_seconds: int = Field(default=86_400, ge=1)
     job_stale_seconds: int = Field(default=300, ge=1)
     request_timeout_seconds: float = Field(default=30.0, ge=0.1)

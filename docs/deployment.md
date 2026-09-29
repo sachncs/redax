@@ -79,6 +79,8 @@ All settings read from environment variables prefixed with `REDAX_`. See
 | `REDAX_IDEMPOTENCY_TTL_SECONDS` | `86400` | idempotency cache TTL |
 | `REDAX_MAX_INFLIGHT` | `32` | jobs admitted while this many are in flight; else 429 |
 | `REDAX_MAX_JOBS_PER_KEY` | `50` | max admitted jobs per API key; else 429 |
+| `REDAX_MAX_CONCURRENT_REQUESTS` | `128` | per-process HTTP handler admission cap; excess requests receive 503 |
+| `REDAX_REQUEST_ADMISSION_TIMEOUT_SECONDS` | `0.01` | maximum wait for a request-admission slot before 503 |
 | `REDAX_JOB_TTL_SECONDS` | `86400` | how long job records live in Redis |
 | `REDAX_JOB_STALE_SECONDS` | `300` | startup recovery threshold for queued/running jobs left without a state update |
 | `REDAX_STREAM_CHUNK_CHARS` | `2000` | default SSE chunk size when the client omits `chunk_chars` |

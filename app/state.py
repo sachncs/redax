@@ -61,6 +61,7 @@ class State:
     settings: Any | None = None
     job_store: Any | None = None
     job_queue: Any | None = None
+    request_admission: Any | None = None
     extras: dict[str, Any] = field(default_factory=dict)
     pipeline: Pipeline | None = None
 

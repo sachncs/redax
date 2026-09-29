@@ -23,6 +23,19 @@ REQUEST_LATENCY = Histogram(
     registry=REGISTRY,
 )
 
+REQUESTS_INFLIGHT = Gauge(
+    "redax_requests_inflight",
+    "HTTP requests currently admitted to application handlers.",
+    registry=REGISTRY,
+)
+
+ADMISSION_REJECTIONS = Counter(
+    "redax_admission_rejections_total",
+    "Requests rejected before application handling due to drain or saturation.",
+    labelnames=("reason",),
+    registry=REGISTRY,
+)
+
 INFERENCE_LATENCY = Histogram(
     "redax_inference_duration_seconds",
     "Time spent in detector inference for a single detect() call.",

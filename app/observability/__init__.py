@@ -1,4 +1,5 @@
 from .metrics import (
+    ADMISSION_REJECTIONS,
     AUDIT_DROPPED,
     AUDIT_UNINITIALISED,
     AUDIT_WRITE_FAILED,
@@ -14,12 +15,14 @@ from .metrics import (
     REGISTRY,
     REQUEST_LATENCY,
     REQUESTS,
+    REQUESTS_INFLIGHT,
     RequestMetric,
     queue_depth,
 )
 from .tracing import configure_tracing, current_trace_id_hex
 
 __all__ = [
+    "ADMISSION_REJECTIONS",
     "AUDIT_DROPPED",
     "AUDIT_UNINITIALISED",
     "AUDIT_WRITE_FAILED",
@@ -34,6 +37,7 @@ __all__ = [
     "RATE_LIMIT_UNAVAILABLE",
     "REGISTRY",
     "REQUESTS",
+    "REQUESTS_INFLIGHT",
     "REQUEST_LATENCY",
     "RequestMetric",
     "configure_tracing",
