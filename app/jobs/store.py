@@ -95,6 +95,14 @@ local total = tonumber(redis.call('GET', KEYS[3]) or '0')
 if total <= 1 then redis.call('DEL', KEYS[3]) else redis.call('DECR', KEYS[3]) end
 return 1
 """
+    CLAIM_SCRIPT = """
+local status = redis.call('HGET', KEYS[1], 'status')
+if status ~= 'queued' then return 0 end
+if redis.call('HGET', KEYS[1], 'schema_version') ~= ARGV[3] then return 0 end
+redis.call('HSET', KEYS[1], 'status', 'running', 'updated_at', ARGV[2], 'schema_version', ARGV[3])
+redis.call('EXPIRE', KEYS[1], ARGV[1])
+return 1
+"""
 
     def __init__(
         self,
@@ -344,6 +352,21 @@ return 1
             },
         )
         await client.expire(key, self.ttl_seconds)
+
+    async def claim(self, job_id: str) -> bool:
+        """Atomically claim a queued job for one worker delivery."""
+        client = self.client
+        if client is None:
+            raise RuntimeError("JobStore.start() must run before claim()")
+        result = await client.eval(  # type: ignore[misc]
+            self.CLAIM_SCRIPT,
+            1,
+            self._key(job_id),
+            str(self.ttl_seconds),
+            str(time.time()),
+            str(self.JOB_SCHEMA_VERSION),
+        )
+        return bool(result)
 
     async def reap_stale_jobs(self, max_age_seconds: int) -> int:
         """Fail queued/running jobs older than the recovery lease threshold."""

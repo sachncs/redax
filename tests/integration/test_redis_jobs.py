@@ -160,6 +160,18 @@ async def test_real_redis_admission_and_terminal_transitions_are_atomic(
 
 
 @pytest.mark.asyncio
+async def test_real_redis_job_claim_allows_one_duplicate_delivery(
+    real_job_store: JobStore,
+) -> None:
+    record = await real_job_store.create(owner="tenant-a")
+    claims = await asyncio.gather(*(real_job_store.claim(record.id) for _ in range(12)))
+    assert sum(claims) == 1
+    stored = await real_job_store.get(record.id)
+    assert stored is not None
+    assert stored.status == "running"
+
+
+@pytest.mark.asyncio
 async def test_real_redis_pii_canary_is_absent_from_job_and_audit_values(
     real_job_store: JobStore,
 ) -> None:

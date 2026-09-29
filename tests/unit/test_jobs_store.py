@@ -85,16 +85,18 @@ class FakeRedis:
             if key.startswith("redax:job:") or key.startswith("redax:worker:"):
                 yield key
 
-    async def eval(
-        self,
-        _script: str,
-        _numkeys: int,
-        job_key: str,
-        owner_key: str,
-        total_key: str,
-        queue_key: str,
-        *args: str,
-    ) -> int:
+    async def eval(self, _script: str, numkeys: int, job_key: str, *rest: str) -> int:
+        if numkeys == 1:
+            ttl, updated_at, schema_version = rest
+            record = self.records.get(job_key, {})
+            if record.get("status") != "queued" or record.get("schema_version") != schema_version:
+                return 0
+            record.update(
+                {"status": "running", "updated_at": updated_at, "schema_version": schema_version}
+            )
+            await self.expire(job_key, int(ttl))
+            return 1
+        owner_key, total_key, queue_key, *args = rest
         if len(args) == 8:
             status, result, error, ttl, updated_at, schema_version, expected_schema, job_id = args
             record = self.records.get(job_key, {})
@@ -274,6 +276,12 @@ async def test_create_admitted_reserves_shared_and_owner_slots_atomically(
     assert second is None
     assert await store.count_inflight() == 1
     assert await store.count_for_key("k1") == 1
+
+
+async def test_claim_is_single_delivery_transition(store: JobStore) -> None:
+    record = await store.create(owner="k1")
+    assert await store.claim(record.id) is True
+    assert await store.claim(record.id) is False
 
 
 async def test_reap_stale_job_fails_record_and_releases_capacity(

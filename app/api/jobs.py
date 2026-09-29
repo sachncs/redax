@@ -191,7 +191,13 @@ async def run_job(
     """
     logger = get_logger("redax.jobs")
     try:
-        await store.set_status(job_id, "running")
+        claim = getattr(store, "claim", None)
+        claimed = await claim(job_id) if claim is not None else True
+        if claim is None:
+            await store.set_status(job_id, "running")
+        if not claimed:
+            existing = await store.get(job_id)
+            return existing is not None and existing.status in {"running", "done", "failed"}
     except (OSError, TimeoutError, RuntimeError) as exc:
         ERRORS.labels(type="job_store_unavailable").inc()
         logger.error("redax.job_store_unavailable", job_id=job_id, error=exc.__class__.__name__)

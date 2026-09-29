@@ -91,6 +91,13 @@ class InMemoryJobStore(JobStore):
     async def set_status(self, job_id, status):
         self.records[job_id].status = status
 
+    async def claim(self, job_id):
+        record = self.records[job_id]
+        if record.status != "queued":
+            return False
+        record.status = "running"
+        return True
+
     async def set_result(self, job_id, result):
         self.records[job_id].result = result
         self.records[job_id].status = "done"
