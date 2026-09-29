@@ -5,7 +5,7 @@ import re
 import sys
 from pathlib import Path
 
-STATUS_VALUES = {"PASS", "FAIL", "N/A"}
+STATUS_VALUES = {"PASS", "FAIL", "NOT APPLICABLE"}
 ROW_PATTERN = re.compile(r"^\| (?P<requirement>[^|]+) \| (?P<status>[^|]+) \| (?P<evidence>.+) \|$")
 
 
@@ -45,7 +45,9 @@ def main() -> int:
     summary = {
         "schema_version": 1,
         "source": str(path.name),
-        "status": "PASS" if all(row["status"] in {"PASS", "N/A"} for row in rows) else "FAIL",
+        "status": "PASS"
+        if all(row["status"] in {"PASS", "NOT APPLICABLE"} for row in rows)
+        else "FAIL",
         "counts": {
             status: sum(row["status"] == status for row in rows) for status in sorted(STATUS_VALUES)
         },

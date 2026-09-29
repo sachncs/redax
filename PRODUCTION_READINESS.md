@@ -3,7 +3,7 @@
 Status: **NOT production-grade yet**. This is a checkable review of the
 current repository, not a marketing claim. A requirement is `PASS` only when
 the cited evidence covers the stated scope; `FAIL` means implementation or
-evidence is still missing; `N/A` means the requirement is outside the current
+evidence is still missing; `NOT APPLICABLE` means the requirement is outside the current
 supported product surface.
 
 Review baseline: `cf909d2` and the current `master` tree. The latest review

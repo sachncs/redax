@@ -1,4 +1,4 @@
-.PHONY: help dev test test-cov lint typecheck download-models bench load-bench eval build-server build-wasm build-all clean install verify verify-determinism load
+.PHONY: help dev test test-cov lint typecheck readiness download-models bench load-bench eval build-server build-wasm build-all clean install verify verify-determinism load
 
 # pyproject.toml requires Python 3.13+. Set PYTHON explicitly when using a
 # virtualenv managed by uv, pyenv, or another environment manager.
@@ -29,10 +29,13 @@ lint: ## Run ruff
 typecheck: ## Run mypy
 	$(PYTHON) -m mypy app/
 
+readiness: ## Validate the production-readiness matrix vocabulary and shape
+	$(PYTHON) scripts/validate_readiness.py > /dev/null
+
 verify-determinism: ## Property test: same input -> identical redacted output, repeatedly
 	$(PYTHON) -m pytest tests/unit/test_determinism.py -v
 
-verify: test lint typecheck verify-determinism ## Full reproducibility gate: tests, lint, typecheck, determinism
+verify: test lint typecheck verify-determinism readiness ## Full reproducibility gate: tests, lint, typecheck, determinism, readiness contract
 	@echo "verify: all checks passed"
 
 download-models: ## Download + sha256-verify pinned model snapshots (fail-loud on mismatch)
