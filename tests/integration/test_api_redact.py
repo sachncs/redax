@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -103,6 +104,44 @@ class CacheFailingRedis:
         if self.fail_on == "set":
             raise RedisError("cache write unavailable")
         return True
+
+
+class OrderedIdempotencyRedis:
+    """Small Redis double that records publication order for one request."""
+
+    def __init__(self) -> None:
+        self.values: dict[str, str] = {}
+        self.operations: list[str] = []
+
+    async def get(self, key: str):
+        self.operations.append(f"get:{key}")
+        return self.values.get(key)
+
+    async def set(self, key: str, value: str, *, ex: int, nx: bool = False):
+        del ex
+        operation = "cache_set" if ":cache:" in key else "lock_set"
+        self.operations.append(operation)
+        if nx and key in self.values:
+            return None
+        self.values[key] = value
+        return True
+
+    async def eval(self, script: str, key_count: int, *args: str):
+        del script
+        if key_count == 2:
+            lock_key, result_key, token, envelope, _ttl = args
+            self.operations.append("idempotency_complete")
+            if self.values.get(lock_key) != token:
+                return 0
+            self.values[result_key] = envelope
+            del self.values[lock_key]
+            return 1
+        lock_key, token = args
+        self.operations.append("idempotency_release")
+        if self.values.get(lock_key) != token:
+            return 0
+        del self.values[lock_key]
+        return 1
 
 
 @pytest.fixture
@@ -289,6 +328,29 @@ def test_response_cache_failure_recomputes_without_leaking_canary(
     assert response.status_code == 200
     assert canary not in response.text
     assert canary not in output
+
+
+def test_idempotency_completes_before_response_cache_publish(app_with_redactor):
+    redis = OrderedIdempotencyRedis()
+
+    class Store:
+        client = redis
+
+    app_with_redactor.state.state.job_store = Store()
+    with TestClient(app_with_redactor) as client:
+        response = client.post(
+            "/v1/redact",
+            json={"text": "Email order@example.com"},
+            headers={"Idempotency-Key": "ordered-publication"},
+        )
+
+    assert response.status_code == 200
+    assert redis.operations.index("idempotency_complete") < redis.operations.index("cache_set")
+    stored = [
+        value for key, value in redis.values.items() if ":idem:" in key and ":lock" not in key
+    ]
+    assert len(stored) == 1
+    assert json.loads(stored[0])["state"] == "complete"
 
 
 def test_timeout_rejects_request_without_leaking_canary(capsys):

@@ -116,7 +116,8 @@ ready.
    - If policy provided: iterate `policy.fields`, dispatch each to its strategy
    - Each strategy may invoke the detector, apply its own substitution
    - `apply_spans` mutates the working text with the substitutions
-7. Cache the response + record an `AuditEvent`
+7. Record an `AuditEvent`, publish the idempotency result when requested, then
+   cache the response as an optional optimization
 8. Return the `RedactionResult` as JSON
 
 ## Why these abstractions

@@ -353,6 +353,24 @@ def register(app: FastAPI) -> None:
                 # acknowledged the event. A required-audit failure must not
                 # leave a cache hit or completed idempotency record that turns
                 # a later retry into an unaudited success.
+                if x_idempotency_key and job_store is not None and job_store.client is not None:
+                    idem_ttl = getattr(settings, "idempotency_ttl_seconds", 86_400)
+                    if idempotency_storage is None or idempotency_token is None:
+                        raise RuntimeError("idempotency reservation was not acquired")
+                    if not await complete_idempotency(
+                        job_store.client,
+                        idempotency_storage,
+                        fingerprint,
+                        idempotency_token,
+                        response_body,
+                        idem_ttl,
+                    ):
+                        raise RuntimeError("idempotency reservation expired before completion")
+                    idempotency_completed = True
+
+                # Publish the optional response cache only after the idempotency
+                # record is complete. This prevents a lease-expiry race from
+                # leaving a cache hit without a durable same-key replay record.
                 ttl = getattr(settings, "cache_ttl_seconds", 3600)
                 if job_store is not None and job_store.client is not None:
                     ns = getattr(settings, "redis_namespace", "redax")
@@ -367,20 +385,6 @@ def register(app: FastAPI) -> None:
                         get_logger("redax.api").warning(
                             "redax.cache_write_failed", error=exc.__class__.__name__
                         )
-                    if x_idempotency_key:
-                        idem_ttl = getattr(settings, "idempotency_ttl_seconds", 86_400)
-                        if idempotency_storage is None or idempotency_token is None:
-                            raise RuntimeError("idempotency reservation was not acquired")
-                        if not await complete_idempotency(
-                            job_store.client,
-                            idempotency_storage,
-                            fingerprint,
-                            idempotency_token,
-                            response_body,
-                            idem_ttl,
-                        ):
-                            raise RuntimeError("idempotency reservation expired before completion")
-                        idempotency_completed = True
 
                 REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
                 response_text: str = str(response_body["text"])

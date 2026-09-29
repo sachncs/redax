@@ -116,7 +116,9 @@ leases the key before redaction and publishes the completed response only if
 the lease is still owned by that request. A completed call with the same
 fingerprint returns the cached response (24h TTL); a different body returns
 409, and a concurrent request receives 409 until the first call completes or
-its lease expires.
+its lease expires. The idempotency record is published before the optional
+response cache, so a lease-expiry race cannot leave a cache hit without a
+replayable same-key record.
 
 ```python
 httpx.post(url, json=body, headers={"Idempotency-Key": "abc-123"})
