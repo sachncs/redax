@@ -261,6 +261,27 @@ def test_stream_fails_closed_when_configured_policy_is_missing(app_with_state, t
     assert response.json()["type"] == "https://redax.ai/errors/policy-unavailable"
 
 
+def test_stream_rejects_invalid_inline_policy_without_echoing_input(app_with_state):
+    canary = "stream.invalid.policy.7f8d@example.com"
+    with TestClient(app_with_state) as client:
+        response = client.post(
+            "/v1/redact/stream",
+            json={
+                "text": f"Email {canary}",
+                "policy": {
+                    "name": "invalid",
+                    "version": "1",
+                    "fields": {"email": {"strategy": "unsupported"}},
+                },
+            },
+            headers={"X-API-Key": "test-key"},
+        )
+
+    assert response.status_code == 422
+    assert response.json()["type"] == "https://redax.ai/errors/invalid-policy"
+    assert canary not in response.text
+
+
 def test_stream_detector_failure_does_not_echo_canary(app_with_state, capsys):
     """A streaming detector exception emits only the generic error event."""
     canary = "stream.detector.failure.7f8d@example.com"
@@ -659,6 +680,28 @@ def test_job_records_audited_entity_summary(app_with_state):
     rec = audit.records[0]
     assert rec.text_chars == len("hi a@b.com")
     assert rec.entities_detected == [{"type": "EMAIL", "count": 1, "confidence_avg": 1.0}]
+
+
+def test_job_rejects_invalid_inline_policy_before_admission(app_with_state):
+    canary = "job.invalid.policy.7f8d@example.com"
+    with TestClient(app_with_state) as client:
+        response = client.post(
+            "/v1/jobs",
+            json={
+                "text": f"Email {canary}",
+                "policy": {
+                    "name": "invalid",
+                    "version": "1",
+                    "fields": {"email": {"strategy": "unsupported"}},
+                },
+            },
+            headers={"X-API-Key": "test-key"},
+        )
+
+    assert response.status_code == 422
+    assert response.json()["type"] == "https://redax.ai/errors/invalid-policy"
+    assert canary not in response.text
+    assert app_with_state.state.state.job_store.records == {}
 
 
 def test_job_not_found(app_with_state):

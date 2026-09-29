@@ -163,7 +163,10 @@ at `REDAX_STREAM_CHUNK_BYTES` (default 4096) bytes and defaults to
 `REDAX_STREAM_CHUNK_CHARS` characters when `chunk_chars` is omitted.
 When `policy` and `entity_types` are omitted, each chunk uses the configured
 `REDAX_DEFAULT_POLICY`; an explicit policy or entity-type selection overrides
-that default.
+that default. Inline policies are validated by the same bounded policy parser
+as `/v1/redact`; malformed or unsupported policy fields return a generic 422
+`invalid-policy` problem and are never treated as an empty policy. `policy`
+and `entity_types` cannot be combined.
 Emits one audit event per request.
 
 ## POST /v1/jobs, GET /v1/jobs/{id}, DELETE /v1/jobs/{id}
@@ -173,7 +176,8 @@ high-throughput pipelines. Both endpoints require an API key when configured;
 submission enforces `max_text_chars` (413), the shared rate limit (429/503),
 the `max_inflight` admission cap (429, RFC 7807 `queue-full` when the
 in-flight job count is at capacity), and the per-key `max_jobs_per_key` quota
-(429, `job-limit`).
+(429, `job-limit`). Inline policies are validated before a job is admitted;
+malformed policies return 422 and cannot enter the durable queue.
 
 **Submit**:
 

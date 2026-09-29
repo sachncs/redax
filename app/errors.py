@@ -35,6 +35,7 @@ __all__ = [
     "Problem",
     "install_error_handlers",
     "internal_error",
+    "invalid_policy",
     "job_limit",
     "job_store_unavailable",
     "payload_too_large",
@@ -185,6 +186,17 @@ def internal_error(request: Request, detail: str = "Internal server error") -> J
         title="Internal Server Error",
         status=500,
         detail=detail,
+    )
+
+
+def invalid_policy(request: Request) -> JSONResponse:
+    """RFC 7807 422 response for a policy that cannot be validated safely."""
+    return problem_response(
+        request,
+        type="https://redax.ai/errors/invalid-policy",
+        title="Invalid Policy",
+        status=422,
+        detail="policy could not be validated",
     )
 
 

@@ -14,10 +14,17 @@ from opentelemetry import trace
 from pydantic import BaseModel, Field
 
 from app.api.models import EntityTypes
-from app.api.policy import PolicyUnavailableError, default_policy, policy_version
+from app.api.policy import PolicyUnavailableError, effective_policy, policy_version
 from app.audit.backend import Event, span_summary
 from app.auth import principal_id, require_scope
-from app.errors import TRANSIENT_EXC, internal_error, payload_too_large, policy_unavailable
+from app.errors import (
+    TRANSIENT_EXC,
+    internal_error,
+    invalid_policy,
+    payload_too_large,
+    policy_unavailable,
+    problem_response,
+)
 from app.logging import get_logger
 from app.middleware import get_request_id
 from app.observability import REQUEST_LATENCY, REQUESTS
@@ -89,15 +96,23 @@ def register(app: FastAPI) -> None:
         stream_timeout_seconds = getattr(settings, "stream_timeout_seconds", 60.0)
         chunk_bytes = getattr(settings, "stream_chunk_bytes", 4096)
         default_chunk_chars = getattr(settings, "stream_chunk_chars", 2000)
-        policy: dict[str, Any] | None
-        if body.policy is not None:
-            policy = body.policy
-        else:
-            try:
-                policy = default_policy(settings)
-            except PolicyUnavailableError:
-                REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
-                return policy_unavailable(request)
+        if body.policy is not None and body.entity_types is not None:
+            REQUESTS.labels(endpoint=endpoint, method=method, status="422").inc()
+            return problem_response(
+                request,
+                type="https://redax.ai/errors/policy-entity-types-conflict",
+                title="Policy and Entity Types Conflict",
+                status=422,
+                detail="Choose either policy or entity_types; do not send both.",
+            )
+        try:
+            policy = effective_policy(settings, body.policy, body.entity_types)
+        except PolicyUnavailableError:
+            REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
+            return policy_unavailable(request)
+        except (TypeError, ValueError):
+            REQUESTS.labels(endpoint=endpoint, method=method, status="422").inc()
+            return invalid_policy(request)
         latency_start = time.perf_counter()
 
         async def event_source() -> AsyncIterator[str]:

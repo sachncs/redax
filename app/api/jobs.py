@@ -18,15 +18,17 @@ from pydantic import BaseModel, Field
 from redis.exceptions import RedisError
 
 from app.api.models import EntityTypes
-from app.api.policy import default_policy, policy_version
+from app.api.policy import PolicyUnavailableError, effective_policy, policy_version
 from app.audit.backend import Event, span_summary
 from app.auth import principal_id, require_scope
 from app.errors import (
     TRANSIENT_EXC,
     internal_error,
+    invalid_policy,
     job_limit,
     job_store_unavailable,
     payload_too_large,
+    policy_unavailable,
     problem_response,
     queue_full,
 )
@@ -83,6 +85,23 @@ def register(app: FastAPI) -> None:
             if len(body.text) > max_chars:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="413").inc()
                 return payload_too_large(request, f"text exceeds {max_chars} chars")
+            if body.policy is not None and body.entity_types is not None:
+                REQUESTS.labels(endpoint=endpoint, method=method, status="422").inc()
+                return problem_response(
+                    request,
+                    type="https://redax.ai/errors/policy-entity-types-conflict",
+                    title="Policy and Entity Types Conflict",
+                    status=422,
+                    detail="Choose either policy or entity_types; do not send both.",
+                )
+            try:
+                validated_policy = effective_policy(settings, body.policy, body.entity_types)
+            except PolicyUnavailableError:
+                REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
+                return policy_unavailable(request)
+            except (TypeError, ValueError):
+                REQUESTS.labels(endpoint=endpoint, method=method, status="422").inc()
+                return invalid_policy(request)
             if api_key == "anonymous":
                 REQUESTS.labels(endpoint=endpoint, method=method, status="401").inc()
                 return problem_response(
@@ -126,9 +145,11 @@ def register(app: FastAPI) -> None:
                 return queue_full(request)
             QUEUE_DEPTH.inc()
             try:
+                payload = body.model_dump()
+                payload["policy"] = validated_policy
                 queue_payload = JobPayloadCipher(
                     getattr(settings, "job_payload_encryption_key", "")
-                ).encode(body.model_dump())
+                ).encode(payload)
                 queued = await queue.enqueue_job(
                     "process_job",
                     record.id,
@@ -299,10 +320,8 @@ async def run_job(
     try:
         timeout_seconds = getattr(state.settings, "request_timeout_seconds", 30.0)
         async with asyncio.timeout(timeout_seconds):
-            policy = payload.get("policy")
             entity_types = payload.get("entity_types")
-            if policy is None and entity_types is None:
-                policy = default_policy(state.settings)
+            policy = effective_policy(state.settings, payload.get("policy"), entity_types)
             result = await redactor.redact(
                 payload["text"],
                 policy=policy,
