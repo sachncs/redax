@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 39,
+  "title": "Redax service overview",
+  "tags": ["redax", "pii", "slo"],
+  "timezone": "browser",
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Request rate by status",
+      "targets": [{"expr": "sum by (status) (rate(redax_requests_total[5m]))", "legendFormat": "{{status}}"}]
+    },
+    {
+      "type": "timeseries",
+      "title": "Request p50 / p95 / p99",
+      "targets": [
+        {"expr": "histogram_quantile(0.50, sum by (le) (rate(redax_request_duration_seconds_bucket[5m])))", "legendFormat": "p50"},
+        {"expr": "histogram_quantile(0.95, sum by (le) (rate(redax_request_duration_seconds_bucket[5m])))", "legendFormat": "p95"},
+        {"expr": "histogram_quantile(0.99, sum by (le) (rate(redax_request_duration_seconds_bucket[5m])))", "legendFormat": "p99"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Redax error types",
+      "targets": [{"expr": "sum by (type) (rate(redax_errors_total[5m]))", "legendFormat": "{{type}}"}]
+    },
+    {
+      "type": "timeseries",
+      "title": "Audit and dependency failures",
+      "targets": [
+        {"expr": "sum(rate(redax_audit_write_failed_total[5m]))", "legendFormat": "audit write failures"},
+        {"expr": "sum(rate(redax_rate_limit_unavailable_total[5m]))", "legendFormat": "rate-limit unavailable"}
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Kubernetes CPU and memory",
+      "targets": [
+        {"expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"redax\"}[5m]))", "legendFormat": "CPU {{pod}}"},
+        {"expr": "sum by (pod) (container_memory_working_set_bytes{namespace=\"redax\"})", "legendFormat": "memory {{pod}}"}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: redax-alerts
+  labels:
+    app.kubernetes.io/name: redax
+spec:
+  groups:
+    - name: redax.request
+      rules:
+        - alert: RedaxHighServerErrorRate
+          expr: |
+            sum(rate(redax_requests_total{status=~"5.."}[5m]))
+            /
+            clamp_min(sum(rate(redax_requests_total[5m])), 1) > 0.01
+          for: 10m
+          labels:
+            severity: page
+            service: redax
+          annotations:
+            summary: Redax server error rate is above 1%
+            runbook_url: https://github.com/sachncs/redax/blob/master/docs/runbooks/rollback.md
+        - alert: RedaxHighRequestLatency
+          expr: |
+            histogram_quantile(0.99,
+              sum by (le) (rate(redax_request_duration_seconds_bucket[10m]))) > 2
+          for: 10m
+          labels:
+            severity: ticket
+            service: redax
+          annotations:
+            summary: Redax p99 request latency is above 2 seconds
+            runbook_url: https://github.com/sachncs/redax/blob/master/docs/runbooks/jobs.md
+        - alert: RedaxRateLimitDependencyUnavailable
+          expr: increase(redax_rate_limit_unavailable_total[10m]) > 0
+          for: 5m
+          labels:
+            severity: page
+            service: redax
+          annotations:
+            summary: Redis rate-limit checks are failing closed
+            runbook_url: https://github.com/sachncs/redax/blob/master/docs/runbooks/redis.md
+        - alert: RedaxAuditWriteFailures
+          expr: increase(redax_audit_write_failed_total[10m]) > 0
+          for: 5m
+          labels:
+            severity: page
+            service: redax
+          annotations:
+            summary: Redax audit writes are failing
+            runbook_url: https://github.com/sachncs/redax/blob/master/docs/runbooks/audit.md
+    - name: redax.kubernetes
+      rules:
+        - alert: RedaxApiUnavailable
+          expr: |
+            kube_deployment_status_replicas_available{deployment="redax-api"} < 2
+          for: 5m
+          labels:
+            severity: page
+            service: redax
+          annotations:
+            summary: Fewer than two Redax API replicas are available
+            runbook_url: https://github.com/sachncs/redax/blob/master/docs/runbooks/rollback.md
+        - alert: RedaxWorkerUnavailable
+          expr: |
+            kube_deployment_status_replicas_available{deployment="redax-worker"} < 1
+          for: 5m
+          labels:
+            severity: page
+            service: redax
+          annotations:
+            summary: No Redax worker replica is available
+            runbook_url: https://github.com/sachncs/redax/blob/master/docs/runbooks/jobs.md
