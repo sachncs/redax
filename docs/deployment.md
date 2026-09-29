@@ -87,6 +87,7 @@ All settings read from environment variables prefixed with `REDAX_`. See
 | `REDAX_JOB_STALE_SECONDS` | `300` | startup recovery threshold for queued/running jobs left without a state update |
 | `REDAX_STREAM_CHUNK_CHARS` | `2000` | default SSE chunk size when the client omits `chunk_chars` |
 | `REDAX_STREAM_CHUNK_BYTES` | `4096` | per-event UTF-8 byte ceiling in `/v1/redact/stream` |
+| `REDAX_STREAM_TIMEOUT_SECONDS` | `60` | total wall-clock budget for one streaming response across all chunks |
 | `REDAX_AUDIT_FSYNC` | `true` | fsync each audit line written |
 | `REDAX_AUDIT_MAX_BYTES` | `1000000000` | rotate the audit log when it reaches this size |
 | `REDAX_AUDIT_ROTATION_BACKUPS` | `5` | keep this many rotated audit files; 0 truncates instead |

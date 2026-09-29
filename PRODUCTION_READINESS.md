@@ -17,7 +17,7 @@ as each production milestone lands.
 | Durable jobs survive worker failure | PARTIAL | ARQ worker, jittered retries, atomic admission/completion, startup stale-job reconciliation, bounded payload-free DLQ records, and real-Redis recovery after a killed worker process are tested; Redis failover and production-scale evidence remain pending. |
 | Redis failure behavior is explicit | PASS | `docs/failure-modes.md`, `app/ratelimit.py`, and configuration tests define current cache/job/rate-limit degradation. Durable-job behavior remains pending. |
 | Graceful shutdown is verified | PARTIAL | Readiness drops before teardown, admitted HTTP requests drain within `REDAX_SHUTDOWN_TIMEOUT_SECONDS`, and cleanup is bounded; stream/job SIGTERM integration evidence is still pending. |
-| Overload is bounded | PARTIAL | Text, aggregate batch, chunk, HTTP, inference, and job admission limits exist; stream, Redis-pool, worker queue, and sustained overload recovery evidence remain. |
+| Overload is bounded | PARTIAL | Text, aggregate batch, chunk, total stream duration, HTTP, inference, and job admission limits exist; Redis-pool, worker queue, and sustained overload recovery evidence remain. |
 | Dependency recovery works | PARTIAL | Real-Redis worker lease recovery and disposable Redis server restart/reconnect are tested; managed Redis failover and audit-storage recovery evidence are still missing. |
 
 ## Security and privacy

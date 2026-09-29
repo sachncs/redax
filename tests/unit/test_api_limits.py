@@ -53,9 +53,11 @@ class StubSettings:
         rate_limit_per_minute: int,
         *,
         request_timeout_seconds: float = 30.0,
+        stream_timeout_seconds: float = 60.0,
     ) -> None:
         self.rate_limit_per_minute = rate_limit_per_minute
         self.request_timeout_seconds = request_timeout_seconds
+        self.stream_timeout_seconds = stream_timeout_seconds
 
     def api_key_set(self) -> set[str]:
         return {"limited-key"}
@@ -167,6 +169,22 @@ def test_stream_timeout_yields_504_event() -> None:
         resp = client.post(
             "/v1/redact/stream",
             json={"text": "x" * 100},
+            headers={"X-API-Key": "limited-key"},
+        )
+        lines = list(resp.iter_lines())
+    assert any('"status": 504' in line for line in lines)
+
+
+def test_stream_total_timeout_bounds_multiple_chunks() -> None:
+    app = build_app(
+        redactor=SlowRedactor(),
+        client=FakeClient([1]),
+        settings=StubSettings(5, stream_timeout_seconds=0.05),
+    )
+    with TestClient(app) as client:
+        resp = client.post(
+            "/v1/redact/stream",
+            json={"text": "x" * 200, "chunk_chars": 100},
             headers={"X-API-Key": "limited-key"},
         )
         lines = list(resp.iter_lines())

@@ -95,6 +95,7 @@ class Settings(BaseSettings):
     shutdown_timeout_seconds: float = Field(default=30.0, ge=0.1)
     stream_chunk_bytes: int = Field(default=4096, ge=64)
     stream_chunk_chars: int = Field(default=2000, ge=100, le=50_000)
+    stream_timeout_seconds: float = Field(default=60.0, ge=0.1)
 
     multi_pass_max: int = Field(default=3, ge=1)
 

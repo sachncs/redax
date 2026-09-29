@@ -82,6 +82,7 @@ def register(app: FastAPI) -> None:
 
         await rate_limit(api_key, state)
         timeout_seconds = getattr(settings, "request_timeout_seconds", 30.0)
+        stream_timeout_seconds = getattr(settings, "stream_timeout_seconds", 60.0)
         chunk_bytes = getattr(settings, "stream_chunk_bytes", 4096)
         default_chunk_chars = getattr(settings, "stream_chunk_chars", 2000)
         policy = body.policy if body.policy is not None else default_policy(settings)
@@ -91,12 +92,18 @@ def register(app: FastAPI) -> None:
             """Async generator that yields one ``data:`` SSE event per chunk + a final ``[DONE]``."""
             try:
                 text = body.text
+                stream_deadline = time.perf_counter() + stream_timeout_seconds
                 chunk = body.chunk_chars or default_chunk_chars
                 all_spans: list[Any] = []
                 inference_ms = 0
                 for piece in split_chunks(text, chunk, chunk_bytes):
+                    remaining_seconds = stream_deadline - time.perf_counter()
+                    if remaining_seconds <= 0:
+                        REQUESTS.labels(endpoint=endpoint, method=method, status="504").inc()
+                        yield f"data: {json.dumps({'error': 'stream timeout', 'status': 504})}\n\n"
+                        return
                     try:
-                        async with asyncio.timeout(timeout_seconds):
+                        async with asyncio.timeout(min(timeout_seconds, remaining_seconds)):
                             inference_start = time.perf_counter()
                             result = await redactor.redact(
                                 piece,
