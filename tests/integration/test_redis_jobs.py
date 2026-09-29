@@ -302,3 +302,73 @@ async def test_real_redis_job_recovers_after_worker_process_kill(
             f"{marker_key}:done",
         )
         await pool.aclose()
+
+
+@pytest.mark.asyncio
+async def test_redis_rdb_backup_restores_into_fresh_instance() -> None:
+    """Prove a Redis RDB snapshot can restore durable job state elsewhere."""
+    if shutil.which("redis-server") is None:
+        pytest.skip("redis-server is unavailable for the restore drill")
+    source_port = free_tcp_port()
+    restore_port = free_tcp_port()
+    with tempfile.TemporaryDirectory() as source_dir, tempfile.TemporaryDirectory() as restore_dir:
+        source = subprocess.Popen(
+            [
+                "redis-server",
+                "--bind",
+                "127.0.0.1",
+                "--port",
+                str(source_port),
+                "--dir",
+                source_dir,
+                "--save",
+                "60",
+                "1",
+                "--appendonly",
+                "no",
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        source_client = aioredis.from_url(
+            f"redis://127.0.0.1:{source_port}/15", decode_responses=True
+        )
+        restored_client = aioredis.from_url(
+            f"redis://127.0.0.1:{restore_port}/15", decode_responses=True
+        )
+        restore_process: subprocess.Popen[bytes] | None = None
+        try:
+            await wait_for_redis(source_client)
+            await source_client.set("redax:restore-drill", "durable", ex=60)
+            await source_client.save()
+            source.terminate()
+            source.wait(timeout=5)
+            shutil.copy2(f"{source_dir}/dump.rdb", f"{restore_dir}/dump.rdb")
+            restore_process = subprocess.Popen(
+                [
+                    "redis-server",
+                    "--bind",
+                    "127.0.0.1",
+                    "--port",
+                    str(restore_port),
+                    "--dir",
+                    restore_dir,
+                    "--save",
+                    "",
+                    "--appendonly",
+                    "no",
+                ],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            await wait_for_redis(restored_client)
+            assert await restored_client.get("redax:restore-drill") == "durable"
+        finally:
+            await source_client.aclose()
+            await restored_client.aclose()
+            if source.poll() is None:
+                source.terminate()
+                source.wait(timeout=5)
+            if restore_process is not None and restore_process.poll() is None:
+                restore_process.terminate()
+                restore_process.wait(timeout=5)
