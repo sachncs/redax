@@ -9,6 +9,18 @@ capacity claim. Generate a new artifact with:
 python scripts/bench.py --output docs/benchmarks/regex-local-baseline.json
 ```
 
+The checked-in [`regex-api-local-baseline.json`](benchmarks/regex-api-local-baseline.json)
+is a separate HTTP measurement: 100 regex-mode API requests at concurrency 10
+recorded 100 successful responses, 441.33 requests/second, p50 16.206 ms,
+p95 33.187 ms, and p99 34.973 ms on the recorded Python 3.13/macOS host.
+It is exploratory local evidence, not a production capacity limit. Generate a
+new API artifact against a running server with:
+
+```bash
+python scripts/load_bench.py --requests 100 --concurrency 10 \
+  --output docs/benchmarks/regex-api-local-baseline.json
+```
+
 Earlier working-tree snapshots contained exploratory comparisons, but their
 raw result artifacts, model provenance, and reproducible environment were not
 part of the release contract.

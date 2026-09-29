@@ -1,4 +1,4 @@
-.PHONY: help dev test test-cov lint typecheck download-models bench eval build-server build-wasm build-all clean install verify verify-determinism load
+.PHONY: help dev test test-cov lint typecheck download-models bench load-bench eval build-server build-wasm build-all clean install verify verify-determinism load
 
 # pyproject.toml requires Python 3.13+; set PYTHON explicitly when using a
 # virtualenv managed by uv, pyenv, or another environment manager.
@@ -43,6 +43,9 @@ load: ## Run locust against the running server (opt-in)
 
 bench: ## Run latency/throughput benchmark
 	$(PYTHON) scripts/bench.py
+
+load-bench: ## Run the bounded HTTP load baseline against a running API
+	$(PYTHON) scripts/load_bench.py
 
 eval: ## Run P/R/F1 eval against labeled fixtures
 	$(PYTHON) scripts/eval.py
