@@ -29,7 +29,7 @@ as each production milestone lands.
 | Automated PII leak suite | PARTIAL | `tests/integration/test_api_redact.py` covers response, audit, metrics, and detector-failure logs; the complete release-blocking failure matrix is pending. |
 | No silent raw pass-through after internal failure | PARTIAL | Model fallback and error handlers are tested; audit, policy, cancellation, stream disconnect, and job recovery semantics need the failure matrix and tests. |
 | Threat model matches implementation | PASS | `docs/threat-model.md`, `docs/data-flow.md`, and `docs/failure-modes.md`; update when the worker/audit architecture lands. |
-| High/critical vulnerability gate | PARTIAL | CI/release now require Trivy filesystem/image scans and SBOM generation; a release run and immutable base-image digest are still pending. |
+| High/critical vulnerability gate | PARTIAL | GitHub security run `36551462860` passed SBOM generation and the filesystem Trivy gate; release image scan/signature/attestation evidence is pending. |
 
 ## Scalability and performance
 
@@ -63,7 +63,7 @@ as each production milestone lands.
 
 | Requirement | Status | Evidence / gap |
 |---|---|---|
-| Hardened container | PARTIAL | Non-root, pinned dependencies, model verification, and slim runtime exist; base digest, read-only filesystem, capabilities, SBOM, and scan gate are pending. |
+| Hardened container | PARTIAL | Non-root, pinned dependencies, model verification, slim runtime, and a digest-pinned Python base exist; read-only filesystem, capabilities, image SBOM, and release scan evidence remain pending. |
 | Reference HA deployment | FAIL | Compose is development/local; Kubernetes/Helm or equivalent reference assets are absent. |
 | Health/readiness/startup probes | PARTIAL | `/healthz`, `/readyz`, and Docker probes exist; readiness drops before teardown, but dependency-aware readiness and full drain semantics need evidence. |
 | Rolling deployment and rollback | FAIL | Versioned release exists, but mixed-version state compatibility and rollback procedure are not tested. |
