@@ -6,11 +6,14 @@ the cited evidence covers the stated scope; `FAIL` means implementation or
 evidence is still missing; `NOT APPLICABLE` means the requirement is outside the current
 supported product surface.
 
-Review baseline: `cf909d2` and the current `master` tree. The latest review
+Review baseline: `817f1b0` and the current `master` tree. The latest review
 also includes constant-time API-key rotation checks, production wildcard-CORS
 rejection, bounded audit shutdown, a real OTLP delivery/privacy canary, bounded
-entity-type and inline-policy structures, and count/time-bounded Redis audit
-retention with a real-Redis age regression test.
+entity-type and inline-policy structures, count/time-bounded Redis audit
+retention with a real-Redis age regression test, idempotency publication before
+response-cache publication, fail-closed explicit idempotency requests when
+Redis is unavailable, fail-closed rate limiting when a retained Redis store is
+disconnected, and bounded CI reliability-gate durations.
 `PARTIAL` is not an acceptance status: unresolved implementation or evidence
 gaps are recorded as `FAIL` until the stated scope is proven.
 Update this matrix as each production milestone lands.
