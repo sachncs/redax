@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import yaml
@@ -39,3 +40,20 @@ def test_kubernetes_reference_uses_shared_audit_without_rw_volume() -> None:
     assert worker_deployment["spec"]["template"]["spec"]["volumes"] == [
         {"name": "tmp", "emptyDir": {}}
     ]
+
+
+def test_monitoring_assets_cover_queue_age_retries_and_job_latency() -> None:
+    root = Path(__file__).parents[2]
+    rules = yaml.safe_load((root / "deploy/monitoring/prometheus-rules.yaml").read_text())
+    rule_names = {rule["alert"] for group in rules["spec"]["groups"] for rule in group["rules"]}
+    assert {"RedaxQueueAgeHigh", "RedaxJobRetriesIncreasing"} <= rule_names
+
+    dashboard = json.loads((root / "deploy/monitoring/redax-dashboard.json").read_text())
+    job_panel = next(
+        panel
+        for panel in dashboard["panels"]
+        if panel["title"] == "Durable job latency and retries"
+    )
+    expressions = {target["expr"] for target in job_panel["targets"]}
+    assert any("redax_job_duration_seconds_bucket" in expression for expression in expressions)
+    assert any("redax_job_retries_total" in expression for expression in expressions)

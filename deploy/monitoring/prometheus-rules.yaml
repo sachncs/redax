@@ -61,6 +61,24 @@ spec:
           annotations:
             summary: Redax audit writes are failing
             runbook_url: https://github.com/sachncs/redax/blob/master/docs/runbooks/audit.md
+        - alert: RedaxQueueAgeHigh
+          expr: redax_queue_oldest_age_seconds > 300
+          for: 10m
+          labels:
+            severity: page
+            service: redax
+          annotations:
+            summary: Redax oldest durable job is older than five minutes
+            runbook_url: https://github.com/sachncs/redax/blob/master/docs/runbooks/jobs.md
+        - alert: RedaxJobRetriesIncreasing
+          expr: increase(redax_job_retries_total[10m]) > 0
+          for: 5m
+          labels:
+            severity: ticket
+            service: redax
+          annotations:
+            summary: Redax durable jobs are retrying
+            runbook_url: https://github.com/sachncs/redax/blob/master/docs/runbooks/jobs.md
     - name: redax.kubernetes
       rules:
         - alert: RedaxApiUnavailable
