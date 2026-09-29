@@ -100,8 +100,7 @@ def verify() -> None:
     prometheus = request_json("http://localhost:9090/api/v1/targets")
     active_targets = prometheus.get("data", {}).get("activeTargets", [])
     if not any(
-        target.get("labels", {}).get("job") == "redax"
-        and target.get("health") == "up"
+        target.get("labels", {}).get("job") == "redax" and target.get("health") == "up"
         for target in active_targets
     ):
         raise RuntimeError("Prometheus does not report the redax target as up")
@@ -127,7 +126,9 @@ def verify() -> None:
     if '"traces"' not in tempo:
         raise RuntimeError("Tempo search did not return a trace response")
 
-    print("local Compose verification passed: API, worker, Redis-backed state, metrics, logs, traces")
+    print(
+        "local Compose verification passed: API, worker, Redis-backed state, metrics, logs, traces"
+    )
 
 
 if __name__ == "__main__":

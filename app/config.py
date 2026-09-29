@@ -1,9 +1,10 @@
 """Process-wide typed configuration for redax.
 
-Read from environment variables prefixed with ``REDAX_`` and (optionally)
-from a ``.env`` file in the working directory. Values are validated at
-construction; missing or unknown values raise so a typo or a stale var
-(e.g. the removed ``REDAX_JWT_SECRET``) can never silently change
+Read from environment variables prefixed with ``REDAX_``. Docker Compose
+loads the local ``.env`` file and passes the application values explicitly;
+the application itself does not parse that shared wrapper file. Values are
+validated at construction; missing or unknown values raise so a typo or a
+stale var (e.g. the removed ``REDAX_JWT_SECRET``) can never silently change
 behavior.
 """
 
@@ -24,16 +25,17 @@ SUPPORTED_API_SCOPES = frozenset({"redact", "detect", "jobs", "policies:read", "
 class Settings(BaseSettings):
     """Pydantic-settings container for every redax knob.
 
-    ``Settings()`` reads ``REDAX_*`` environment variables (and any
-    ``.env`` in the working directory). Every field is typed; passing a
-    string where a bool/int is expected raises at construction so a typo
-    in the deployment config cannot silently downgrade behavior.
+    ``Settings()`` reads ``REDAX_*`` environment variables. Every field is
+    typed; passing a string where a bool/int is expected raises at
+    construction so a typo in the deployment config cannot silently
+    downgrade behavior. Compose-only values stay outside this contract.
     """
 
     model_config = SettingsConfigDict(
         env_prefix="REDAX_",
-        env_file=".env",
-        env_file_encoding="utf-8",
+        # Compose shares one dotenv file with the application for local
+        # startup, but passes application values explicitly. Keep unknown
+        # process variables rejected, including removed secrets.
         extra="forbid",
     )
 
