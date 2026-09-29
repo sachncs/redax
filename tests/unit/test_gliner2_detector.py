@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import sys
 import time
+import types
 
 import pytest
 
@@ -143,4 +145,40 @@ async def test_model_is_loaded_only_once() -> None:
     await detector.load()
     await detector.load()
     await detector.load()
+    assert detector.is_loaded
+
+
+@pytest.mark.asyncio
+async def test_load_resolves_local_snapshot_before_model_load(monkeypatch, tmp_path) -> None:
+    loaded_paths: list[str] = []
+
+    class StubGLiNER2:
+        @classmethod
+        def from_pretrained(cls, path: str, map_location: str) -> StubModel:
+            loaded_paths.append(path)
+            assert map_location == "cpu"
+            return StubModel()
+
+    def snapshot_download(**kwargs: object) -> str:
+        assert kwargs["repo_id"] == "model/name"
+        assert kwargs["revision"] == "revision"
+        assert kwargs["cache_dir"] == str(tmp_path)
+        assert kwargs["local_files_only"] is True
+        return str(tmp_path / "snapshot")
+
+    monkeypatch.setitem(sys.modules, "gliner2", types.SimpleNamespace(GLiNER2=StubGLiNER2))
+    monkeypatch.setitem(
+        sys.modules,
+        "huggingface_hub",
+        types.SimpleNamespace(snapshot_download=snapshot_download),
+    )
+
+    detector = GLiNER2Detector(
+        model_name="model/name",
+        model_revision="revision",
+        model_cache=tmp_path,
+    )
+    await detector.load()
+
+    assert loaded_paths == [str(tmp_path / "snapshot")]
     assert detector.is_loaded

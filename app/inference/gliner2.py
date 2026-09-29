@@ -114,12 +114,16 @@ class GLiNER2Detector:
         def load_blocking() -> object:
             """Synchronously load the GLiNER2 model; runs in a worker thread."""
             from gliner2 import GLiNER2
+            from huggingface_hub import snapshot_download
 
-            return GLiNER2.from_pretrained(
-                self.model_name,
+            snapshot_path = snapshot_download(
+                repo_id=self.model_name,
                 revision=self.model_revision,
                 cache_dir=str(self.model_cache),
                 local_files_only=self.local_files_only,
+            )
+            return GLiNER2.from_pretrained(
+                snapshot_path,
                 map_location=self.device,
             )
 
