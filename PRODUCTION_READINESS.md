@@ -14,7 +14,7 @@ as each production milestone lands.
 | Requirement | Status | Evidence / gap |
 |---|---|---|
 | API correctness across replicas | FAIL | Redis is shared for some state, but jobs and circuit breakers still have process-local behavior; no multi-replica integration gate. |
-| Durable jobs survive worker failure | FAIL | `/v1/jobs` uses FastAPI `BackgroundTasks`; no `app/jobs/queue.py` worker exists. |
+| Durable jobs survive worker failure | PARTIAL | ARQ worker, retries, atomic admission, and atomic completion exist; lease/DLQ and real worker-kill recovery evidence is pending. |
 | Redis failure behavior is explicit | PASS | `docs/failure-modes.md`, `app/ratelimit.py`, and configuration tests define current cache/job/rate-limit degradation. Durable-job behavior remains pending. |
 | Graceful shutdown is verified | PARTIAL | Readiness now drops before queue/audit/Redis teardown, but there is no SIGTERM integration test for active HTTP/stream/job work. |
 | Overload is bounded | FAIL | Text/chunk/inference/job admission limits exist, but HTTP, stream, Redis-pool, and worker queue bounds are not demonstrated under load. |
@@ -29,14 +29,14 @@ as each production milestone lands.
 | Automated PII leak suite | PARTIAL | `tests/integration/test_api_redact.py` covers response, audit, metrics, and detector-failure logs; the complete release-blocking failure matrix is pending. |
 | No silent raw pass-through after internal failure | PARTIAL | Model fallback and error handlers are tested; audit, policy, cancellation, stream disconnect, and job recovery semantics need the failure matrix and tests. |
 | Threat model matches implementation | PASS | `docs/threat-model.md`, `docs/data-flow.md`, and `docs/failure-modes.md`; update when the worker/audit architecture lands. |
-| High/critical vulnerability gate | FAIL | No dependency or container vulnerability scan is required by CI. |
+| High/critical vulnerability gate | PARTIAL | CI/release now require Trivy filesystem/image scans and SBOM generation; a release run and immutable base-image digest are still pending. |
 
 ## Scalability and performance
 
 | Requirement | Status | Evidence / gap |
 |---|---|---|
 | Horizontally scalable API | PARTIAL | Redaction state is composed in lifespan, but local audit, breaker, and job execution are not a complete scaled topology. |
-| Independently scalable workers | FAIL | Worker process and durable queue are not implemented. |
+| Independently scalable workers | PARTIAL | `redax-worker` and Redis-backed ARQ enqueueing exist; capacity, lease recovery, and deployment evidence are pending. |
 | Measured performance characteristics | FAIL | Benchmark harness exists, but no current machine-readable capacity result is published. |
 | Known saturation limits | FAIL | No ramp/spike/soak artifact records p99, queueing, CPU, memory, Redis, or model saturation. |
 | Autoscaling guidance | FAIL | No production deployment or measured scaling model exists. |

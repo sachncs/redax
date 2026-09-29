@@ -22,3 +22,11 @@ Confirm the old key is rejected, the new key is accepted only for its intended
 scope, and metrics contain identifiers rather than secrets. Record the rotation
 time and deployment version. Scoped key rotation/revocation is still a P1
 implementation item.
+
+## Release supply-chain gate
+
+Before promoting a release, verify the CI artifacts contain the filesystem and
+image CycloneDX SBOMs, a clean Trivy HIGH/CRITICAL scan, a Cosign signature, and
+GitHub build provenance tied to the image digest. Do not override a failed scan
+without recording an owner, reason, affected CVE, and expiration time. A tag is
+not an immutable image reference; deploy the attested digest.
