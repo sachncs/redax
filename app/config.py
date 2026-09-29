@@ -61,6 +61,7 @@ class Settings(BaseSettings):
     default_policy: str = "default"
 
     audit_path: str = "./audit.jsonl"
+    audit_required: bool = True
     audit_fsync: bool = True
     audit_max_bytes: int = Field(default=1_000_000_000, ge=1)
     audit_rotation_backups: int = Field(default=5, ge=0)

@@ -55,6 +55,7 @@ class FileAudit:
         self,
         path: str,
         fsync: bool = True,
+        required: bool = False,
         max_bytes: int = 1_000_000_000,
         rotation_backups: int = 5,
         retention_seconds: int = 90 * 24 * 3600,
@@ -62,6 +63,7 @@ class FileAudit:
     ) -> None:
         self.path = Path(path)
         self.fsync = fsync
+        self.required = required
         self.max_bytes = max_bytes
         self.rotation_backups = rotation_backups
         self.retention_seconds = retention_seconds
@@ -70,6 +72,7 @@ class FileAudit:
         self.task: asyncio.Task[None] | None = None
         self.loop: asyncio.AbstractEventLoop | None = None
         self.dropped = 0
+        self.failed = False
 
     async def start(self) -> None:
         """Open the destination file and start the background flusher."""
@@ -99,12 +102,18 @@ class FileAudit:
             get_logger("redax.audit").warning(
                 "redax.audit_uninitialised", backend=self.backend_label
             )
+            if self.required:
+                raise RuntimeError("audit backend is not initialized")
             return
+        if self.failed and self.required:
+            raise RuntimeError("audit backend is unavailable")
         try:
             self.queue.put_nowait(event)
-        except asyncio.QueueFull:
+        except asyncio.QueueFull as exc:
             self.dropped += 1
             AUDIT_DROPPED.labels(backend=self.backend_label).inc()
+            if self.required:
+                raise RuntimeError("audit queue is full") from exc
 
     async def drain(self) -> None:
         """Drain queued events to disk until a sentinel arrives."""
@@ -127,6 +136,7 @@ class FileAudit:
                     self.rotation_backups,
                 )
             except (OSError, RuntimeError, ValueError) as exc:
+                self.failed = True
                 log.warning(
                     "redax.audit_write_failed",
                     backend=self.backend_label,

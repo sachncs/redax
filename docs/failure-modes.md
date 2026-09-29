@@ -17,8 +17,8 @@ HA”; gaps are marked explicitly.
 | Model timeout | Synchronous request returns 504; job marks failure; stream emits timeout event. | Reject/fail closed. | Add cancellation and recovery tests. |
 | Circuit breaker opens | Pipeline uses its explicit fallback marker; process-local breaker state. | Degraded, observable. | Define replica semantics and recovery metrics. |
 | Policy file missing/invalid | Validation/loading error prevents normal policy execution. | Reject. | Startup validation for required default policy and tests for rolling compatibility. |
-| Audit backend unavailable | Current file backend can drop/write-fail according to implementation; request path is not globally mandatory-audit. | Not one uniform policy. | Add `audit_required` mode and centralized durable backend contract. |
-| Disk full / permission failure | File audit write failure is counted/logged; no universal successful-request rejection. | Potentially fail open. | Mandatory mode must reject successful processing and alert. |
+| Audit backend unavailable | `REDAX_AUDIT_REQUIRED=true` rejects processing when the backend is uninitialized, has failed, or its bounded queue is full; optional mode records a metric and continues. | Configurable, fail closed by default. | Add a centralized durable backend contract and verify disk-failure propagation end to end. |
+| Disk full / permission failure | File audit write failure is counted/logged and marks the required backend unavailable for subsequent requests. | Fail closed after detection. | Add synchronous write-acknowledgement or durable backend evidence for the first failed event. |
 | Telemetry exporter unavailable | OTLP is optional; request processing should continue. | Fail open for telemetry. | Bound exporter buffers and verify no raw attributes. |
 | Request too large | 413 for configured text limit; batch/stream have their own bounds. | Reject. | Add body, batch amplification, slow-client, and response-size limits. |
 | Invalid or adversarial Unicode | Pydantic and code-point chunking validate input; property tests cover parts of the transform path. | Bounded in tested paths. | Add fuzz suite and CPU/memory budgets. |

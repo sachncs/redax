@@ -18,7 +18,7 @@ as each production milestone lands.
 | Redis failure behavior is explicit | PASS | `docs/failure-modes.md`, `app/ratelimit.py`, and configuration tests define current cache/job/rate-limit degradation. Durable-job behavior remains pending. |
 | Graceful shutdown is verified | PARTIAL | Readiness drops before teardown and cleanup is bounded by `REDAX_SHUTDOWN_TIMEOUT_SECONDS`; active HTTP/stream/job SIGTERM integration evidence is still pending. |
 | Overload is bounded | FAIL | Text/chunk/inference/job admission limits exist, but HTTP, stream, Redis-pool, and worker queue bounds are not demonstrated under load. |
-| Dependency recovery works | FAIL | Unit fault paths exist; no Redis restart, worker lease recovery, or audit-storage recovery test is present. |
+| Dependency recovery works | FAIL | Redis worker lease recovery is tested; Redis restart/failover and audit-storage recovery evidence are still missing. |
 
 ## Security and privacy
 
@@ -28,7 +28,7 @@ as each production milestone lands.
 | Scoped authorization | PARTIAL | Optional JSON scopes enforce redact, detect, jobs, policies, and metrics endpoints; external rotation/revocation and a control-plane audit are pending. |
 | Secrets stay out of telemetry | PARTIAL | Error, audit, cache, idempotency, metrics, and detector-failure log canaries exist; full traces/Redis/jobs/failure coverage is pending. |
 | Automated PII leak suite | PARTIAL | `tests/integration/test_api_redact.py` covers response, audit, metrics, and detector-failure logs; the complete release-blocking failure matrix is pending. |
-| No silent raw pass-through after internal failure | PARTIAL | Model fallback and error handlers are tested; audit, policy, cancellation, stream disconnect, and job recovery semantics need the failure matrix and tests. |
+| No silent raw pass-through after internal failure | PARTIAL | Model fallback, audit-required rejection, and error handlers are tested; policy, cancellation, stream disconnect, and full failure-matrix coverage remain. |
 | Threat model matches implementation | PASS | `docs/threat-model.md`, `docs/data-flow.md`, and `docs/failure-modes.md`; update when the worker/audit architecture lands. |
 | High/critical vulnerability gate | PARTIAL | GitHub security run `36551462860` passed SBOM generation and the filesystem Trivy gate; release image scan/signature/attestation evidence is pending. |
 
@@ -47,7 +47,7 @@ as each production milestone lands.
 | Requirement | Status | Evidence / gap |
 |---|---|---|
 | Clear domain boundaries | PASS | `docs/architecture.md`, route modules, detector/redactor/audit separation, and typed settings. |
-| Versioned persisted schemas | FAIL | Idempotency envelopes are versioned, but all Redis job/cache/audit schemas and mixed-version compatibility are not. |
+| Versioned persisted schemas | PARTIAL | Idempotency, response-cache, and durable-job envelopes are versioned; audit schema and mixed-version compatibility are still pending. |
 | Configuration validation and documentation | PASS | `Settings` plus documented configuration drift tests. |
 | API/OpenAPI contract | PASS | API contract tests and documented paths; authorization scopes are not yet part of the contract. |
 | Meaningful coverage threshold | PASS | `pyproject.toml` enforces 80% branch-aware coverage through `make test-cov`; the Python 3.13 suite currently measures 83.43%. |

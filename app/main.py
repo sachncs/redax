@@ -166,6 +166,7 @@ async def build_state(settings: Settings) -> State:
 
     audit = FileAudit(
         settings.audit_path,
+        required=settings.audit_required,
         fsync=settings.audit_fsync,
         max_bytes=settings.audit_max_bytes,
         rotation_backups=settings.audit_rotation_backups,
