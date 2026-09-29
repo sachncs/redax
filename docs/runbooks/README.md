@@ -11,6 +11,7 @@ and deployment versions—not request bodies or API keys.
 - [API key compromise and rotation](security.md)
 - [Rollback and disaster recovery](rollback.md)
 - [Backup and restore](backup-restore.md)
+- [Persisted schema migrations](schema-migrations.md)
 
 For all incidents, stop forwarding raw request data into tickets or chat. Use
 synthetic probes to verify recovery.
