@@ -26,6 +26,15 @@ FUNCTION_NAME = "process_job"
 MAX_TRIES = 5
 
 
+def worker_redis_settings(settings: Any) -> RedisSettings:
+    """Build bounded ARQ Redis settings without duplicating parsed fields."""
+    redis_settings = RedisSettings.from_dsn(settings.redis_url)
+    redis_settings.conn_timeout = max(1, int(settings.redis_connect_timeout_seconds))
+    redis_settings.max_connections = settings.redis_max_connections
+    redis_settings.retry_on_timeout = True
+    return redis_settings
+
+
 def shutdown_wait_seconds(settings: Any) -> int:
     """Return the bounded ARQ signal-drain window from validated settings."""
     return max(1, int(getattr(settings, "shutdown_timeout_seconds", 30.0)))
@@ -109,12 +118,7 @@ async def worker_main() -> None:
     worker = Worker(
         functions=[process_job],
         queue_name=QUEUE_NAME,
-        redis_settings=RedisSettings(
-            **RedisSettings.from_dsn(settings.redis_url).__dict__,
-            conn_timeout=max(1, int(settings.redis_connect_timeout_seconds)),
-            max_connections=settings.redis_max_connections,
-            retry_on_timeout=True,
-        ),
+        redis_settings=worker_redis_settings(settings),
         ctx=ctx,
         max_jobs=settings.worker_concurrency,
         max_tries=MAX_TRIES,

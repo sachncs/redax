@@ -85,6 +85,16 @@ jobs:
 
   performance:
     runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7.2-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -104,13 +114,21 @@ jobs:
         env:
           REDAX_ENV: dev
           REDAX_DETECTOR: regex
+          REDAX_REDIS_URL: redis://127.0.0.1:6379/0
+          REDAX_REDIS_REQUIRED: "true"
+          REDAX_REDIS_NAMESPACE: ci-performance
           REDAX_HASH_SALT: ci-load-salt
+          REDAX_API_KEYS: ci-job-key
+          REDAX_AUDIT_BACKEND: file
           REDAX_RATE_LIMIT_PER_MINUTE: "0"
           REDAX_AUDIT_PATH: /tmp/redax-ci-audit.jsonl
+          REDAX_WORKER_CONCURRENCY: "2"
         run: |
           python -m uvicorn app.main:app --host 127.0.0.1 --port 8010 > /tmp/redax-api.log 2>&1 &
           api_pid=$!
-          trap 'kill "$api_pid" 2>/dev/null || true' EXIT
+          redax-worker > /tmp/redax-worker.log 2>&1 &
+          worker_pid=$!
+          trap 'kill "$api_pid" "$worker_pid" 2>/dev/null || true' EXIT
           for attempt in $(seq 1 30); do
             curl --fail --silent http://127.0.0.1:8010/healthz && break
             sleep 1
@@ -150,6 +168,16 @@ jobs:
             --fail-on-error \
             --max-p99-ms 1000 \
             --output performance-soak.json
+          python scripts/load_bench.py \
+            --url http://127.0.0.1:8010/v1/jobs \
+            --mode job \
+            --api-key ci-job-key \
+            --requests 100 \
+            --concurrency 10 \
+            --job-poll-timeout 30 \
+            --fail-on-error \
+            --max-p99-ms 5000 \
+            --output performance-jobs.json
 
       - name: Upload performance artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
