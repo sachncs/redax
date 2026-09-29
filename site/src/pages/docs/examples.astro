@@ -1,0 +1,78 @@
+---
+import DocsLayout from "~/layouts/DocsLayout.astro";
+---
+<DocsLayout active="examples" title="Practical examples" description="Copyable request, integration, browser, Redis, telemetry, and production configuration examples for the supported Redax interfaces.">
+  <section class="rdx-docs-callout"><b>Start with a synthetic value.</b><p>Every example below is designed to run against a local Redax process. Replace the example host and credentials through your environment, and never paste real customer data into a tutorial command.</p></section>
+  <section>
+    <h2>1. Run the local boundary</h2>
+    <p class="mt-3">Compose starts the API, worker, Redis, and local observability services. The API is published on port 8000.</p>
+    <pre class="code-shell mt-5 overflow-x-auto p-5 text-[13px] leading-[1.7] text-ink-100"><code>cp .env.example .env
+docker compose up -d --build
+curl --fail http://localhost:8000/healthz
+curl --fail http://localhost:8000/readyz</code></pre>
+  </section>
+  <section>
+    <h2>2. Make one authenticated API call</h2>
+    <p class="mt-3">In production, <code>REDAX_API_KEYS</code> is required. Keep the key in your shell or secret manager; do not put it in frontend JavaScript.</p>
+    <pre class="code-shell mt-5 overflow-x-auto p-5 text-[13px] leading-[1.7] text-ink-100"><code>export REDAX_API_KEY='your-local-or-injected-key'
+curl --fail --silent --show-error \
+  -X POST http://localhost:8000/v1/redact \
+  -H "X-API-Key: $REDAX_API_KEY" \
+  -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: synthetic-checkout-8421' \
+  -d '&#123;"text":"Synthetic contact alice@example.com"&#125;'</code></pre>
+    <p class="mt-4">The returned <code>text</code> is the value that may continue to your downstream model. Treat <code>/v1/detect</code> differently: it is diagnostic and returns original text, so it must not be forwarded as safe output.</p>
+  </section>
+  <section>
+    <h2>3. Use the HTTP boundary from Python</h2>
+    <p class="mt-3">This example uses the actual endpoint and response field. It fails closed: if Redax returns an error, the caller does not send the original message to a model.</p>
+    <pre class="code-shell mt-5 overflow-x-auto p-5 text-[13px] leading-[1.7] text-ink-100"><code>import os
+import httpx
+
+
+def redact_before_model(message: str) -&gt; str:
+    response = httpx.post(
+        os.environ.get("REDAX_URL", "http://localhost:8000") + "/v1/redact",
+        headers=&#123;"X-API-Key": os.environ["REDAX_API_KEY"]&#125;,
+        json=&#123;"text": message, "use_pipeline": True&#125;,
+        timeout=30.0,
+    )
+    response.raise_for_status()
+    return response.json()["text"]
+
+
+safe_message = redact_before_model("Synthetic contact alice@example.com")
+# Pass safe_message to your existing model client.
+print(safe_message)</code></pre>
+  </section>
+  <section>
+    <h2>4. Browser-local versus server-backed</h2>
+    <div class="rdx-docs-card-grid">
+      <div><b>Browser-local</b><span>The public demo runs deterministic structured regex in the browser, shows “REGEX · NO NETWORK,” and does not need an API key. It is illustrative coverage, not server/model parity.</span></div>
+      <div><b>Server-backed</b><span>The HTTP API can use the pinned local GLiNER2 model, centralized policy, authentication, Redis jobs, audit, metrics, and OTLP. Call it from your backend; never expose production API keys to browser code.</span></div>
+    </div>
+  </section>
+  <section>
+    <h2>5. Redis and telemetry inputs</h2>
+    <p class="mt-3">These are application-side environment inputs. HA, persistence, backups, failover, collector retention, and access control remain settings in the platform services around Redax.</p>
+    <pre class="code-shell mt-5 overflow-x-auto p-5 text-[13px] leading-[1.7] text-ink-100"><code>REDAX_REDIS_URL=rediss://redis.internal:6380/0
+REDAX_REDIS_REQUIRED=true
+REDAX_REDIS_NAMESPACE=redax-prod-acme
+REDAX_REDIS_CONNECT_TIMEOUT_SECONDS=1.0
+REDAX_REDIS_SOCKET_TIMEOUT_SECONDS=1.0
+REDAX_OTLP_ENDPOINT=http://otel-collector.internal:4317</code></pre>
+  </section>
+  <section>
+    <h2>6. Production boundary inputs</h2>
+    <p class="mt-3">Inject secrets through your deployment platform. The values below show names and shape, not credentials.</p>
+    <pre class="code-shell mt-5 overflow-x-auto p-5 text-[13px] leading-[1.7] text-ink-100"><code>REDAX_ENV=prod
+REDAX_API_KEYS=inject-from-secret-manager
+REDAX_HASH_SALT=unique-random-deployment-value
+REDAX_JOB_PAYLOAD_ENCRYPTION_KEY=generated-fernet-key
+REDAX_TRUSTED_HOSTS=redax.example.com
+REDAX_DEFAULT_POLICY=default
+REDAX_AUDIT_BACKEND=redis
+REDAX_AUDIT_INTEGRITY_KEY=independent-audit-secret</code></pre>
+    <p class="mt-4">Changing these values requires a coordinated restart/redeploy. Follow the <a href="/redax/docs/config">configuration reference</a> and run the <a href="/redax/docs/launch">production launch gate</a> before exposing traffic.</p>
+  </section>
+</DocsLayout>
