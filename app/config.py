@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     trusted_hosts: str = ""
 
     redis_url: str = "redis://localhost:6379/0"
+    redis_required: bool = False
     service_name: str = "redax"
     redis_connect_timeout_seconds: float = Field(default=1.0, ge=0.1)
     redis_socket_timeout_seconds: float = Field(default=1.0, ge=0.1)

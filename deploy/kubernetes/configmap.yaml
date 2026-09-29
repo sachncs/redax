@@ -5,6 +5,7 @@ metadata:
 data:
   REDAX_ENV: prod
   REDAX_REDIS_NAMESPACE: redax-prod
+  REDAX_REDIS_REQUIRED: "true"
   REDAX_DETECTOR: gliner2
   REDAX_MODEL_CACHE: /models
   REDAX_POLICIES_DIR: /policies

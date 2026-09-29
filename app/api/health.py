@@ -64,7 +64,12 @@ def register(app: FastAPI) -> None:
         endpoint = "GET /readyz"
         method = "GET"
         try:
-            if state.ready and getattr(state, "redactor", None) is not None:
+            settings = state.settings
+            redis_required = bool(getattr(settings, "redis_required", False))
+            redis_ready = not redis_required or (
+                state.job_store is not None and state.job_queue is not None
+            )
+            if state.ready and getattr(state, "redactor", None) is not None and redis_ready:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
                 return {"status": "ready"}
             REQUESTS.labels(endpoint=endpoint, method=method, status="503").inc()
@@ -73,7 +78,11 @@ def register(app: FastAPI) -> None:
                 type="https://redax.ai/errors/not-ready",
                 title="Not ready",
                 status=503,
-                detail="Service has not finished initializing",
+                detail=(
+                    "Required dependencies are not ready"
+                    if redis_required and not redis_ready
+                    else "Service has not finished initializing"
+                ),
             )
         finally:
             REQUEST_LATENCY.labels(endpoint=endpoint, method=method).observe(

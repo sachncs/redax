@@ -112,6 +112,24 @@ def test_readyz_200_when_ready() -> None:
     assert resp.json() == {"status": "ready"}
 
 
+def test_readyz_fails_when_required_redis_is_unavailable() -> None:
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from app.api.health import register
+    from app.state import State
+
+    test_state = State(ready=True, redactor=object())
+    test_state.settings = type("S", (), {"redis_required": True})()
+    app = FastAPI()
+    app.state.state = test_state
+    register(app)
+    with TestClient(app) as client:
+        response = client.get("/readyz")
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Required dependencies are not ready"
+
+
 def test_health_metrics_instrumented() -> None:
     from fastapi import FastAPI
     from fastapi.testclient import TestClient

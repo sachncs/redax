@@ -51,6 +51,7 @@ All settings read from environment variables prefixed with `REDAX_`. See
 | `REDAX_HOST` | `0.0.0.0` | uvicorn bind address |
 | `REDAX_PORT` | `8000` | uvicorn bind port |
 | `REDAX_REDIS_URL` | `redis://localhost:6379/0` | for jobs / cache / rate limit |
+| `REDAX_REDIS_REQUIRED` | `false` | when true, readiness fails unless the Redis client and durable job queue are connected |
 | `REDAX_REDIS_NAMESPACE` | `redax` | namespace all Redis keys when sharing a Redis instance |
 | `REDAX_REDIS_CONNECT_TIMEOUT_SECONDS` | `1.0` | bounded Redis connection timeout |
 | `REDAX_REDIS_SOCKET_TIMEOUT_SECONDS` | `1.0` | bounded Redis command socket timeout |
