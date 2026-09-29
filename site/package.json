@@ -8,7 +8,8 @@
     "dev": "astro dev --host",
     "build": "astro build",
     "preview": "astro preview --host",
-    "check": "astro check",
+    "check": "npm run check:config && astro check",
+    "check:config": "node scripts/check-config-reference.mjs",
     "astro": "astro"
   },
   "dependencies": {
