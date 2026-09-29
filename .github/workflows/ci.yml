@@ -138,6 +138,7 @@ jobs:
             python scripts/load_bench.py \
               --url http://127.0.0.1:8010/v1/redact \
               --mode redact \
+              --api-key ci-job-key \
               --requests 500 \
               --concurrency "$concurrency" \
               --fail-on-error \
@@ -147,6 +148,7 @@ jobs:
           python scripts/load_bench.py \
             --url http://127.0.0.1:8010/v1/redact/batch \
             --mode batch \
+            --api-key ci-job-key \
             --requests 200 \
             --concurrency 10 \
             --fail-on-error \
@@ -155,6 +157,7 @@ jobs:
           python scripts/load_bench.py \
             --url http://127.0.0.1:8010/v1/redact/stream \
             --mode stream \
+            --api-key ci-job-key \
             --requests 200 \
             --concurrency 10 \
             --fail-on-error \
@@ -163,6 +166,7 @@ jobs:
           python scripts/load_bench.py \
             --url http://127.0.0.1:8010/v1/redact \
             --mode redact \
+            --api-key ci-job-key \
             --duration-seconds 15 \
             --concurrency 20 \
             --fail-on-error \
