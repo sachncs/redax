@@ -42,6 +42,41 @@ curl http://localhost:8000/healthz`}</code></pre>
   </section>
 
   <section>
+    <h2 class="text-[25px] text-ink-0">4. Apply the reference production topology</h2>
+    <p class="mt-3">The checked-in Kubernetes manifests are a real starting point for a private deployment, but they deliberately stop at the application boundary. You choose the cloud, region, node policy, managed Redis service, backup policy, telemetry destination, DNS provider, and certificate issuer during deployment because those are environment ownership decisions—not portable Redax defaults.</p>
+    <div class="mt-4 card border-flame-400/20 bg-flame-500/[0.06] p-5">
+      <div class="text-[11px] uppercase tracking-[0.2em] text-flame-300">Before you run this</div>
+      <p class="mt-3 text-[14px] leading-[1.7] text-ink-200">Have a Kubernetes context pointed at the intended production cluster, a TLS Redis endpoint with its backup/failover policy recorded, an ingress controller, a certificate chain, and a secret manager ready. Replace every example value below; never commit generated credentials or a production secret.</p>
+    </div>
+    <pre class="code-shell mt-5 overflow-x-auto p-5 text-[13px] leading-[1.7] text-ink-100"><code>{`# From a reviewed Redax release checkout
+kubectl config current-context
+kubectl create namespace redax
+
+# Store API/authentication and encryption material outside Git.
+kubectl -n redax create secret generic redax-api \\
+  --from-literal=REDAX_API_KEYS='replace-with-a-scoped-key' \\
+  --from-literal=REDAX_HASH_SALT='replace-with-a-unique-random-value' \\
+  --from-literal=job_payload_encryption_key="$(python3.13 -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')" \\
+  --from-literal=audit_integrity_key='replace-with-independent-random-secret'
+
+# Use your managed Redis TLS endpoint; Redis is not installed by these manifests.
+kubectl -n redax create secret generic redax-redis \\
+  --from-literal=url='rediss://redis.example.internal:6380/0'
+
+# Use a certificate issued for the production hostname.
+kubectl -n redax create secret tls redax-tls \\
+  --cert=/path/to/fullchain.pem --key=/path/to/privkey.pem
+
+kubectl apply -k deploy/kubernetes
+kubectl -n redax rollout status deployment/redax-api
+kubectl -n redax rollout status deployment/redax-worker`}</code></pre>
+    <p class="mt-4 text-[13.5px] text-ink-400">Then configure the ingress hostname and DNS record, apply your certificate renewal mechanism, connect Prometheus/custom metrics to the HPA, and create alerts for readiness failures, error rate, latency, queue age, Redis health, audit delivery, and backup failures. See <a href="/redax/docs/production/" class="text-flame-200 underline decoration-flame-500/40 underline-offset-4">production configuration</a> for the deployment decisions that must be recorded.</p>
+    <div class="mt-4 grid gap-3 sm:grid-cols-2">
+      {[ ["This proves", "The manifests can be applied, the API and worker rollouts become ready, and the cluster can reach the configured dependencies."], ["This does not prove", "Provider HA, Redis failover, backups/restores, DNS/TLS renewal, telemetry delivery, capacity, or your SLOs. Run those checks in the target environment before launch." ] ].map(([title, body]) => <div class="card p-5"><div class="text-[11px] uppercase tracking-[0.18em] text-flame-300">{title}</div><p class="mt-3 text-[13.5px] leading-[1.6] text-ink-300">{body}</p></div>)}
+    </div>
+  </section>
+
+  <section>
     <h2 class="text-[25px] text-ink-0">Production checklist</h2>
     <ul class="mt-4 grid gap-3 text-[14px] text-ink-200">
       {["Authentication is enabled and tested with an invalid key.", "The API is reachable only from the services that need the privacy boundary.", "Redis and audit storage survive a container restart.", "Readiness, error rate, latency, and queue depth are monitored.", "A policy version is committed with the application release.", "The team has verified that logs, traces, cache keys, and audit events do not contain raw values."].map((item) => <li class="card flex gap-3 p-4"><span class="text-sage-400">✓</span><span>{item}</span></li>)}
