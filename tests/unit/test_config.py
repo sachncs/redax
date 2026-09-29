@@ -21,6 +21,7 @@ def test_defaults() -> None:
     assert s.inference_concurrency == 2
     assert s.worker_concurrency == 1
     assert s.max_inflight == 32
+    assert s.max_response_bytes == 4_000_000
     assert s.max_jobs_per_key == 50
     assert s.audit_fsync is True
     assert s.cache_shared is False

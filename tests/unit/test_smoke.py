@@ -239,6 +239,32 @@ def test_request_body_limit_rejects_before_handler() -> None:
     assert response.json()["type"] == "https://redax.ai/errors/request-body-too-large"
 
 
+def test_response_body_limit_rejects_oversized_buffered_response() -> None:
+    from fastapi import FastAPI
+    from fastapi.responses import PlainTextResponse
+    from fastapi.testclient import TestClient
+
+    from app.middleware import register_request_context
+    from app.state import State
+
+    test_state = State(ready=True)
+    test_state.settings = type("S", (), {"max_body_bytes": 1024, "max_response_bytes": 8})()
+    app = FastAPI()
+    app.state.state = test_state
+    register_request_context(app)
+
+    @app.get("/v1/test")
+    async def test_route() -> PlainTextResponse:
+        return PlainTextResponse("response is too large")
+
+    with TestClient(app) as client:
+        response = client.get("/v1/test")
+
+    assert response.status_code == 500
+    assert response.headers["content-type"].startswith("application/problem+json")
+    assert response.json()["type"] == "https://redax.ai/errors/response-body-too-large"
+
+
 def test_request_admission_rejects_during_drain_but_keeps_healthz_alive() -> None:
     from fastapi import FastAPI
     from fastapi.testclient import TestClient

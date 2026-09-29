@@ -28,7 +28,12 @@ from starlette.types import Message, Receive
 
 from app.errors import problem_response
 from app.logging import get_logger
-from app.observability import ADMISSION_REJECTIONS, REQUESTS_INFLIGHT, RESPONSE_SIZE
+from app.observability import (
+    ADMISSION_REJECTIONS,
+    REQUESTS_INFLIGHT,
+    RESPONSE_REJECTIONS,
+    RESPONSE_SIZE,
+)
 from app.observability.tracing import current_trace_id_hex
 
 request_tracer = trace.get_tracer("redax.http")
@@ -194,6 +199,13 @@ def register_request_context(app: FastAPI) -> None:
             max_body_bytes = int(
                 getattr(getattr(state, "settings", None), "max_body_bytes", 4_000_000)
             )
+            max_response_bytes = int(
+                getattr(
+                    getattr(state, "settings", None),
+                    "max_response_bytes",
+                    max_body_bytes,
+                )
+            )
             if content_length is not None:
                 try:
                     body_bytes = int(content_length)
@@ -312,8 +324,23 @@ def register_request_context(app: FastAPI) -> None:
             response = await call_next(request)
             content_length = response.headers.get("content-length")
             if content_length is not None:
-                with suppress(ValueError):
-                    RESPONSE_SIZE.observe(float(content_length))
+                try:
+                    response_size = float(content_length)
+                except ValueError:
+                    response_size = None
+                if response_size is not None:
+                    RESPONSE_SIZE.observe(response_size)
+                    if response_size > max_response_bytes:
+                        RESPONSE_REJECTIONS.inc()
+                        original_background = response.background
+                        response = problem_response(
+                            request,
+                            type="https://redax.ai/errors/response-body-too-large",
+                            title="Response too large",
+                            status=500,
+                            detail="response exceeds the configured byte limit",
+                        )
+                        response.background = original_background
             response.headers.setdefault("X-Content-Type-Options", "nosniff")
             response.headers.setdefault("X-Frame-Options", "DENY")
             response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")

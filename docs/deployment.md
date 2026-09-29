@@ -80,6 +80,7 @@ All settings read from environment variables prefixed with `REDAX_`. See
 | `REDAX_AUDIT_REDIS_MAX_EVENTS` | `100000` | maximum metadata-only events retained in the centralized Redis audit list |
 | `REDAX_HASH_SALT` | `change-me` | rejected at startup; set a unique random value |
 | `REDAX_MAX_BODY_BYTES` | `4000000` | reject requests whose declared or chunked body exceeds this byte limit before parsing |
+| `REDAX_MAX_RESPONSE_BYTES` | `4000000` | reject buffered responses whose declared body exceeds this byte limit |
 | `REDAX_MAX_TEXT_CHARS` | `100000` | reject inputs longer than this |
 | `REDAX_MAX_BATCH_CHARS` | `1000000` | aggregate character budget across one batch; excess returns 413 |
 | `entity_types` request field | max 128 items, 128 characters each | bounded by the shared API request model across redact, detect, batch, stream, and jobs; violations return 422 |

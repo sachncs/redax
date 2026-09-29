@@ -30,6 +30,12 @@ RESPONSE_SIZE = Histogram(
     registry=REGISTRY,
 )
 
+RESPONSE_REJECTIONS = Counter(
+    "redax_response_rejections_total",
+    "Responses rejected because their buffered body exceeded the configured limit.",
+    registry=REGISTRY,
+)
+
 REQUESTS_INFLIGHT = Gauge(
     "redax_requests_inflight",
     "HTTP requests currently admitted to application handlers.",
