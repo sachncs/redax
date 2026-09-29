@@ -28,7 +28,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     REDAX_AUDIT_PATH=/var/lib/redax/audit.jsonl \
     REDAX_POLICIES_DIR=/policies
 
-RUN groupadd -r redax && useradd -r -g redax -d /app -s /sbin/nologin redax \
+RUN groupadd --system --gid 10001 redax && useradd --system --uid 10001 --gid 10001 -d /app -s /sbin/nologin redax \
     && mkdir -p /app /models /var/lib/redax /policies \
     && chown -R redax:redax /app /models /var/lib/redax /policies
 
