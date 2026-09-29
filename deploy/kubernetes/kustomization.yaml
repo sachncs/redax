@@ -10,6 +10,7 @@ resources:
   - service.yaml
   - pdb.yaml
   - hpa.yaml
+  - network-policy.yaml
 images:
   - name: ghcr.io/sachncs/redax
     newName: ghcr.io/sachncs/redax

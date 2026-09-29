@@ -13,6 +13,11 @@ Before applying it:
    backend with the organisation's durable audit sink.
 4. Configure an ingress with TLS, request-body limits, timeouts, and the
    service's `/readyz` endpoint as its readiness target.
+5. Label the ingress-controller namespace with
+   `redax.ingress-access=true`. The checked-in NetworkPolicies deny other
+   ingress and restrict API/worker egress to cluster DNS, HTTPS, and Redis
+   ports; adjust the policy when the managed Redis endpoint uses a different
+   port or the ingress controller uses a different namespace.
 
 The manifests intentionally do not deploy Redis. Redis persistence, failover,
 backup, restore, and RPO/RTO are operator-owned production requirements.

@@ -19,7 +19,9 @@ replicas, two worker replicas, rolling-update budgets,
 readiness/startup/liveness probes, CPU/memory bounds, restricted security
 contexts, and CPU-based autoscaling. Redis is intentionally external and must
 be supplied through the `redax-redis` Secret. The checked-in image reference is
-pinned to the signed `v0.1.0` release digest.
+pinned to the signed `v0.1.0` release digest. NetworkPolicies deny unapproved
+ingress and constrain API/worker egress; label the ingress-controller namespace
+as described in the Kubernetes README before applying the topology.
 
 ## Deployment tiers
 
