@@ -12,6 +12,13 @@ SUPPORTED_STRATEGIES = frozenset({"passThrough", "mask", "hash", "regex", "autoD
 SUPPORTED_FIELD_OPTIONS = frozenset(
     {"strategy", "format", "entity_types", "relex", "multi_pass", "detector", "length"}
 )
+MAX_POLICY_FIELDS = 128
+MAX_POLICY_FIELD_NAME_CHARS = 128
+MAX_POLICY_STRING_CHARS = 4096
+MAX_POLICY_ENTITY_TYPES = 128
+MAX_POLICY_ENTITY_TYPE_CHARS = 128
+MAX_POLICY_MULTI_PASS = 3
+MAX_POLICY_HASH_LENGTH = 64
 
 
 @dataclass
@@ -77,7 +84,15 @@ def parse_policy(raw: dict[str, Any], source: str) -> Policy:
     fields_raw = raw.get("fields", {}) or {}
     if not isinstance(fields_raw, dict):
         raise ValueError(f"{source}: 'fields' must be a mapping")
+    if len(fields_raw) > MAX_POLICY_FIELDS:
+        raise ValueError(f"{source}: 'fields' must contain at most {MAX_POLICY_FIELDS} entries")
     for fname, fcfg in fields_raw.items():
+        if not isinstance(fname, str) or not fname:
+            raise ValueError(f"{source}: field names must be non-empty strings")
+        if len(fname) > MAX_POLICY_FIELD_NAME_CHARS:
+            raise ValueError(
+                f"{source}: field names must be at most {MAX_POLICY_FIELD_NAME_CHARS} characters"
+            )
         if not isinstance(fcfg, dict):
             raise ValueError(f"{source}: field {fname!r} must be a mapping")
         if "strategy" not in fcfg:
@@ -89,6 +104,58 @@ def parse_policy(raw: dict[str, Any], source: str) -> Policy:
         if unknown_options:
             raise ValueError(
                 f"{source}: field {fname!r} has unknown options {sorted(unknown_options)!r}"
+            )
+        for option in ("format", "detector"):
+            value = fcfg.get(option)
+            if value is not None and (
+                not isinstance(value, str) or len(value) > MAX_POLICY_STRING_CHARS
+            ):
+                raise ValueError(
+                    f"{source}: field {fname!r} option {option!r} must be a string of at most "
+                    f"{MAX_POLICY_STRING_CHARS} characters"
+                )
+        entity_types = fcfg.get("entity_types")
+        if entity_types is not None:
+            if not isinstance(entity_types, list) or len(entity_types) > MAX_POLICY_ENTITY_TYPES:
+                raise ValueError(
+                    f"{source}: field {fname!r} 'entity_types' must contain at most "
+                    f"{MAX_POLICY_ENTITY_TYPES} entries"
+                )
+            if any(
+                not isinstance(entity_type, str)
+                or not entity_type
+                or len(entity_type) > MAX_POLICY_ENTITY_TYPE_CHARS
+                for entity_type in entity_types
+            ):
+                raise ValueError(
+                    f"{source}: field {fname!r} 'entity_types' entries must be non-empty strings "
+                    f"of at most {MAX_POLICY_ENTITY_TYPE_CHARS} characters"
+                )
+        multi_pass = fcfg.get("multi_pass")
+        if multi_pass is not None and (
+            isinstance(multi_pass, bool)
+            or not isinstance(multi_pass, int)
+            or not 1 <= multi_pass <= MAX_POLICY_MULTI_PASS
+        ):
+            raise ValueError(
+                f"{source}: field {fname!r} 'multi_pass' must be an integer from 1 to "
+                f"{MAX_POLICY_MULTI_PASS}"
+            )
+        length = fcfg.get("length")
+        if length is not None and (
+            isinstance(length, bool)
+            or not isinstance(length, int)
+            or not 1 <= length <= MAX_POLICY_HASH_LENGTH
+        ):
+            raise ValueError(
+                f"{source}: field {fname!r} 'length' must be an integer from 1 to "
+                f"{MAX_POLICY_HASH_LENGTH}"
+            )
+    for metadata in ("name", "version", "description"):
+        value = raw.get(metadata)
+        if value is not None and len(str(value)) > MAX_POLICY_STRING_CHARS:
+            raise ValueError(
+                f"{source}: {metadata!r} must be at most {MAX_POLICY_STRING_CHARS} characters"
             )
     return Policy(
         name=str(raw.get("name", "default")),

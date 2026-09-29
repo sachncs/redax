@@ -23,6 +23,13 @@ fields:                   # required
     entity_types: [SSN_US]
 ```
 
+Inline and file-backed policies are bounded before execution: a policy may
+contain at most 128 fields; field names and entity-type labels are at most 128
+characters; each field may list at most 128 entity types; format and detector
+strings are at most 4096 characters; `multi_pass` is limited to 1--3; and hash
+`length` is limited to 1--64. These limits keep policy validation and detector
+fan-out predictable for untrusted request bodies.
+
 ## Strategies
 
 | Name | Behavior |
