@@ -67,6 +67,19 @@ class StubDetector:
         return None
 
 
+class FailingDetector:
+    """Detector used to verify transport-level fail-closed behavior."""
+
+    name = "failing"
+
+    async def detect(self, text: str, entity_types: list[str]) -> list[Span]:
+        del entity_types
+        raise RuntimeError(f"detector unavailable for {text}")
+
+    async def warmup(self) -> None:
+        return None
+
+
 class InMemoryJobStore(JobStore):
     def __init__(self) -> None:
         self.records: dict[str, dict] = {}
@@ -215,6 +228,23 @@ def test_batch_fails_closed_when_configured_policy_is_missing(app_with_state, tm
     assert response.json()["type"] == "https://redax.ai/errors/policy-unavailable"
 
 
+def test_batch_detector_failure_does_not_publish_or_echo_canary(app_with_state, capsys):
+    """A detector exception must become a generic failure, never raw output."""
+    canary = "batch.detector.failure.7f8d@example.com"
+    app_with_state.state.state.redactor = Redactor(detector=FailingDetector(), strategies={})
+
+    with TestClient(app_with_state, raise_server_exceptions=False) as client:
+        response = client.post(
+            "/v1/redact/batch",
+            json={"items": [{"text": f"Email {canary}"}]},
+            headers={"X-API-Key": "test-key"},
+        )
+
+    assert response.status_code == 500
+    assert canary not in response.text
+    assert canary not in capsys.readouterr().out
+
+
 def test_stream_fails_closed_when_configured_policy_is_missing(app_with_state, tmp_path):
     settings = app_with_state.state.state.settings
     settings.default_policy = "missing"
@@ -229,6 +259,25 @@ def test_stream_fails_closed_when_configured_policy_is_missing(app_with_state, t
 
     assert response.status_code == 503
     assert response.json()["type"] == "https://redax.ai/errors/policy-unavailable"
+
+
+def test_stream_detector_failure_does_not_echo_canary(app_with_state, capsys):
+    """A streaming detector exception emits only the generic error event."""
+    canary = "stream.detector.failure.7f8d@example.com"
+    app_with_state.state.state.redactor = Redactor(detector=FailingDetector(), strategies={})
+
+    with TestClient(app_with_state, raise_server_exceptions=False) as client:
+        response = client.post(
+            "/v1/redact/stream",
+            json={"text": f"Email {canary}"},
+            headers={"X-API-Key": "test-key"},
+        )
+
+    assert response.status_code == 200
+    assert '"error": "internal error"' in response.text
+    assert "[DONE]" not in response.text
+    assert canary not in response.text
+    assert canary not in capsys.readouterr().out
 
 
 def test_stream_emits_events(app_with_state):
