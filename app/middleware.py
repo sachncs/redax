@@ -273,7 +273,14 @@ def register_request_context(app: FastAPI) -> None:
                 """Replay the bounded body to downstream Starlette consumers."""
                 nonlocal replayed
                 if replayed:
-                    return {"type": "http.disconnect"}
+                    # Starlette's BaseHTTPMiddleware polls the receive
+                    # callable while a response body is streaming. Returning
+                    # an immediate disconnect cancels the body before its
+                    # first chunk; returning another request message causes
+                    # Starlette to reject it as an unexpected message. Keep
+                    # the poll pending until Starlette cancels it after the
+                    # response has completed.
+                    await asyncio.Future[dict[str, Any]]()
                 replayed = True
                 if disconnect_message is not None:
                     return disconnect_message
