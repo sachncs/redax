@@ -63,6 +63,12 @@ async def run_load(
                 try:
                     response = await client.post(url, json=request_payload(mode, text))
                     status = str(response.status_code)
+                    if (
+                        mode == "stream"
+                        and response.status_code == 200
+                        and not stream_completed(response.text)
+                    ):
+                        status = "stream_error"
                 except httpx.HTTPError:
                     status = "transport_error"
                 latencies.append((time.perf_counter() - request_started) * 1000)
@@ -110,6 +116,22 @@ def request_payload(mode: str, text: str) -> dict[str, Any]:
     if mode == "stream":
         return {"text": text, "chunk_chars": 100}
     raise ValueError(f"unsupported benchmark mode: {mode}")
+
+
+def stream_completed(body: str) -> bool:
+    """Return whether an SSE response reached a successful terminal event."""
+    for line in body.splitlines():
+        if line.strip() == "data: [DONE]":
+            return True
+        if not line.startswith("data: "):
+            continue
+        try:
+            payload = json.loads(line[6:])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict) and "error" in payload:
+            return False
+    return False
 
 
 def parse_args() -> argparse.Namespace:
