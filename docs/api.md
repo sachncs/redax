@@ -102,6 +102,11 @@ retry at the next fixed-window boundary without guessing.
 
 **Headers honored**: `X-API-Key`, `Idempotency-Key`.
 
+The generated OpenAPI document advertises `X-API-Key` as an API-key security
+scheme. Per-principal endpoint scopes are deployment configuration rather than
+OAuth scopes, so the OpenAPI security requirement is intentionally generic; the
+scope matrix below is the authoritative runtime contract.
+
 When `REDAX_API_KEY_SCOPES` is configured, principals are restricted by
 endpoint scope: `redact` covers redact/batch/stream, `detect` covers detect,
 `jobs` covers asynchronous jobs, `policies:read` covers policy discovery, and

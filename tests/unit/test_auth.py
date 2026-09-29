@@ -84,6 +84,20 @@ def test_principal_id_is_stable_and_does_not_include_api_key() -> None:
     assert identifier != principal_id("other-api-key", "deployment-salt")
 
 
+def test_openapi_advertises_api_key_security_scheme() -> None:
+    schema = make_app(make_state(api_keys={"k1"})).openapi()
+
+    assert schema["components"]["securitySchemes"]["APIKeyHeader"] == {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": (
+            "Deployment API key; endpoint scopes are configured by REDAX_API_KEY_SCOPES."
+        ),
+    }
+    assert schema["paths"]["/v1/redact"]["post"]["security"] == [{"APIKeyHeader": []}]
+
+
 def test_require_api_key_invalid_rejected() -> None:
     state = make_state(api_keys={"k1"})
     with pytest.raises(HTTPException) as exc_info:

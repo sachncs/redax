@@ -8,10 +8,17 @@ import secrets
 from collections.abc import Awaitable, Callable
 from typing import Annotated
 
-from fastapi import Depends, Header, HTTPException
+from fastapi import Depends, HTTPException, Security
+from fastapi.security import APIKeyHeader
 
 from app.ratelimit import rate_limit
 from app.state import State, get_state
+
+api_key_header = APIKeyHeader(
+    name="X-API-Key",
+    auto_error=False,
+    description="Deployment API key; endpoint scopes are configured by REDAX_API_KEY_SCOPES.",
+)
 
 
 def principal_id(api_key: str, hash_salt: str) -> str:
@@ -25,7 +32,7 @@ def principal_id(api_key: str, hash_salt: str) -> str:
 
 def require_api_key(
     state: Annotated[State, Depends(get_state)],
-    x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
+    x_api_key: Annotated[str | None, Security(api_key_header)] = None,
 ) -> str:
     """Validate the X-API-Key header against ``REDAX_API_KEYS``.
 
@@ -63,7 +70,7 @@ def require_api_key(
 
 async def require_api_key_and_rate_limit(
     state: Annotated[State, Depends(get_state)],
-    x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
+    x_api_key: Annotated[str | None, Security(api_key_header)] = None,
 ) -> str:
     """Combined auth + rate-limit dependency for v1/* routes.
 
