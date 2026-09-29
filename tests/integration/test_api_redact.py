@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from redis.exceptions import RedisError
 
 from app.api.redact import register
 from app.audit.backend import Backend, Event
@@ -68,6 +71,18 @@ class FailingAuditBackend(Backend):
 class FailingRedactor:
     async def redact(self, text: str, policy=None, entity_types=None):
         raise RuntimeError(f"detector failure for {text}")
+
+
+class SlowRedactor:
+    async def redact(self, text: str, policy=None, entity_types=None):
+        del text, policy, entity_types
+        await asyncio.sleep(1)
+
+
+class FailingRedis:
+    async def get(self, key: str):
+        del key
+        raise RedisError("redis unavailable")
 
 
 @pytest.fixture
@@ -182,6 +197,60 @@ def test_audit_failure_rejects_request_without_leaking_canary(capsys):
 
     output = capsys.readouterr().out
     assert response.status_code == 500
+    assert canary not in response.text
+    assert canary not in output
+
+
+def test_redis_failure_rejects_request_without_leaking_canary(app_with_redactor, capsys):
+    """A Redis outage must not expose the request through its error path."""
+    canary = "redis.failure.7f8d@example.com"
+
+    class Store:
+        client = FailingRedis()
+
+    app_with_redactor.state.state.job_store = Store()
+    with TestClient(app_with_redactor, raise_server_exceptions=False) as client:
+        response = client.post(
+            "/v1/redact",
+            json={"text": f"Email {canary}"},
+            headers={"Idempotency-Key": "redis-failure-key"},
+        )
+
+    output = capsys.readouterr().out
+    assert response.status_code == 500
+    assert canary not in response.text
+    assert canary not in output
+
+
+def test_timeout_rejects_request_without_leaking_canary(capsys):
+    """A bounded inference timeout must produce only a generic problem body."""
+    canary = "timeout.failure.7f8d@example.com"
+    test_state = State(
+        settings=type(
+            "S",
+            (),
+            {
+                "max_text_chars": 1000,
+                "hash_salt": "x",
+                "request_timeout_seconds": 0.01,
+                "api_key_set": lambda self: set(),
+            },
+        )(),
+        redactor=SlowRedactor(),
+        audit=MemoryAuditBackend(),
+        ready=True,
+    )
+    app = FastAPI()
+    app.state.state = test_state
+    register(app)
+    with TestClient(app, raise_server_exceptions=False) as client:
+        response = client.post(
+            "/v1/redact",
+            json={"text": canary, "entity_types": ["EMAIL"]},
+        )
+
+    output = capsys.readouterr().out
+    assert response.status_code == 504
     assert canary not in response.text
     assert canary not in output
 
