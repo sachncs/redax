@@ -6,8 +6,10 @@ the cited evidence covers the stated scope; `FAIL` means implementation or
 evidence is still missing; `N/A` means the requirement is outside the current
 supported product surface.
 
-Review baseline: `6a11c27` and the current `master` tree. Update this matrix
-as each production milestone lands.
+Review baseline: `23b01d8` and the current `master` tree. The latest review
+also includes constant-time API-key rotation checks, production wildcard-CORS
+rejection, bounded audit shutdown, and a real OTLP delivery/privacy canary.
+Update this matrix as each production milestone lands.
 
 ## Reliability and distributed correctness
 
