@@ -1,0 +1,25 @@
+{
+  "commit": "abcc54728f0c6add317946e836a6eb5af8c68078",
+  "detector": "regex",
+  "kind": "redax.detector_benchmark",
+  "measurement_scope": "local_baseline",
+  "result": {
+    "calls": 1000,
+    "mean_ms": 0.11927585403827834,
+    "p50_ms": 0.1170840005215723,
+    "p95_ms": 0.13078990286885528,
+    "p99_ms": 0.1413317492188071,
+    "throughput_per_sec": 8383.926554649335
+  },
+  "runtime": {
+    "implementation": "CPython",
+    "platform": "macOS-26.7.1-arm64-arm-64bit",
+    "python": "3.12.7"
+  },
+  "schema_version": 1,
+  "workload": {
+    "batch": 200,
+    "rounds": 5,
+    "text_chars": 1000
+  }
+}
