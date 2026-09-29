@@ -212,11 +212,14 @@ jobs:
           test "$(python -c 'import json; print(json.load(open("/tmp/redax-job-status.json"))["status"])')" = done
           for deployment in redax-api redax-worker; do
             stamp="$(date -u +%s)"
+            echo "Exercising rollout and rollback for ${deployment}"
             kubectl -n redax patch deployment "$deployment" --type=merge \
               -p "{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{\"redax.dev/smoke-revision\":\"$stamp\"}}}}}"
-            kubectl -n redax rollout status deployment/"$deployment" --timeout=600s
+            kubectl -n redax rollout status deployment/"$deployment" --timeout=300s
+            kubectl -n redax get deployment "$deployment" -o wide
             kubectl -n redax rollout undo deployment/"$deployment"
-            kubectl -n redax rollout status deployment/"$deployment" --timeout=600s
+            kubectl -n redax rollout status deployment/"$deployment" --timeout=300s
+            kubectl -n redax get deployment "$deployment" -o wide
           done
 
       - name: Collect disposable smoke diagnostics
