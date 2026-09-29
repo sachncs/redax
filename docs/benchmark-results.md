@@ -1,10 +1,17 @@
 # Benchmark results
 
-There is no current release-grade result table checked into this repository.
+The checked-in [`regex-local-baseline.json`](benchmarks/regex-local-baseline.json)
+is a machine-readable local measurement artifact. It records the commit,
+runtime, platform, workload, and percentiles, but is not a production SLA or
+capacity claim. Generate a new artifact with:
+
+```bash
+python scripts/bench.py --output docs/benchmarks/regex-local-baseline.json
+```
+
 Earlier working-tree snapshots contained exploratory comparisons, but their
 raw result artifacts, model provenance, and reproducible environment were not
-part of the release contract. They are intentionally not presented as current
-product claims.
+part of the release contract.
 
 ## Current supported detector set
 

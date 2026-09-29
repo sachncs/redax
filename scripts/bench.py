@@ -9,9 +9,15 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
+import platform
 import statistics
+import subprocess
 import sys
 import time
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.inference.regex import RegexDetector
 
@@ -59,6 +65,34 @@ async def bench(text: str, batch: int, rounds: int) -> dict:
     }
 
 
+def current_commit() -> str:
+    """Return the measured source commit, or ``unknown`` outside Git."""
+    try:
+        return subprocess.run(
+            ["git", "rev-parse", "HEAD"], check=True, capture_output=True, text=True
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return "unknown"
+
+
+def benchmark_payload(report: dict, text_size: int, batch: int, rounds: int) -> dict:
+    """Build a versioned, reproducible machine-readable benchmark record."""
+    return {
+        "schema_version": 1,
+        "kind": "redax.detector_benchmark",
+        "measurement_scope": "local_baseline",
+        "detector": "regex",
+        "commit": current_commit(),
+        "runtime": {
+            "python": platform.python_version(),
+            "implementation": platform.python_implementation(),
+            "platform": platform.platform(),
+        },
+        "workload": {"text_chars": text_size, "batch": batch, "rounds": rounds},
+        "result": report,
+    }
+
+
 def render(report: dict, text_size: int) -> str:
     return (
         f"text_chars={text_size}  calls={report['calls']}\n"
@@ -75,9 +109,14 @@ def main() -> int:
     parser.add_argument("--text-size", type=int, default=1000)
     parser.add_argument("--batch", type=int, default=200)
     parser.add_argument("--rounds", type=int, default=5)
+    parser.add_argument("--output", type=Path, default=None)
     args = parser.parse_args()
     text = make_text(args.text_size)
     report = asyncio.run(bench(text, args.batch, args.rounds))
+    payload = benchmark_payload(report, args.text_size, args.batch, args.rounds)
+    if args.output is not None:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
     print(render(report, args.text_size), file=sys.stdout)
     return 0
 
