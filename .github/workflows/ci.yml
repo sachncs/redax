@@ -219,8 +219,8 @@ jobs:
           kubectl -n redax describe deployment redax-worker | tee /tmp/redax-kubectl-worker.txt
           for pod in $(kubectl -n redax get pods -o name); do
             safe_name="${pod//\//-}"
-            kubectl -n redax describe "$pod" > "/tmp/redax-kubectl${safe_name}.txt" || true
-            kubectl -n redax logs "$pod" --all-containers --prefix --tail=200 >> "/tmp/redax-kubectl${safe_name}.txt" 2>&1 || true
+            kubectl -n redax describe "$pod" > "/tmp/redax-kubectl-${safe_name}.txt" || true
+            kubectl -n redax logs "$pod" --all-containers --prefix --tail=200 >> "/tmp/redax-kubectl-${safe_name}.txt" 2>&1 || true
           done
 
       - name: Upload disposable smoke evidence
