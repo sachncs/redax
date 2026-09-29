@@ -1,4 +1,4 @@
-.PHONY: help dev test test-cov lint typecheck readiness download-models bench load-bench eval build-server build-wasm build-all clean install verify verify-determinism load
+.PHONY: help dev test test-cov lint typecheck readiness download-models bench load-bench eval build-server build-wasm build-all clean install verify verify-determinism load compose-verify
 
 # pyproject.toml requires Python 3.13+. Set PYTHON explicitly when using a
 # virtualenv managed by uv, pyenv, or another environment manager.
@@ -43,6 +43,9 @@ download-models: ## Download + sha256-verify pinned model snapshots (fail-loud o
 
 load: ## Run locust against the running server (opt-in)
 	$(PYTHON) -m locust -f tests/load/locustfile.py --host http://localhost:$$(PORT)
+
+compose-verify: ## Verify the complete local Docker Compose stack
+	$(PYTHON) scripts/verify_local_compose.py
 
 bench: ## Run latency/throughput benchmark
 	$(PYTHON) scripts/bench.py

@@ -128,6 +128,22 @@ BASE_URL=http://localhost:8000 VUS=20 DURATION=2m \
 The scenario checks liveness and a synthetic redaction request. Its thresholds
 are a local smoke signal, not a production SLO or capacity guarantee.
 
+## Repeatable local verification
+
+After exporting the API key configured in `.env`, run the full local contract
+check:
+
+```bash
+export REDAX_API_KEY='your-local-key'
+make compose-verify
+```
+
+The command checks API liveness/readiness, synchronous redaction, a Redis-backed
+worker job, Prometheus scraping, Grafana health, Loki query delivery, Tempo
+trace delivery, and that the synthetic source marker is absent from the job,
+log, and trace responses. It is a local deployment check, not evidence of
+managed-service failover or public production capacity.
+
 ## Redis backup and restore
 
 Create a portable RDB snapshot in the running Redis container and copy it to a
