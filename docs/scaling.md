@@ -104,6 +104,10 @@ The manually dispatched/weekly [`model-performance.yml`](../.github/workflows/mo
 workflow downloads and verifies the pinned model snapshot before running the
 model benchmark. It produces a machine-readable artifact, but its runner is
 still a single disposable host and is not production-topology capacity proof.
+The first verified artifact is [run 36589780886](https://github.com/sachncs/redax/actions/runs/36589780886):
+100/100 successful requests at concurrency 2, p50 9.845 ms, p99 24.029 ms,
+and 172.934 requests/sec. Its artifact records commit `b38a2e0`, the pinned
+model revision, manifest digest, and lockfile SHA-256.
 
 `/v1/jobs` now uses a separate ARQ worker tier. A reference Kubernetes
 topology is checked in under
