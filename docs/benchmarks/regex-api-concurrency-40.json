@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "kind": "redax_api_load_baseline",
+  "measurement_scope": "local_baseline",
+  "commit": "2b4a93eadb7107259bb8bde5951ef0252f56b36d",
+  "runtime": {
+    "python": "3.13.15",
+    "platform": "macOS-26.7.1-arm64-arm-64bit-Mach-O"
+  },
+  "target": "http://127.0.0.1:8011/v1/redact",
+  "workload": {
+    "requests": 300,
+    "concurrency": 40,
+    "duration_seconds": null
+  },
+  "result": {
+    "requests": 300,
+    "concurrency": 40,
+    "elapsed_seconds": 0.541614,
+    "throughput_requests_per_second": 553.9,
+    "status_counts": {
+      "200": 300
+    },
+    "latency_ms": {
+      "p50": 66.941,
+      "p90": 70.017,
+      "p95": 71.968,
+      "p99": 74.606,
+      "max": 78.045,
+      "mean": 64.232
+    },
+    "process": {
+      "rss_before_bytes": 37011456,
+      "rss_after_bytes": 47120384,
+      "rss_delta_bytes": 10108928,
+      "cpu_percent": 48.0
+    }
+  }
+}
