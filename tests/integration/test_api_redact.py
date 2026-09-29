@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from types import SimpleNamespace
 
 import pytest
 from fastapi import FastAPI
@@ -140,6 +141,17 @@ def test_redact_returns_substituted_text(app_with_redactor):
     assert body["text"] == "Email me at [REDACTED] tomorrow"
     assert len(body["spans"]) == 1
     assert body["spans"][0]["type"] == "EMAIL"
+
+
+def test_redact_recomputes_when_redis_store_is_disconnected(app_with_redactor):
+    """A retained JobStore handle must not be treated as a live Redis client."""
+    app_with_redactor.state.state.job_store = SimpleNamespace(client=None)
+
+    with TestClient(app_with_redactor) as client:
+        resp = client.post("/v1/redact", json={"text": "Email me at a@b.com tomorrow"})
+
+    assert resp.status_code == 200
+    assert resp.json()["text"] == "Email me at [REDACTED] tomorrow"
 
 
 def test_redacted_value_does_not_appear_in_metrics(app_with_redactor):

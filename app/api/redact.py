@@ -205,7 +205,7 @@ def register(app: FastAPI) -> None:
                 fingerprint = request_fingerprint(body, policy)
                 # Idempotency short-circuit
                 if x_idempotency_key:
-                    if job_store is None:
+                    if job_store is None or job_store.client is None:
                         _log_cache_skipped("idempotency")
                     else:
                         ns = getattr(settings, "redis_namespace", "redax")
@@ -254,7 +254,7 @@ def register(app: FastAPI) -> None:
                         model_revision=getattr(settings, "model_revision", ""),
                     )
                 )
-                if job_store is None:
+                if job_store is None or job_store.client is None:
                     _log_cache_skipped("response")
                 else:
                     ns = getattr(settings, "redis_namespace", "redax")
@@ -342,7 +342,7 @@ def register(app: FastAPI) -> None:
                 # leave a cache hit or completed idempotency record that turns
                 # a later retry into an unaudited success.
                 ttl = getattr(settings, "cache_ttl_seconds", 3600)
-                if job_store is not None:
+                if job_store is not None and job_store.client is not None:
                     ns = getattr(settings, "redis_namespace", "redax")
                     try:
                         await job_store.client.set(
@@ -395,7 +395,7 @@ def register(app: FastAPI) -> None:
                 and not idempotency_completed
             ):
                 try:
-                    if job_store is not None:
+                    if job_store is not None and job_store.client is not None:
                         await release_idempotency(
                             job_store.client, idempotency_storage, idempotency_token
                         )
