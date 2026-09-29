@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import multiprocessing
 import os
 import uuid
 
@@ -12,6 +13,40 @@ from arq.constants import in_progress_key_prefix
 from arq.worker import Worker, func
 
 from app.jobs.store import JobStore
+
+
+async def crashable_recovery_job(ctx: dict[str, object], marker_key: str) -> str:
+    """Sleep on the first delivery so the parent can simulate a worker kill."""
+    client = ctx["pool"]
+    assert isinstance(client, aioredis.Redis)
+    started_key = f"{marker_key}:started"
+    if not await client.get(started_key):
+        await client.set(started_key, "1", ex=60)
+        await asyncio.sleep(60)
+    await client.set(f"{marker_key}:done", "1", ex=60)
+    return "done"
+
+
+async def run_crashable_worker(redis_url: str, queue_name: str) -> None:
+    pool = await create_pool(RedisSettings.from_dsn(redis_url), default_queue_name=queue_name)
+    worker = Worker(
+        [func(crashable_recovery_job, name="crashable_recovery_job")],
+        redis_pool=pool,
+        queue_name=queue_name,
+        handle_signals=False,
+        poll_delay=0.01,
+        max_tries=5,
+        ctx={"pool": pool},
+    )
+    worker.in_progress_timeout_s = 0.2
+    try:
+        await worker.async_run()
+    finally:
+        await pool.aclose()
+
+
+def run_crashable_worker_process(redis_url: str, queue_name: str) -> None:
+    asyncio.run(run_crashable_worker(redis_url, queue_name))
 
 
 @pytest.fixture
@@ -114,7 +149,8 @@ async def test_real_redis_worker_claims_job_after_expired_lease(
             burst=True,
             handle_signals=False,
             poll_delay=0.01,
-            max_tries=1,
+            max_tries=5,
+            ctx={"pool": pool},
         )
         await asyncio.wait_for(worker.async_run(), timeout=3)
         assert completed.is_set()
@@ -125,5 +161,67 @@ async def test_real_redis_worker_claims_job_after_expired_lease(
             f"arq:retry:{job_id}",
             f"arq:result:{job_id}",
             in_progress_key_prefix + job_id,
+        )
+        await pool.aclose()
+
+
+@pytest.mark.asyncio
+async def test_real_redis_job_recovers_after_worker_process_kill(
+    real_job_store: JobStore,
+) -> None:
+    queue_name = f"redax-kill-queue-{uuid.uuid4().hex[:12]}"
+    job_id = uuid.uuid4().hex
+    marker_key = f"redax-kill-marker-{uuid.uuid4().hex[:12]}"
+    pool = await create_pool(
+        RedisSettings.from_dsn(real_job_store.url), default_queue_name=queue_name
+    )
+    try:
+        job = await pool.enqueue_job(
+            "crashable_recovery_job",
+            marker_key,
+            _job_id=job_id,
+            _queue_name=queue_name,
+        )
+        assert job is not None
+        context = multiprocessing.get_context("spawn")
+        process = context.Process(
+            target=run_crashable_worker_process,
+            args=(real_job_store.url, queue_name),
+        )
+        process.start()
+        try:
+            for _ in range(100):
+                if await pool.get(f"{marker_key}:started"):
+                    break
+                await asyncio.sleep(0.02)
+            else:
+                pytest.fail("worker did not claim the job before the kill")
+        finally:
+            process.kill()
+            process.join(timeout=3)
+        assert not process.is_alive()
+
+        replacement = Worker(
+            [func(crashable_recovery_job, name="crashable_recovery_job")],
+            redis_pool=pool,
+            queue_name=queue_name,
+            burst=True,
+            handle_signals=False,
+            poll_delay=0.01,
+            max_tries=5,
+            ctx={"pool": pool},
+        )
+        replacement.in_progress_timeout_s = 0.2
+        await asyncio.wait_for(replacement.async_run(), timeout=3)
+        assert await pool.get(f"{marker_key}:done")
+    finally:
+        await pool.delete(
+            queue_name,
+            f"arq:job:{job_id}",
+            f"arq:retry:{job_id}",
+            f"arq:result:{job_id}",
+            f"arq:in-progress:{job_id}",
+            f"{marker_key}:started",
+            f"{marker_key}:done",
         )
         await pool.aclose()

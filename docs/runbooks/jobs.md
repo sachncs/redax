@@ -26,5 +26,5 @@ and startup reconciliation fails stale queued/running jobs after
 `REDAX_JOB_STALE_SECONDS`. Permanent failures are also recorded in the
 bounded Redis `redax:jobs:dead-letter` list as schema-versioned metadata only
 (job ID, attempt count, safe error marker, timestamp; never request payload).
-Expired-lease recovery is covered by the real-Redis integration test, but a
-process-kill drill and Redis failover drill remain release gates.
+Expired-lease recovery after a killed worker process is covered by the
+real-Redis integration test, but a Redis failover drill remains a release gate.
