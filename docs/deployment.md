@@ -18,8 +18,8 @@ Production-shaped Kubernetes assets live in
 replicas, two worker replicas, rolling-update budgets,
 readiness/startup/liveness probes, CPU/memory bounds, restricted security
 contexts, and CPU-based autoscaling. Redis is intentionally external and must
-be supplied through the `redax-redis` Secret. Replace the example image tag
-with the signed release digest before applying the manifests.
+be supplied through the `redax-redis` Secret. The checked-in image reference is
+pinned to the signed `v0.1.0` release digest.
 
 ## Deployment tiers
 

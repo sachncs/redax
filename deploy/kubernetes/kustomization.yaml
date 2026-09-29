@@ -12,4 +12,5 @@ resources:
   - hpa.yaml
 images:
   - name: ghcr.io/sachncs/redax
-    newTag: v0.1.0
+    newName: ghcr.io/sachncs/redax
+    digest: sha256:1ce7d76f5fede54c3cb59f31ceb79e47fb5663996a5bcf0588f8cacb3f454007

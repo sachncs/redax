@@ -14,7 +14,7 @@ do not replay production request bodies into debugging tools.
 ## Immediate mitigation
 
 Stop rollout, remove unhealthy replicas from service, and route to the last
-known-good immutable image/tag. Preserve Redis and audit data. Do not roll back
+known-good immutable image digest. Preserve Redis and audit data. Do not roll back
 across an untested persisted-schema migration.
 
 ## Recovery and verification

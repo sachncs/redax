@@ -4,8 +4,8 @@ This directory is a reference topology, not a turnkey managed-Redis product.
 It runs three stateless API replicas and two independent ARQ worker replicas.
 Before applying it:
 
-1. Replace the image tag in `kustomization.yaml` with the signed image digest
-   from the release attestation.
+1. Confirm the signed image digest in `kustomization.yaml` matches the release
+   attestation before applying; update it only as part of an reviewed release.
 2. Create the `redax-redis` Secret with a TLS Redis URL and the `redax-api`
    Secret with `REDAX_*` keys, a unique hash salt, and a generated Fernet job
    payload key.
