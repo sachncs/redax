@@ -9,11 +9,14 @@ behavior.
 
 from __future__ import annotations
 
+import json
 import os
 from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+SUPPORTED_API_SCOPES = frozenset({"redact", "detect", "jobs", "policies:read", "metrics:read"})
 
 
 class Settings(BaseSettings):
@@ -62,6 +65,7 @@ class Settings(BaseSettings):
     max_text_chars: int = Field(default=100_000, ge=1)
 
     api_keys: str = ""
+    api_key_scopes: str = ""
 
     rate_limit_per_minute: int = Field(default=60, ge=0)
     rate_limit_fail_open: bool = False
@@ -91,6 +95,24 @@ class Settings(BaseSettings):
     def api_key_set(self) -> set[str]:
         """Parse ``api_keys`` (comma-separated) into a deduped set of trimmed keys."""
         return {k.strip() for k in self.api_keys.split(",") if k.strip()}
+
+    def api_key_scope_map(self) -> dict[str, set[str]]:
+        """Parse optional JSON API-key scopes without exposing key values."""
+        if not self.api_key_scopes.strip():
+            return {}
+        parsed = json.loads(self.api_key_scopes)
+        if not isinstance(parsed, dict):
+            raise ValueError("REDAX_API_KEY_SCOPES must be a JSON object")
+        scope_map: dict[str, set[str]] = {}
+        for key, scopes in parsed.items():
+            if (
+                not isinstance(key, str)
+                or not isinstance(scopes, list)
+                or not all(isinstance(scope, str) for scope in scopes)
+            ):
+                raise ValueError("REDAX_API_KEY_SCOPES values must be arrays of strings")
+            scope_map[key] = set(scopes)
+        return scope_map
 
     def redis_prefix(self) -> str:
         """Return the Redis key prefix for this deployment.
@@ -133,6 +155,16 @@ class Settings(BaseSettings):
                 "cache key and is unsafe regardless of REDAX_API_KEYS."
             )
         keys = self.api_key_set()
+        scope_map = self.api_key_scope_map()
+        if scope_map and set(scope_map) != keys:
+            raise ValueError("REDAX_API_KEY_SCOPES must define exactly the configured API keys")
+        unknown_scopes = (
+            set().union(*scope_map.values()) - SUPPORTED_API_SCOPES if scope_map else set()
+        )
+        if unknown_scopes:
+            raise ValueError(
+                f"REDAX_API_KEY_SCOPES contains unsupported scopes: {sorted(unknown_scopes)}"
+            )
         if keys and (keys & defaults):
             raise ValueError(
                 "REDAX_API_KEYS must not use a default value; "

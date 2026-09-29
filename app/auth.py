@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import secrets
+from collections.abc import Awaitable, Callable
 from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException
@@ -72,4 +73,26 @@ async def require_api_key_and_rate_limit(
     return api_key
 
 
-__all__ = ["require_api_key", "require_api_key_and_rate_limit"]
+def require_scope(scope: str) -> Callable[..., Awaitable[str]]:
+    """Return a dependency enforcing one optional principal scope.
+
+    Existing deployments with no ``REDAX_API_KEY_SCOPES`` retain their
+    authenticated-key behavior. Once scopes are configured, a principal must
+    explicitly include the requested scope or receives 403.
+    """
+
+    async def dependency(
+        state: Annotated[State, Depends(get_state)],
+        api_key: Annotated[str, Depends(require_api_key)],
+    ) -> str:
+        settings = state.settings
+        scope_map_factory = getattr(settings, "api_key_scope_map", None)
+        scope_map = scope_map_factory() if callable(scope_map_factory) else {}
+        if scope_map and scope not in scope_map.get(api_key, set()):
+            raise HTTPException(status_code=403, detail="API key lacks required scope")
+        return api_key
+
+    return dependency
+
+
+__all__ = ["require_api_key", "require_api_key_and_rate_limit", "require_scope"]

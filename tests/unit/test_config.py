@@ -84,6 +84,28 @@ def test_api_key_set_strips_blanks() -> None:
     assert s.api_key_set() == {"a", "b"}
 
 
+def test_api_key_scopes_parse_json() -> None:
+    s = Settings(
+        api_keys="k1,k2",
+        api_key_scopes='{"k1":["redact","jobs"],"k2":["policies:read"]}',
+    )
+    assert s.api_key_scope_map() == {
+        "k1": {"redact", "jobs"},
+        "k2": {"policies:read"},
+    }
+
+
+def test_api_key_scopes_must_cover_configured_keys() -> None:
+    s = Settings(
+        api_keys="k1,k2",
+        api_key_scopes='{"k1":["redact"]}',
+        hash_salt="a-strong-secret",
+        trusted_hosts="localhost",
+    )
+    with pytest.raises(ValueError, match="exactly the configured API keys"):
+        s.verify()
+
+
 def test_detector_validated() -> None:
     with pytest.raises(ValidationError):
         Settings(detector="ner")

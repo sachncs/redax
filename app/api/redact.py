@@ -22,7 +22,7 @@ from app.api.idempotency import release as release_idempotency
 from app.api.idempotency import reserve as reserve_idempotency
 from app.api.policy import effective_policy, policy_version
 from app.audit.backend import Event, span_summary
-from app.auth import require_api_key
+from app.auth import require_scope
 from app.errors import (
     TRANSIENT_EXC,
     internal_error,
@@ -99,7 +99,7 @@ def register(app: FastAPI) -> None:
         request: Request,
         body: RedactRequest,
         state: Annotated[State, Depends(get_state)],
-        api_key: Annotated[str, Depends(require_api_key)],
+        api_key: Annotated[str, Depends(require_scope("redact"))],
         x_idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
         request_id: Annotated[str, Depends(get_request_id)] = "",
     ) -> Any:

@@ -12,7 +12,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, FastAPI
 
-from app.auth import require_api_key
+from app.auth import require_scope
 from app.logging import get_logger
 from app.observability import REQUEST_LATENCY, REQUESTS
 from app.redaction.policies import list_policies
@@ -27,7 +27,7 @@ def register(app: FastAPI) -> None:
     @router.get("/v1/policies")
     def policies(
         state: Annotated[State, Depends(get_state)],
-        api_key: Annotated[str, Depends(require_api_key)],
+        api_key: Annotated[str, Depends(require_scope("policies:read"))],
     ) -> dict[str, Any]:
         """List every policy YAML in the configured policies directory."""
         start = time.perf_counter()

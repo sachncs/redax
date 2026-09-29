@@ -39,16 +39,20 @@ class StubSettings:
     rate_limit_per_minute = 0
     policies_dir = "./policies"
 
-    def __init__(self, api_keys: set[str]) -> None:
+    def __init__(self, api_keys: set[str], scopes: dict[str, set[str]] | None = None) -> None:
         self.api_keys = api_keys
+        self.scopes = scopes or {}
 
     def api_key_set(self) -> set[str]:
         return self.api_keys
 
+    def api_key_scope_map(self) -> dict[str, set[str]]:
+        return self.scopes
 
-def make_state(*, api_keys: set[str]) -> State:
+
+def make_state(*, api_keys: set[str], scopes: dict[str, set[str]] | None = None) -> State:
     test_state = State()
-    test_state.settings = StubSettings(api_keys)
+    test_state.settings = StubSettings(api_keys, scopes)
     test_state.redactor = StubRedactor()
     return test_state
 
@@ -138,6 +142,18 @@ def test_policies_accepts_valid_key(tmp_path) -> None:
         resp = client.get("/v1/policies", headers={"X-API-Key": "test-key"})
     assert resp.status_code == 200
     assert resp.json()["policies"][0]["name"] == "default"
+
+
+def test_scoped_key_cannot_read_policies_without_policy_scope(tmp_path) -> None:
+    state = make_state(api_keys={"test-key"}, scopes={"test-key": {"redact"}})
+    (tmp_path / "default.yaml").write_text(
+        '{"name": "default", "version": "1.0.0", "description": "d", "fields": {}}'
+    )
+    state.settings.policies_dir = str(tmp_path)
+    app = make_app(state)
+    with TestClient(app) as client:
+        response = client.get("/v1/policies", headers={"X-API-Key": "test-key"})
+    assert response.status_code == 403
 
 
 def test_batch_accepts_valid_key() -> None:

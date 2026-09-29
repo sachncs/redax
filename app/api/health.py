@@ -17,7 +17,7 @@ from fastapi import Depends, FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
-from app.auth import require_api_key
+from app.auth import require_scope
 from app.errors import problem_response
 from app.observability import REQUEST_LATENCY, REQUESTS
 from app.state import State, get_state
@@ -83,7 +83,7 @@ def register(app: FastAPI) -> None:
     @app.get("/v1/stats", response_model=None)
     def stats(
         state: Annotated[State, Depends(get_state)],
-        api_key: Annotated[str, Depends(require_api_key)],
+        api_key: Annotated[str, Depends(require_scope("metrics:read"))],
     ) -> dict[str, Any]:
         """Introspection endpoint for operators and dashboards.
 

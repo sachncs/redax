@@ -67,6 +67,7 @@ All settings read from environment variables prefixed with `REDAX_`. See
 | `REDAX_HASH_SALT` | `change-me` | rejected at startup; set a unique random value |
 | `REDAX_MAX_TEXT_CHARS` | `100000` | reject inputs longer than this |
 | `REDAX_API_KEYS` | `""` | comma-separated; required when `REDAX_ENV=prod` |
+| `REDAX_API_KEY_SCOPES` | `""` | optional JSON object mapping each configured key to scopes such as `redact`, `detect`, `jobs`, `policies:read`, and `metrics:read`; omitted means legacy full access |
 | `REDAX_RATE_LIMIT_PER_MINUTE` | `60` | per API key; 0 disables |
 | `REDAX_RATE_LIMIT_FAIL_OPEN` | `false` | allow authenticated traffic when Redis rate limiting is unavailable |
 | `REDAX_CACHE_TTL_SECONDS` | `3600` | response cache TTL |

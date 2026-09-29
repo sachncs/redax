@@ -97,6 +97,13 @@ strategies are rejected.
 **Errors**: 413 (oversize), 422 (validation), 429 (rate-limited), 503 (not ready), 504 (timeout).
 
 **Headers honored**: `X-API-Key`, `Idempotency-Key`.
+
+When `REDAX_API_KEY_SCOPES` is configured, principals are restricted by
+endpoint scope: `redact` covers redact/batch/stream, `detect` covers detect,
+`jobs` covers asynchronous jobs, `policies:read` covers policy discovery, and
+`metrics:read` covers operator stats. Scope configuration must define every
+configured key; omitted scope configuration preserves legacy authenticated-key
+behavior for backwards compatibility.
 Every response echoes the request's `X-Request-ID` (or a server-generated one).
 
 ## POST /v1/redact/batch

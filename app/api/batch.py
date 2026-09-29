@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 
 from app.api.policy import default_policy, policy_version
 from app.audit.backend import Event, span_summary
-from app.auth import require_api_key
+from app.auth import require_scope
 from app.errors import TRANSIENT_EXC, internal_error, payload_too_large, timeout_error
 from app.logging import get_logger
 from app.middleware import get_request_id
@@ -55,7 +55,7 @@ def register(app: FastAPI) -> None:
         request: Request,
         body: BatchRequest,
         state: Annotated[State, Depends(get_state)],
-        api_key: Annotated[str, Depends(require_api_key)],
+        api_key: Annotated[str, Depends(require_scope("redact"))],
         request_id: Annotated[str, Depends(get_request_id)] = "",
     ) -> BatchResponse | JSONResponse:
         """Run every item in the batch concurrently under a single asyncio timeout."""
