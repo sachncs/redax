@@ -110,3 +110,14 @@ spec:
           annotations:
             summary: No Redax worker heartbeat is visible to the API
             runbook_url: https://github.com/sachncs/redax/blob/master/docs/runbooks/jobs.md
+        - alert: RedaxWorkerCapacitySaturated
+          expr: |
+            redax_worker_jobs_capacity > 0
+            and redax_worker_jobs_active / redax_worker_jobs_capacity > 0.9
+          for: 5m
+          labels:
+            severity: ticket
+            service: redax
+          annotations:
+            summary: Redax worker job capacity is above 90%
+            runbook_url: https://github.com/sachncs/redax/blob/master/docs/runbooks/jobs.md

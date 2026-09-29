@@ -90,6 +90,18 @@ ACTIVE_WORKERS = Gauge(
     registry=REGISTRY,
 )
 
+WORKER_JOBS_ACTIVE = Gauge(
+    "redax_worker_jobs_active",
+    "Durable jobs currently executing across live worker heartbeats.",
+    registry=REGISTRY,
+)
+
+WORKER_JOBS_CAPACITY = Gauge(
+    "redax_worker_jobs_capacity",
+    "Configured concurrent durable-job slots across live worker heartbeats.",
+    registry=REGISTRY,
+)
+
 REDIS_POOL_IN_USE = Gauge(
     "redax_redis_pool_connections_in_use",
     "Redis connections currently checked out by this process.",

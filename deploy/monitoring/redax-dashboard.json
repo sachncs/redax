@@ -37,7 +37,9 @@
       "targets": [
         {"expr": "redax_queue_depth", "legendFormat": "queue depth"},
         {"expr": "redax_queue_oldest_age_seconds", "legendFormat": "oldest job age"},
-        {"expr": "redax_active_workers", "legendFormat": "active workers"}
+            {"expr": "redax_active_workers", "legendFormat": "active workers"}
+            ,{"expr": "redax_worker_jobs_active", "legendFormat": "active worker jobs"}
+            ,{"expr": "redax_worker_jobs_capacity", "legendFormat": "worker job capacity"}
       ]
     },
     {

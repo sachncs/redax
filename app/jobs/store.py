@@ -217,6 +217,22 @@ return 1
             count += 1
         return count
 
+    async def worker_capacity(self) -> dict[str, int]:
+        """Aggregate active and configured job slots from live worker heartbeats."""
+        client = self.client
+        if client is None:
+            raise RuntimeError("JobStore.start() must run before worker_capacity()")
+        active_jobs = 0
+        max_jobs = 0
+        async for key in client.scan_iter(match=f"{self.namespace}:worker:*"):
+            heartbeat = await client.hgetall(key)  # type: ignore[misc]
+            try:
+                active_jobs += max(0, int(heartbeat.get("active_jobs", "0")))
+                max_jobs += max(0, int(heartbeat.get("max_jobs", "0")))
+            except (TypeError, ValueError):
+                continue
+        return {"active": active_jobs, "max": max_jobs}
+
     async def create(self, owner: str = "") -> JobRecord:
         """Mint a new job id, store the queued record, and bump the per-owner counter.
 

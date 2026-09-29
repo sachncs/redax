@@ -54,7 +54,11 @@ def test_monitoring_assets_cover_queue_age_retries_and_job_latency() -> None:
     root = Path(__file__).parents[2]
     rules = yaml.safe_load((root / "deploy/monitoring/prometheus-rules.yaml").read_text())
     rule_names = {rule["alert"] for group in rules["spec"]["groups"] for rule in group["rules"]}
-    assert {"RedaxQueueAgeHigh", "RedaxJobRetriesIncreasing"} <= rule_names
+    assert {
+        "RedaxQueueAgeHigh",
+        "RedaxJobRetriesIncreasing",
+        "RedaxWorkerCapacitySaturated",
+    } <= rule_names
 
     dashboard = json.loads((root / "deploy/monitoring/redax-dashboard.json").read_text())
     job_panel = next(
@@ -65,6 +69,14 @@ def test_monitoring_assets_cover_queue_age_retries_and_job_latency() -> None:
     expressions = {target["expr"] for target in job_panel["targets"]}
     assert any("redax_job_duration_seconds_bucket" in expression for expression in expressions)
     assert any("redax_job_retries_total" in expression for expression in expressions)
+
+    worker_panel = next(
+        panel
+        for panel in dashboard["panels"]
+        if panel["title"] == "Durable jobs and worker heartbeats"
+    )
+    worker_expressions = {target["expr"] for target in worker_panel["targets"]}
+    assert {"redax_worker_jobs_active", "redax_worker_jobs_capacity"} <= worker_expressions
 
 
 def test_hpas_use_concurrency_and_durable_queue_signals() -> None:

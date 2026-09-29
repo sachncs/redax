@@ -47,6 +47,8 @@ from app.observability import (
     REDIS_POOL_AVAILABLE,
     REDIS_POOL_IN_USE,
     REDIS_POOL_MAX,
+    WORKER_JOBS_ACTIVE,
+    WORKER_JOBS_CAPACITY,
     configure_tracing,
 )
 from app.redaction.circuit.breaker import Breaker
@@ -289,6 +291,13 @@ async def refresh_job_metrics(state: State) -> None:
                 ACTIVE_WORKERS.set(await state.job_store.active_worker_count())
             except (OSError, RuntimeError, TimeoutError, ValueError):
                 ACTIVE_WORKERS.set(0)
+            try:
+                capacity = await state.job_store.worker_capacity()
+                WORKER_JOBS_ACTIVE.set(capacity["active"])
+                WORKER_JOBS_CAPACITY.set(capacity["max"])
+            except (OSError, RuntimeError, TimeoutError, ValueError):
+                WORKER_JOBS_ACTIVE.set(0)
+                WORKER_JOBS_CAPACITY.set(0)
             pool = state.job_store.pool_stats()
             REDIS_POOL_IN_USE.set(pool["in_use"])
             REDIS_POOL_AVAILABLE.set(pool["available"])

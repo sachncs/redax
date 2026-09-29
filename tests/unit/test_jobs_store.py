@@ -274,8 +274,10 @@ def test_pool_stats_reports_connection_utilization(
 async def test_worker_heartbeat_expires_and_is_counted(store: JobStore) -> None:
     await store.worker_heartbeat("worker-a", active_jobs=1, max_jobs=2)
     assert await store.active_worker_count() == 1
+    assert await store.worker_capacity() == {"active": 1, "max": 2}
     await store.worker_stop("worker-a")
     assert await store.active_worker_count() == 0
+    assert await store.worker_capacity() == {"active": 0, "max": 0}
 
 
 async def test_count_for_key_reads_counter(store: JobStore, redis_client: FakeRedis) -> None:
