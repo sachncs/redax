@@ -474,6 +474,21 @@ def test_batch_records_audited_entity_summary(app_with_state):
     assert rec.entities_detected == [{"type": "EMAIL", "count": 1, "confidence_avg": 1.0}]
 
 
+def test_batch_audit_failure_does_not_return_success(app_with_state):
+    """A required batch audit failure must not publish a successful response."""
+    app_with_state.state.state.audit = FailingAudit()
+    with TestClient(app_with_state, raise_server_exceptions=False) as client:
+        response = client.post(
+            "/v1/redact/batch",
+            json={"items": [{"text": "Email batch.audit@example.com"}]},
+            headers={"X-API-Key": "test-key"},
+        )
+
+    assert response.status_code == 500
+    assert response.headers["content-type"].startswith("application/problem+json")
+    assert "batch.audit@example.com" not in response.text
+
+
 def test_stream_records_audited_entity_summary(app_with_state):
     with TestClient(app_with_state) as client:
         resp = client.post(
