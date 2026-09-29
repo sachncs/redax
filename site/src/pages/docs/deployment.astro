@@ -27,6 +27,32 @@ curl http://localhost:8000/healthz`}</code></pre>
   </section>
 
   <section>
+    <h2 class="text-[25px] text-ink-0">From checkout to launch</h2>
+    <p class="mt-3">Use this sequence when you need a deployment a developer or operator can execute without reverse-engineering the repository. The first four steps are local and repeatable; the remaining steps become platform work for a private host or Kubernetes cluster.</p>
+    <div class="mt-5 grid gap-3 lg:grid-cols-2">
+      {[
+        ["01", "Prerequisites", "Install Docker Compose v2 and Python 3.13 for local tooling. For the reference topology, also have kubectl, a Kubernetes context, an ingress controller, and a secret manager."],
+        ["02", "Clone the reviewed release", "Clone the repository, check out the exact reviewed commit or release tag, and verify CI/security evidence before production. Do not deploy an unreviewed working tree."],
+        ["03", "Configure environment", "Start from .env.example for local use. Set REDAX_ENV, REDAX_TRUSTED_HOSTS, REDAX_API_KEYS, REDAX_HASH_SALT, and a valid policy before accepting non-local traffic."],
+        ["04", "Configure Redis", "Use the local Compose Redis for development. Production jobs, idempotency, rate limits, cache, and worker coordination require a private TLS Redis endpoint in REDAX_REDIS_URL."],
+        ["05", "Configure secrets", "Generate separate API, hash-salt, job-encryption, and audit-integrity values. Inject them through the platform secret manager; do not place them in Git, images, or browser code."],
+        ["06", "Configure telemetry", "Choose the approved log, metrics, and OTLP destinations. Configure REDAX_OTLP_ENDPOINT and collectors so metadata is observable without exporting request values."],
+        ["07", "Choose hosting and region", "Select Docker on a private host or the checked-in Kubernetes topology. Record region, data residency, node sizing, identity, egress, and ownership; Redax does not choose a cloud provider for you."],
+        ["08", "Configure domain and DNS", "Create the DNS record for the ingress or reverse proxy and set REDAX_TRUSTED_HOSTS to the exact public hostname. Keep internal health and metrics routes private."],
+        ["09", "Configure TLS", "Issue a certificate for the public hostname and configure renewal. Kubernetes users create redax-tls; private-host users terminate HTTPS at their approved proxy."],
+        ["10", "Deploy", "Run docker compose up -d --build for the local-like stack, or kubectl apply -k deploy/kubernetes for the reference topology after creating its Redis, API, and TLS secrets."],
+        ["11", "Check setup state", "There are currently no application database migrations. Redis namespace, policy files, model revision, and secret versions are deployment inputs that must be recorded with the release."],
+        ["12", "Verify health", "Check /healthz for process liveness and /readyz after Redis/model initialization. Route traffic only after readiness is healthy."],
+        ["13", "Verify the API", "Send a synthetic authenticated POST to /v1/redact and confirm the response contains a replacement and not the source marker. Repeat an idempotency request where that workflow is enabled."],
+        ["14", "Verify the frontend/demo", "Open the website demo to understand browser-local regex behavior. It is not a production API canary and does not validate your server model or ingress."],
+        ["15", "Configure backups", "Set managed Redis persistence, backup cadence, restore owner, and RPO/RTO. For local development, use the documented RDB snapshot commands; do not treat them as managed HA evidence."],
+        ["16", "Configure monitoring", "Scrape /metrics, alert on readiness, 5xx/503/504, latency, queue age, Redis, audit, and telemetry failures, and protect metrics and audit endpoints."],
+        ["17", "Validate the launch gate", "Run the synthetic canary and failure drills in the production launch runbook: replica loss, worker loss, Redis failover, traffic ramp, rollout, rollback, telemetry privacy, and recovery."],
+      ].map(([number, title, body]) => <article class="card p-5 sm:flex sm:gap-5"><div class="shrink-0 font-mono text-[12px] text-flame-300">{number}</div><div><h3 class="text-[15px] font-semibold text-ink-0">{title}</h3><p class="mt-2 text-[13.5px] leading-[1.6] text-ink-400">{body}</p></div></article>)}
+    </div>
+  </section>
+
+  <section>
     <h2 class="text-[25px] text-ink-0">2. Set the production boundary</h2>
     <p class="mt-3">The local Compose profile is intentionally marked as development. Production startup requires API keys and trusted hosts, and the service does not enable browser CORS unless you configure it.</p>
     <div class="mt-4 grid gap-3">
