@@ -102,4 +102,4 @@ branch = true
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
-fail_under = 0  # informational only; tighten to 80 once coverage is at parity
+fail_under = 80

@@ -28,10 +28,14 @@ jobs:
           # The lock is a flat, hash-pinned environment file. Avoid resolving
           # platform-only torch extras (not needed by this CPU CI gate).
           pip install --no-deps -r requirements.lock
+          pip install --no-deps pytest-cov==7.1.0 coverage==7.16.2
           pip install -e . --no-deps
 
       - name: verify (tests + lint + typecheck + determinism)
         run: make verify
+
+      - name: Coverage gate
+        run: make test-cov
 
       - name: Verify commit author matches AGENTS.md convention
         run: |

@@ -1,4 +1,4 @@
-.PHONY: help dev test lint typecheck download-models bench eval build-server build-wasm build-all clean install verify verify-determinism load
+.PHONY: help dev test test-cov lint typecheck download-models bench eval build-server build-wasm build-all clean install verify verify-determinism load
 
 # pyproject.toml requires Python 3.13+; set PYTHON explicitly when using a
 # virtualenv managed by uv, pyenv, or another environment manager.
@@ -18,6 +18,9 @@ dev: ## Run the API server with autoreload
 
 test: ## Run tests
 	$(PYTHON) -m pytest
+
+test-cov: ## Run tests with the enforced coverage threshold
+	$(PYTHON) -m pytest --cov=app --cov-report=term-missing
 
 lint: ## Run ruff
 	$(PYTHON) -m ruff check .

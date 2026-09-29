@@ -6,7 +6,7 @@ the cited evidence covers the stated scope; `FAIL` means implementation or
 evidence is still missing; `N/A` means the requirement is outside the current
 supported product surface.
 
-Review baseline: `85b2112` and the current `master` tree. Update this matrix
+Review baseline: `998119f` and the current `master` tree. Update this matrix
 as each production milestone lands.
 
 ## Reliability and distributed correctness
@@ -50,6 +50,7 @@ as each production milestone lands.
 | Versioned persisted schemas | FAIL | Idempotency envelopes are versioned, but all Redis job/cache/audit schemas and mixed-version compatibility are not. |
 | Configuration validation and documentation | PASS | `Settings` plus documented configuration drift tests. |
 | API/OpenAPI contract | PASS | API contract tests and documented paths; authorization scopes are not yet part of the contract. |
+| Meaningful coverage threshold | PASS | `pyproject.toml` enforces 80% branch-aware coverage through `make test-cov`; the Python 3.13 suite currently measures 83.43%. |
 
 ## Observability and operations
 
@@ -57,7 +58,7 @@ as each production milestone lands.
 |---|---|---|
 | Actionable RED/USE metrics | PARTIAL | RED metrics, Prometheus alert rules, and a Grafana dashboard are checked in; queue age, retries, Redis pool, response-size, and worker-runtime metrics still need implementation/evidence. |
 | Privacy-safe structured logs/traces | PARTIAL | Access/error/audit paths avoid values and metrics regression exists; trace exporter and all failure paths need canary tests. |
-| Alerts and dashboards | FAIL | No checked-in alert rules or dashboard queries. |
+| Alerts and dashboards | PARTIAL | Checked-in Prometheus alert rules and a Grafana dashboard cover HTTP, audit, dependency, API replica, and worker availability; queue age, retries, and Redis-pool panels remain pending. |
 | Operational runbooks | PARTIAL | Current runbooks in `docs/runbooks/` describe safe response and evidence; they remain bounded by the current in-process job limitations. |
 
 ## Deployment, recovery, and release
