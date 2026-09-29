@@ -67,7 +67,7 @@ as each production milestone lands.
 |---|---|---|
 | Hardened container | PARTIAL | Non-root, pinned dependencies, model verification, slim runtime, and a digest-pinned Python base exist; Kubernetes config supplies read-only filesystem/capability restrictions, and release run `36130306271` generated an image SBOM and passed the release scan; standalone Docker runtime restrictions remain deployment-specific. |
 | Reference HA deployment | PARTIAL | `deploy/kubernetes/` defines API/worker replicas, PDBs, probes, resource bounds, autoscaling, and an immutable signed image digest; external Redis HA and deployment smoke/failure evidence remain pending. |
-| Health/readiness/startup probes | PARTIAL | `/healthz`, `/readyz`, and Docker probes exist; readiness drops before teardown, but dependency-aware readiness and full drain semantics need evidence. |
+| Health/readiness/startup probes | PARTIAL | `/healthz`, `/readyz`, and Docker probes exist; required Redis readiness now performs a bounded ping and readiness drops before teardown, while full deployment drain evidence remains. |
 | Rolling deployment and rollback | FAIL | Versioned release exists, but mixed-version state compatibility and rollback procedure are not tested. |
 | Backup/restore and RPO/RTO | FAIL | No restore-tested Redis/audit backup procedure or measured RPO/RTO. |
 | Reproducible release artifacts | PASS | `v0.1.0` release publishes wheel, sdist, checksums, and GHCR image with a tag/version guard; release run `36130306271` generated the image SBOM, signed the image, and published provenance attestation. |

@@ -149,6 +149,31 @@ def test_readyz_fails_when_required_redis_is_unavailable() -> None:
     assert response.json()["detail"] == "Required dependencies are not ready"
 
 
+def test_readyz_fails_when_required_redis_loses_connectivity() -> None:
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from app.api.health import register
+    from app.state import State
+
+    class DownClient:
+        async def ping(self) -> None:
+            raise ConnectionError("redis unavailable")
+
+    class Store:
+        client = DownClient()
+
+    test_state = State(ready=True, redactor=object(), job_store=Store(), job_queue=object())
+    test_state.settings = type("S", (), {"redis_required": True})()
+    app = FastAPI()
+    app.state.state = test_state
+    register(app)
+    with TestClient(app) as client:
+        response = client.get("/readyz")
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Required dependencies are not ready"
+
+
 def test_request_admission_rejects_when_saturated() -> None:
     from fastapi import FastAPI
     from fastapi.testclient import TestClient

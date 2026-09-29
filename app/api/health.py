@@ -10,6 +10,7 @@ the same key as the rest of the v1 surface.
 
 from __future__ import annotations
 
+import asyncio
 import time
 from typing import Annotated, Any
 
@@ -46,7 +47,7 @@ def register(app: FastAPI) -> None:
             )
 
     @app.get("/readyz", include_in_schema=False, response_model=None)
-    def readyz(
+    async def readyz(
         request: Request,
         state: Annotated[State, Depends(get_state)],
     ) -> dict[str, str] | JSONResponse:
@@ -66,9 +67,23 @@ def register(app: FastAPI) -> None:
         try:
             settings = state.settings
             redis_required = bool(getattr(settings, "redis_required", False))
-            redis_ready = not redis_required or (
-                state.job_store is not None and state.job_queue is not None
-            )
+            redis_ready = True
+            if redis_required:
+                redis_ready = state.job_store is not None and state.job_queue is not None
+                client = getattr(state.job_store, "client", None)
+                ping = getattr(client, "ping", None)
+                if redis_ready and callable(ping):
+                    try:
+                        timeout_seconds = max(
+                            0.1,
+                            float(getattr(settings, "redis_socket_timeout_seconds", 1.0)),
+                        )
+                        async with asyncio.timeout(timeout_seconds):
+                            await ping()
+                    except (OSError, RuntimeError, TimeoutError):
+                        redis_ready = False
+                elif redis_ready:
+                    redis_ready = False
             if state.ready and getattr(state, "redactor", None) is not None and redis_ready:
                 REQUESTS.labels(endpoint=endpoint, method=method, status="200").inc()
                 return {"status": "ready"}
