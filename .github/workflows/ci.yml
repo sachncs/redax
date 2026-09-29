@@ -117,6 +117,106 @@ jobs:
           name: redax-kubernetes-manifests-${{ github.sha }}
           path: redax-kubernetes.yaml
 
+  kubernetes-smoke:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Create disposable Kubernetes cluster
+        run: kind create cluster --name redax-smoke --wait 60s
+
+      - name: Build and load the current image
+        run: |
+          docker build --tag "redax-smoke:${GITHUB_SHA}" .
+          kind load docker-image "redax-smoke:${GITHUB_SHA}" --name redax-smoke
+
+      - name: Create namespace
+        run: kubectl apply -f deploy/kubernetes/namespace.yaml
+
+      - name: Start disposable Redis and configure production secrets
+        run: |
+          kubectl -n redax create deployment redax-redis --image=redis:7.2-alpine
+          kubectl -n redax expose deployment redax-redis --name=redax-redis --port=6379
+          kubectl -n redax create secret generic redax-api \
+            --from-literal=REDAX_API_KEYS=ci-smoke-key \
+            --from-literal=REDAX_HASH_SALT=ci-smoke-hash-salt \
+            --from-literal=job_payload_encryption_key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= \
+            --from-literal=audit_integrity_key=ci-smoke-audit-integrity-key
+          kubectl -n redax create secret generic redax-redis \
+            --from-literal=url=redis://redax-redis:6379/0
+          kubectl -n redax rollout status deployment/redax-redis --timeout=180s
+
+      - name: Deploy the pinned Redax image
+        run: |
+          kubectl kustomize deploy/kubernetes \
+            | sed -E "s#ghcr.io/sachncs/redax@sha256:[^[:space:]]+#redax-smoke:${GITHUB_SHA}#g" \
+            | kubectl apply -f -
+          kubectl -n redax rollout status deployment/redax-api --timeout=600s
+          kubectl -n redax rollout status deployment/redax-worker --timeout=600s
+
+      - name: Exercise API, durable jobs, and rollout rollback
+        run: |
+          kubectl -n redax port-forward service/redax-api 18000:8000 > /tmp/redax-port-forward.log 2>&1 &
+          port_forward_pid=$!
+          trap 'kill "$port_forward_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error \
+              -H 'Host: redax.example.com' \
+              http://127.0.0.1:18000/readyz > /tmp/redax-ready.json; then
+              break
+            fi
+            sleep 2
+          done
+          curl --fail --silent --show-error \
+            -H 'Host: redax.example.com' \
+            http://127.0.0.1:18000/readyz > /tmp/redax-ready.json
+          curl --fail --silent --show-error \
+            -H 'Host: redax.example.com' \
+            -H 'X-API-Key: ci-smoke-key' \
+            -H 'Idempotency-Key: ci-smoke-redact-1' \
+            -H 'Content-Type: application/json' \
+            --data '{"text":"Contact smoke@example.com for a safe response."}' \
+            http://127.0.0.1:18000/v1/redact > /tmp/redax-redact.json
+          test "$(python -c 'import json; print(json.load(open("/tmp/redax-redact.json"))["text"])')" = 'Contact [EMAIL_0000] for a safe response.'
+          curl --fail --silent --show-error \
+            -H 'Host: redax.example.com' \
+            -H 'X-API-Key: ci-smoke-key' \
+            -H 'Content-Type: application/json' \
+            --data '{"text":"Job smoke@example.com"}' \
+            http://127.0.0.1:18000/v1/jobs > /tmp/redax-job.json
+          job_id="$(python -c 'import json; print(json.load(open("/tmp/redax-job.json"))["id"])')"
+          for attempt in $(seq 1 60); do
+            curl --fail --silent --show-error \
+              -H 'Host: redax.example.com' \
+              -H 'X-API-Key: ci-smoke-key' \
+              "http://127.0.0.1:18000/v1/jobs/${job_id}" > /tmp/redax-job-status.json
+            status="$(python -c 'import json; print(json.load(open("/tmp/redax-job-status.json"))["status"])')"
+            test "$status" = done && break
+            test "$status" != queued && test "$status" != running && exit 1
+            sleep 2
+          done
+          test "$(python -c 'import json; print(json.load(open("/tmp/redax-job-status.json"))["status"])')" = done
+          for deployment in redax-api redax-worker; do
+            stamp="$(date -u +%s)"
+            kubectl -n redax patch deployment "$deployment" --type=merge \
+              -p "{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{\"redax.dev/smoke-revision\":\"$stamp\"}}}}}"
+            kubectl -n redax rollout status deployment/"$deployment" --timeout=600s
+            kubectl -n redax rollout undo deployment/"$deployment"
+            kubectl -n redax rollout status deployment/"$deployment" --timeout=600s
+          done
+
+      - name: Upload disposable smoke evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: redax-kubernetes-smoke-${{ github.sha }}
+          path: |
+            /tmp/redax-*.json
+            /tmp/redax-port-forward.log
+
   performance:
     runs-on: ubuntu-latest
     services:
