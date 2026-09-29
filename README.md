@@ -58,7 +58,8 @@ include a re-identification map because that map contains original values.
 ## What Redax does
 
 - **Detection** finds spans. The current stable detector is structured regex;
-  the pinned local GLiNER2 path is beta and covers contextual entities.
+  the pinned local `fastino/GLiNER2-Guardrails-PII-Multi` path is beta and
+  covers contextual PII entities locally on CPU.
 - **Redaction** replaces selected spans with `[REDACTED]` or a policy-defined
   replacement. `POST /v1/redact` always returns transformed text.
 - **Policies** select entity types and replacement strategies. Explicit

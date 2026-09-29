@@ -89,7 +89,7 @@ export const PIPELINE = [
     n: "02",
     name: "GLiNER2 zero-shot NER",
     detail:
-      "A 205M encoder identifies people, organisations, and contextual entities the regex misses. Runs on CPU.",
+      "The pinned 0.3B fastino/GLiNER2-Guardrails-PII-Multi checkpoint identifies contextual PII the regex misses. Runs locally on CPU.",
     tone: "model",
   },
   {
@@ -124,12 +124,12 @@ export const FEATURES = [
   {
     icon: "gliner",
     title: "Zero-shot NER on CPU",
-    body: "Default detector is a 0.3B GLiNER2 model that catches PERSON, ORG, and contextual entities without retraining.",
+    body: "Default model mode is a 0.3B fastino/GLiNER2-Guardrails-PII-Multi checkpoint that catches contextual PII without retraining.",
   },
   {
     icon: "swap",
     title: "Explicit detector modes",
-    body: "The current server supports the deterministic regex path and the pinned local GLiNER2 path. Choose the mode deliberately and verify readiness before sending traffic.",
+    body: "The current server supports the deterministic regex path and the pinned local Guardrails-PII path. Redax currently uses its PII extraction interface; choose the mode deliberately and verify readiness before sending traffic.",
   },
   {
     icon: "lock",

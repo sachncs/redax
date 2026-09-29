@@ -16,25 +16,25 @@ that the hosted production deployment is complete.
 - **Application:** Python 3.13+, FastAPI, Uvicorn, Pydantic Settings.
 - **Runtime processes:** `redax-server` serves the API; `redax-worker` runs
   ARQ background jobs.
-- **Existing Compose:** `redax`, `redax-worker`, and `redis` are present in
-  `docker-compose.yml`. Redis currently runs with persistence disabled even
-  though a volume is declared. Configuration is hardcoded in the Compose
-  file, including development secrets.
-- **Ports:** API `8000`; the current Compose file exposes only that port.
-  Planned local observability ports are Grafana `3000` and Prometheus `9090`.
-  Redis, OTLP, Loki, and Tempo remain internal by default.
+- **Existing Compose:** `redax`, `redax-worker`, Redis, OpenTelemetry
+  Collector, Prometheus, Tempo, Loki, Promtail, and Grafana are defined in
+  `docker-compose.yml`. Redis uses AOF plus RDB snapshots, and credentials
+  are supplied through the ignored `.env` contract.
+- **Ports:** API `8000`, Grafana `3000`, and Prometheus `9090` are published.
+  Redis, OTLP, Loki, Tempo, and the worker remain internal by default.
 - **Dependencies:** Redis backs jobs, cache, idempotency, rate limits, and
   optional Redis audit. The application does not require PostgreSQL, MySQL,
   MongoDB, or another database.
 - **Health and metrics:** `/healthz` is liveness, `/readyz` is readiness, and
   `/metrics` exposes Prometheus metrics.
-- **Logging and tracing:** structured JSON logs are written to stdout;
-  optional OTLP gRPC tracing is already supported through
-  `REDAX_OTLP_ENDPOINT`. There is no local collector, Loki, Tempo, Prometheus,
-  or Grafana configuration yet.
-- **Model behavior:** the image builds the pinned GLiNER2 model into the
-  image, so the first image build needs network access to download dependencies
-  and the model. Runtime traffic remains local after the image is built.
+- **Logging and tracing:** structured JSON logs are written to stdout and
+  routed by Promtail to local Loki; OTLP traces use the local Collector and
+  Tempo; Prometheus scrapes `/metrics`; Grafana provisions all three sources.
+- **Model behavior:** the image builds the pinned
+  `fastino/GLiNER2-Guardrails-PII-Multi` snapshot into the image, so the first
+  image build needs network access to download dependencies and the model.
+  Runtime traffic remains local after the image is built. Redax currently uses
+  the checkpoint's PII extraction interface, not its separate safety head.
 - **Tests and scripts:** pytest, Ruff, mypy, deterministic verification,
   readiness validation, Locust load testing, and Docker build scripts already
   exist. A small k6 scenario is not present.
@@ -111,3 +111,19 @@ Each phase has an explicit exit gate. Implementation should proceed in order;
 the next phase may consume outputs from earlier phases but must not silently
 weaken their requirements.
 
+## Phase completion record
+
+The local deployment phases are implemented and verified in order:
+
+| Phase | Evidence |
+|---|---|
+| 0. Baseline | This topology, service, port, volume, and environment contract |
+| 1. Compose foundation | `docker compose config --quiet`; image build; health-gated startup |
+| 2. Observability | `scripts/verify_local_compose.py` confirms Prometheus, Loki, Tempo, and Grafana paths |
+| 3. Security and persistence | `.env` is ignored; Redis AOF/RDB, named volumes, bounded JSON logs, and intentional published ports |
+| 4. Validation | API/worker redaction, Redis-backed job completion, and verification after container restart |
+| 5. Handoff | [`docs/local-deployment.md`](../docs/local-deployment.md), k6 scenario, backup/restore, reset, and troubleshooting instructions |
+
+The verification is a single-machine local contract check. It does not prove
+managed Redis failover, multi-node availability, public DNS/TLS, or production
+capacity.
