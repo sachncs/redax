@@ -94,6 +94,9 @@ jobs:
       - name: Create disposable Kubernetes API server
         run: kind create cluster --name redax-manifest --wait 60s
 
+      - name: Create reference namespace for server validation
+        run: kubectl apply -f deploy/kubernetes/namespace.yaml
+
       - name: Strictly validate rendered resources
         run: kubectl apply --dry-run=server --validate=strict -f redax-kubernetes.yaml
 
