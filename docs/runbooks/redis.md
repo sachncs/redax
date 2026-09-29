@@ -23,5 +23,6 @@ default; if approved, record the incident and alert.
 Restore Redis/HA failover, verify ping and command latency, then submit a
 synthetic redaction, repeat the same idempotency key, and check a synthetic job.
 Confirm no raw synthetic value appears in Redis inspection, logs, metrics, or
-audit output. Current jobs require the distributed-worker milestone before
-claiming crash recovery.
+audit output. Durable jobs use the separate ARQ worker path; managed Redis
+failover and production-scale crash-recovery evidence remain required before
+treating the deployment as highly available.

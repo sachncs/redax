@@ -49,7 +49,7 @@ Update this matrix as each production milestone lands.
 
 | Requirement | Status | Evidence / gap |
 |---|---|---|
-| Clear domain boundaries | PASS | `docs/architecture.md`, route modules, detector/redactor/audit separation, and typed settings. |
+| Clear domain boundaries | PASS | `docs/architecture.md`, route modules, detector/redactor/audit separation, durable ARQ worker boundary, and typed settings. |
 | Versioned persisted schemas | PARTIAL | Idempotency, response-cache, durable-job, and audit-event records carry schema versions; incompatible durable-job records are now refused by reads, status updates, terminal transitions, and stale reaping; migration evidence for all persisted stores is still pending. |
 | Configuration validation and documentation | PASS | `Settings` plus documented configuration drift tests. |
 | API/OpenAPI contract | PASS | API contract tests and documented paths; generated OpenAPI advertises the `X-API-Key` scheme and the scope matrix is documented as the runtime authorization contract. |
@@ -63,7 +63,7 @@ Update this matrix as each production milestone lands.
 | Actionable RED/USE metrics | PARTIAL | RED metrics, Prometheus alert rules, accepted in-flight job depth, response-size histogram, shared Redis-backed oldest queue age, Redis pool gauges/alert, expiring Redis-backed worker heartbeats, aggregated worker active/capacity gauges with saturation alert, job duration/retry/permanent-failure metrics, versioned HMAC-verifiable audit records with non-secret principal IDs, and a Grafana dashboard are checked in; exporter evidence remains. |
 | Privacy-safe structured logs/traces | PARTIAL | Access/error/audit paths avoid values; request and streaming spans emit only method/status metadata with canary assertions, the real OTLP gRPC exporter delivery canary verifies metadata-only spans, OTLP buffering is explicitly bounded, asynchronous and shutdown export failures have a metric and alert; collector-side failure evidence remains. |
 | Alerts and dashboards | PARTIAL | Checked-in Prometheus alert rules and a Grafana dashboard cover HTTP, audit, dependency, API replica, worker availability, queue age, retries, job latency, and Redis-pool utilization; exporter and production-query evidence remain. |
-| Operational runbooks | PARTIAL | Current runbooks in `docs/runbooks/` describe safe response and evidence, including the Redis audit mode; managed durability and in-process job limitations remain. |
+| Operational runbooks | PARTIAL | Current runbooks in `docs/runbooks/` describe Redis, model, jobs, audit, capacity/overload, rollback/recovery, API-key rotation, and suspected-PII incidents with privacy-safe verification; managed durability and production-scale recovery evidence remain. |
 
 ## Deployment, recovery, and release
 
