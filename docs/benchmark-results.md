@@ -21,6 +21,10 @@ python scripts/load_bench.py --requests 100 --concurrency 10 \
   --output docs/benchmarks/regex-api-local-baseline.json
 ```
 
+For sustained-load checks, replace `--requests 100` with
+`--duration-seconds 3600`; the harness reports request count, throughput,
+percentiles, and RSS drift over the bounded run.
+
 Earlier working-tree snapshots contained exploratory comparisons, but their
 raw result artifacts, model provenance, and reproducible environment were not
 part of the release contract.

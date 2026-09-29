@@ -37,7 +37,13 @@ def git_commit() -> str:
         return "unknown"
 
 
-async def run_load(url: str, total: int, concurrency: int, text: str) -> dict[str, Any]:
+async def run_load(
+    url: str,
+    total: int | None,
+    concurrency: int,
+    text: str,
+    duration_seconds: float = 0.0,
+) -> dict[str, Any]:
     """Issue bounded concurrent requests and return aggregate measurements."""
     semaphore = asyncio.Semaphore(concurrency)
     latencies: list[float] = []
@@ -46,6 +52,7 @@ async def run_load(url: str, total: int, concurrency: int, text: str) -> dict[st
     process.cpu_percent(None)
     rss_before = process.memory_info().rss
     started = time.perf_counter()
+    deadline = started + duration_seconds if duration_seconds else None
 
     async with httpx.AsyncClient(timeout=30.0) as client:
 
@@ -60,15 +67,21 @@ async def run_load(url: str, total: int, concurrency: int, text: str) -> dict[st
                 latencies.append((time.perf_counter() - request_started) * 1000)
                 statuses[status] = statuses.get(status, 0) + 1
 
-        await asyncio.gather(*(request_once() for _ in range(total)))
+        if deadline is None:
+            assert total is not None
+            await asyncio.gather(*(request_once() for _ in range(total)))
+        else:
+            while time.perf_counter() < deadline:
+                await asyncio.gather(*(request_once() for _ in range(concurrency)))
 
     elapsed = time.perf_counter() - started
+    request_count = len(latencies)
     rss_after = process.memory_info().rss
     return {
-        "requests": total,
+        "requests": request_count,
         "concurrency": concurrency,
         "elapsed_seconds": round(elapsed, 6),
-        "throughput_requests_per_second": round(total / elapsed, 3) if elapsed else 0.0,
+        "throughput_requests_per_second": round(request_count / elapsed, 3) if elapsed else 0.0,
         "status_counts": statuses,
         "latency_ms": {
             "p50": round(percentile(latencies, 0.50), 3),
@@ -93,11 +106,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--url", default="http://127.0.0.1:8000/v1/redact")
     parser.add_argument("--requests", type=int, default=100)
     parser.add_argument("--concurrency", type=int, default=10)
+    parser.add_argument(
+        "--duration-seconds",
+        type=float,
+        default=0.0,
+        help="sustain concurrent waves for this duration; overrides --requests when positive",
+    )
     parser.add_argument("--text", default="Contact alice@example.com for a safe response.")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    if args.requests < 1 or args.concurrency < 1:
-        parser.error("--requests and --concurrency must be positive")
+    if args.requests < 1 or args.concurrency < 1 or args.duration_seconds < 0:
+        parser.error("--requests and --concurrency must be positive; duration cannot be negative")
     return args
 
 
@@ -111,8 +130,20 @@ def main() -> None:
         "commit": git_commit(),
         "runtime": {"python": platform.python_version(), "platform": platform.platform()},
         "target": args.url,
-        "workload": {"requests": args.requests, "concurrency": args.concurrency},
-        "result": asyncio.run(run_load(args.url, args.requests, args.concurrency, args.text)),
+        "workload": {
+            "requests": args.requests if args.duration_seconds == 0 else None,
+            "concurrency": args.concurrency,
+            "duration_seconds": args.duration_seconds or None,
+        },
+        "result": asyncio.run(
+            run_load(
+                args.url,
+                args.requests if args.duration_seconds == 0 else None,
+                args.concurrency,
+                args.text,
+                args.duration_seconds,
+            )
+        ),
     }
     rendered = json.dumps(result, indent=2) + "\n"
     if args.output:
