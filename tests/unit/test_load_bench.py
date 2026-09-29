@@ -13,6 +13,7 @@ from scripts.load_bench import benchmark_text, request_payload, run_job_once, st
         ("batch", {"items": [{"text": "synthetic"}, {"text": "synthetic"}]}),
         ("stream", {"text": "synthetic", "chunk_chars": 100}),
         ("job", {"text": "synthetic"}),
+        ("model", {"text": "synthetic"}),
         ("cache-hot", {"text": "synthetic"}),
         ("cache-cold", {"text": "synthetic"}),
     ],

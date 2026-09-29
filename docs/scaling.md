@@ -61,7 +61,7 @@ Run each scenario at increasing concurrency and record JSON output:
 | Scenario | Variables | Required observations |
 |---|---|---|
 | Regex synchronous | 1 KB, configured maximum, warm process | p50/p95/p99/max, throughput, CPU, RSS, error rate |
-| Model synchronous | cold and warm model, same inputs | model queue, inference latency, RSS, CPU, timeout/fallback rate |
+| Model synchronous | `scripts/load_bench.py --mode model` against the pinned model, cold and warm | model queue, inference latency, RSS, CPU, timeout/fallback rate |
 | Cache hot/cold | `scripts/load_bench.py --mode cache-hot` and `--mode cache-cold` | Redis latency, hit rate, throughput, p99 |
 | Batch | 1, 10, 100, maximum items | amplification, memory, semaphore saturation, errors |
 | Stream | small/maximum text, slow client, disconnect | buffer memory, chunk latency, cancellation cleanup |
@@ -99,6 +99,11 @@ job age—not CPU alone.
 latency and records `done`, `failed`, `cancelled`, timeout, and transport
 outcomes without storing job payloads or identifiers. Run it against a
 production-like worker/Redis topology; no checked-in job result is claimed yet.
+
+The manually dispatched/weekly [`model-performance.yml`](../.github/workflows/model-performance.yml)
+workflow downloads and verifies the pinned model snapshot before running the
+model benchmark. It produces a machine-readable artifact, but its runner is
+still a single disposable host and is not production-topology capacity proof.
 
 `/v1/jobs` now uses a separate ARQ worker tier. A reference Kubernetes
 topology is checked in under

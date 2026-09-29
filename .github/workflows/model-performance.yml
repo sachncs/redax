@@ -1,0 +1,65 @@
+name: model-performance
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  pinned-model-benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup Python 3.13
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies from lockfile
+        run: |
+          python -m pip install --upgrade pip
+          pip install --no-deps --require-hashes -r requirements.lock
+          pip install -e . --no-deps
+
+      - name: Download and verify pinned model
+        env:
+          REDAX_MODEL_CACHE: ${{ runner.temp }}/redax-model-cache
+        run: python scripts/download_models.py --cache "$REDAX_MODEL_CACHE"
+
+      - name: Run warm model benchmark
+        env:
+          REDAX_ENV: dev
+          REDAX_DETECTOR: gliner2
+          REDAX_MODEL_CACHE: ${{ runner.temp }}/redax-model-cache
+          REDAX_HASH_SALT: model-benchmark-salt
+          REDAX_RATE_LIMIT_PER_MINUTE: "0"
+          REDAX_AUDIT_PATH: ${{ runner.temp }}/redax-model-audit.jsonl
+        run: |
+          python -m uvicorn app.main:app --host 127.0.0.1 --port 8010 > "$RUNNER_TEMP/redax-model-api.log" 2>&1 &
+          api_pid=$!
+          trap 'kill "$api_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:8010/healthz >/dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:8010/healthz
+          python scripts/load_bench.py \
+            --url http://127.0.0.1:8010/v1/redact \
+            --mode model \
+            --requests 100 \
+            --concurrency 2 \
+            --fail-on-error \
+            --max-p99-ms 5000 \
+            --output model-performance.json
+
+      - name: Upload model benchmark artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: redax-model-performance-${{ github.sha }}
+          path: model-performance.json

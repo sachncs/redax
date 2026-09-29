@@ -164,7 +164,7 @@ async def run_job_once(
 
 def request_payload(mode: str, text: str) -> dict[str, Any]:
     """Build one of the supported synthetic, non-sensitive benchmark payloads."""
-    if mode in {"redact", "cache-hot", "cache-cold", "job"}:
+    if mode in {"redact", "model", "cache-hot", "cache-cold", "job"}:
         return {"text": text}
     if mode == "batch":
         return {"items": [{"text": text}, {"text": text}]}
@@ -211,7 +211,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--text", default="Contact alice@example.com for a safe response.")
     parser.add_argument(
         "--mode",
-        choices=("redact", "batch", "stream", "cache-hot", "cache-cold", "job"),
+        choices=("redact", "model", "batch", "stream", "cache-hot", "cache-cold", "job"),
         default="redact",
     )
     parser.add_argument("--api-key", help="X-API-Key for authenticated HTTP and job benchmarks")
