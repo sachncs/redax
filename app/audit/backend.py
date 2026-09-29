@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import json
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Protocol, runtime_checkable
@@ -9,6 +12,7 @@ from typing import Any, Protocol, runtime_checkable
 from app.schema_versions import AUDIT_EVENT_SCHEMA_VERSION
 
 AUDIT_SCHEMA_VERSION = AUDIT_EVENT_SCHEMA_VERSION
+AUDIT_INTEGRITY_ALGORITHM = "hmac-sha256"
 
 
 @dataclass
@@ -81,6 +85,30 @@ def event_to_dict(event: Event) -> dict[str, Any]:
     payload = asdict(event)
     payload["schema_version"] = AUDIT_SCHEMA_VERSION
     return payload
+
+
+def signed_event_payload(event: Event, integrity_key: str = "") -> dict[str, Any]:
+    """Serialize an event and attach an optional tamper-evident HMAC."""
+    payload = event_to_dict(with_timestamp(event))
+    if integrity_key:
+        canonical = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+        digest = hmac.new(integrity_key.encode("utf-8"), canonical, hashlib.sha256).hexdigest()
+        payload["integrity"] = {"algorithm": AUDIT_INTEGRITY_ALGORITHM, "digest": digest}
+    return payload
+
+
+def verify_event_integrity(payload: dict[str, Any], integrity_key: str) -> bool:
+    """Verify an audit payload without exposing or returning event values."""
+    integrity = payload.get("integrity")
+    if not isinstance(integrity, dict) or integrity.get("algorithm") != AUDIT_INTEGRITY_ALGORITHM:
+        return False
+    digest = integrity.get("digest")
+    if not isinstance(digest, str):
+        return False
+    unsigned = {key: value for key, value in payload.items() if key != "integrity"}
+    canonical = json.dumps(unsigned, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    expected = hmac.new(integrity_key.encode("utf-8"), canonical, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(digest, expected)
 
 
 def with_timestamp(event: Event) -> Event:

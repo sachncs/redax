@@ -7,8 +7,8 @@ Before applying it:
 1. Confirm the signed image digest in `kustomization.yaml` matches the release
    attestation before applying; update it only as part of an reviewed release.
 2. Create the `redax-redis` Secret with a TLS Redis URL and the `redax-api`
-   Secret with `REDAX_*` keys, a unique hash salt, and a generated Fernet job
-   payload key.
+   Secret with `REDAX_*` keys, a unique hash salt, a generated Fernet job
+   payload key, and a separate audit-integrity key.
 3. The reference topology uses Redis-backed audit events so multiple API
    replicas share one bounded audit stream. If file audit is selected instead,
    provide organisation-managed durable storage and its retention/backup policy.
@@ -45,7 +45,8 @@ kubectl create namespace redax
 kubectl -n redax create secret generic redax-api \
   --from-literal=REDAX_API_KEYS='replace-me' \
   --from-literal=REDAX_HASH_SALT='replace-with-random-value' \
-  --from-literal=REDAX_JOB_PAYLOAD_ENCRYPTION_KEY="$(python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')"
+  --from-literal=job_payload_encryption_key="$(python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')" \
+  --from-literal=audit_integrity_key='replace-with-independent-random-secret'
 kubectl -n redax create secret generic redax-redis \
   --from-literal=url='rediss://redis.example.internal:6380/0'
 kubectl -n redax create secret tls redax-tls \

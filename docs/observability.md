@@ -28,8 +28,10 @@ shared Redis namespace; a heartbeat expires after 15 seconds without refresh.
 Audit JSONL events include `schema_version: 1` alongside the event fields. Keep
 consumers tolerant of additive fields and validate the version before parsing
 persisted records; migrations for future versions must preserve the no-PII
-event contract. Authenticated events also include a keyed `principal_id`; it
-is stable within a deployment salt but does not contain the API key.
+event contract. Redis-backed production audit records also include an
+HMAC-SHA256 integrity envelope verified with `REDAX_AUDIT_INTEGRITY_KEY`.
+Authenticated events also include a keyed `principal_id`; it is stable within
+a deployment salt but does not contain the API key.
 
 The HTTP middleware and streaming transport emit OpenTelemetry spans when
 tracing is configured. Span attributes are deliberately limited to the HTTP

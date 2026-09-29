@@ -198,6 +198,7 @@ async def build_state(settings: Settings) -> State:
             namespace=settings.redis_namespace,
             max_events=settings.audit_redis_max_events,
             required=settings.audit_required,
+            integrity_key=settings.audit_integrity_key,
         )
     else:
         audit = FileAudit(
@@ -207,6 +208,7 @@ async def build_state(settings: Settings) -> State:
             max_bytes=settings.audit_max_bytes,
             rotation_backups=settings.audit_rotation_backups,
             retention_seconds=settings.audit_retention_seconds,
+            integrity_key=settings.audit_integrity_key,
         )
     await audit.start()
 

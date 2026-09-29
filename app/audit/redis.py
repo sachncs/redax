@@ -7,7 +7,7 @@ import json
 import redis.asyncio as aioredis
 from redis.exceptions import RedisError
 
-from app.audit.backend import Event, event_to_dict, with_timestamp
+from app.audit.backend import Event, signed_event_payload
 from app.logging import get_logger
 from app.observability import AUDIT_DROPPED, AUDIT_WRITE_FAILED
 
@@ -27,11 +27,13 @@ class RedisAudit:
         namespace: str = "redax",
         max_events: int = 100_000,
         required: bool = False,
+        integrity_key: str = "",
     ) -> None:
         self.client = client
         self.key = f"{namespace}:audit:events"
         self.max_events = max_events
         self.required = required
+        self.integrity_key = integrity_key
         self.backend_label = "redis"
         self.failed = False
 
@@ -49,7 +51,7 @@ class RedisAudit:
         if self.client is None:
             raise RuntimeError("Redis audit backend is unavailable")
         payload = json.dumps(
-            event_to_dict(with_timestamp(event)), separators=(",", ":"), sort_keys=True
+            signed_event_payload(event, self.integrity_key), separators=(",", ":"), sort_keys=True
         )
         try:
             await self.client.eval(  # type: ignore[misc]

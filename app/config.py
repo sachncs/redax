@@ -64,6 +64,7 @@ class Settings(BaseSettings):
     audit_backend: Literal["file", "redis"] = "file"
     audit_path: str = "./audit.jsonl"
     audit_required: bool = True
+    audit_integrity_key: str = ""
     audit_fsync: bool = True
     audit_max_bytes: int = Field(default=1_000_000_000, ge=1)
     audit_rotation_backups: int = Field(default=5, ge=0)
@@ -218,6 +219,10 @@ class Settings(BaseSettings):
             raise ValueError("REDAX_API_KEY_REVOCATIONS cannot revoke every production API key")
         if self.env == "prod" and not self.trusted_host_list():
             raise ValueError("REDAX_TRUSTED_HOSTS must be configured when REDAX_ENV=prod.")
+        if self.env == "prod" and self.audit_backend == "redis" and not self.audit_integrity_key:
+            raise ValueError(
+                "REDAX_AUDIT_INTEGRITY_KEY must be configured for production Redis audit"
+            )
         if self.job_payload_encryption_key:
             try:
                 Fernet(self.job_payload_encryption_key.encode("ascii"))

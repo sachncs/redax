@@ -18,9 +18,11 @@ import os
 from datetime import UTC, datetime
 from pathlib import Path
 
-from app.audit.backend import Event, event_to_dict, with_timestamp
+from app.audit.backend import Event, signed_event_payload, with_timestamp
 from app.logging import get_logger
 from app.observability import AUDIT_DROPPED, AUDIT_UNINITIALISED, AUDIT_WRITE_FAILED
+
+__all__ = ["FileAudit", "with_timestamp"]
 
 
 class FileAudit:
@@ -60,6 +62,7 @@ class FileAudit:
         rotation_backups: int = 5,
         retention_seconds: int = 90 * 24 * 3600,
         backend_label: str = "file",
+        integrity_key: str = "",
     ) -> None:
         self.path = Path(path)
         self.fsync = fsync
@@ -68,6 +71,7 @@ class FileAudit:
         self.rotation_backups = rotation_backups
         self.retention_seconds = retention_seconds
         self.backend_label = backend_label
+        self.integrity_key = integrity_key
         self.queue: asyncio.Queue[Event] | None = None
         self.task: asyncio.Task[None] | None = None
         self.loop: asyncio.AbstractEventLoop | None = None
@@ -110,7 +114,7 @@ class FileAudit:
             raise RuntimeError("audit backend is unavailable")
         if self.required:
             assert self.loop is not None
-            line = json.dumps(event_to_dict(with_timestamp(event))) + "\n"
+            line = json.dumps(signed_event_payload(event, self.integrity_key)) + "\n"
             try:
                 await self.loop.run_in_executor(
                     None,
@@ -148,7 +152,7 @@ class FileAudit:
             item = await self.queue.get()
             if item is SENTINEL:
                 return
-            line = json.dumps(event_to_dict(with_timestamp(item))) + "\n"
+            line = json.dumps(signed_event_payload(item, self.integrity_key)) + "\n"
             try:
                 await loop.run_in_executor(
                     None,

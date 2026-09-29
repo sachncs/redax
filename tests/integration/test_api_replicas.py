@@ -156,6 +156,7 @@ async def test_two_api_replicas_share_idempotency_state(replica_redis) -> None:
         "REDAX_REDIS_REQUIRED": "true",
         "REDAX_AUDIT_BACKEND": "redis",
         "REDAX_AUDIT_REQUIRED": "true",
+        "REDAX_AUDIT_INTEGRITY_KEY": "replica-audit-integrity-key",
         "REDAX_AUDIT_REDIS_MAX_EVENTS": "1000",
         "REDAX_JOB_PAYLOAD_ENCRYPTION_KEY": Fernet.generate_key().decode(),
         "REDAX_RATE_LIMIT_PER_MINUTE": "0",

@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from app.audit.backend import Event
+from app.audit.backend import Event, verify_event_integrity
 from app.audit.redis import RedisAudit
 
 
@@ -54,6 +54,18 @@ async def test_redis_audit_stores_versioned_metadata_only() -> None:
     assert payload["ts"].endswith("+00:00")
     assert payload["text_chars"] == 42
     assert "alice@example.com" not in client.events[0]
+
+
+async def test_redis_audit_signs_metadata_for_integrity_verification() -> None:
+    client = FakeRedis()
+    backend = RedisAudit(client, integrity_key="audit-integrity-key")  # type: ignore[arg-type]
+    await backend.start()
+    await backend.record(Event(request_id="req", ts="", policy_version="p", text_chars=1))
+
+    payload = json.loads(client.events[0])
+    assert payload["integrity"]["algorithm"] == "hmac-sha256"
+    assert verify_event_integrity(payload, "audit-integrity-key")
+    assert not verify_event_integrity(payload, "wrong-key")
 
 
 async def test_redis_audit_requires_shared_client() -> None:

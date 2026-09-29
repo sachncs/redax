@@ -76,6 +76,7 @@ All settings read from environment variables prefixed with `REDAX_`. See
 | `REDAX_AUDIT_PATH` | `./audit.jsonl` | append-only audit log path |
 | `REDAX_AUDIT_BACKEND` | `file` | `file` for local JSONL or `redis` for a bounded centralized Redis audit list; Redis mode fails startup when Redis is unavailable |
 | `REDAX_AUDIT_REQUIRED` | `true` | fail redaction requests closed when audit is uninitialized, unavailable, or saturated |
+| `REDAX_AUDIT_INTEGRITY_KEY` | `""` | HMAC key for verifiable metadata-only audit records; required for production Redis audit |
 | `REDAX_AUDIT_REDIS_MAX_EVENTS` | `100000` | maximum metadata-only events retained in the centralized Redis audit list |
 | `REDAX_HASH_SALT` | `change-me` | rejected at startup; set a unique random value |
 | `REDAX_MAX_BODY_BYTES` | `4000000` | reject requests whose declared or chunked body exceeds this byte limit before parsing |
