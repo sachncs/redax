@@ -6,6 +6,7 @@ import hashlib
 import time
 
 from fastapi import HTTPException
+from redis.exceptions import RedisError
 
 from app.logging import get_logger
 from app.observability import RATE_LIMIT_UNAVAILABLE
@@ -20,6 +21,15 @@ class RateLimitUnavailable(RuntimeError):  # noqa: N818 (intentional name, tests
     Tests can also ``pytest.raises(RateLimitUnavailable)`` to assert the
     specific failure mode.
     """
+
+
+RATE_LIMIT_SCRIPT = """
+local count = redis.call('INCR', KEYS[1])
+if count == 1 then
+  redis.call('EXPIRE', KEYS[1], ARGV[1])
+end
+return count
+"""
 
 
 async def rate_limit(api_key: str, state: State) -> str:
@@ -65,14 +75,12 @@ async def rate_limit(api_key: str, state: State) -> str:
     bucket = f"{getattr(settings, 'redis_namespace', 'redax')}:rl:{key_digest}:{minute_bucket()}"
     client = job_store.client
     try:
-        count = await client.incr(bucket)
-        if count == 1:
-            await client.expire(bucket, 60)
+        count = await client.eval(RATE_LIMIT_SCRIPT, 1, bucket, "60")
         if int(count) > limit:
             raise HTTPException(status_code=429, detail="Rate limit exceeded")
     except HTTPException:
         raise
-    except (OSError, TimeoutError) as exc:
+    except (OSError, RedisError, TimeoutError) as exc:
         get_logger("redax.ratelimit").warning(
             "redax.ratelimit_unavailable", error=exc.__class__.__name__
         )

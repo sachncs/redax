@@ -16,6 +16,7 @@ class FakeClient:
         self.error = error
         self.incr_calls: list[str] = []
         self.expire_calls: list[tuple[str, int]] = []
+        self.eval_calls: list[tuple[str, int, str, str]] = []
 
     async def incr(self, key: str) -> int:
         self.incr_calls.append(key)
@@ -25,6 +26,12 @@ class FakeClient:
 
     async def expire(self, key: str, seconds: int) -> None:
         self.expire_calls.append((key, seconds))
+
+    async def eval(self, script: str, key_count: int, key: str, seconds: str) -> int:
+        self.eval_calls.append((script, key_count, key, seconds))
+        if self.error is not None:
+            raise self.error
+        return self.responses.pop(0)
 
 
 class FakeStore:
@@ -91,8 +98,8 @@ async def test_within_limit_returns_key_and_sets_expiry_on_first_use() -> None:
 
     digest = hashlib.sha256(b"key-1").hexdigest()[:32]
     expected = f"redax:rl:{digest}:{bucket}"
-    assert client.incr_calls == [expected, expected]
-    assert client.expire_calls == [(expected, 60)]
+    assert [call[2:] for call in client.eval_calls] == [(expected, "60"), (expected, "60")]
+    assert client.expire_calls == []
 
 
 @pytest.mark.asyncio
@@ -129,7 +136,7 @@ async def test_bucket_rotates_across_minute_boundary(monkeypatch: pytest.MonkeyP
     import hashlib
 
     digest = hashlib.sha256(b"key-1").hexdigest()[:32]
-    assert client.incr_calls == [
+    assert [call[2] for call in client.eval_calls] == [
         f"redax:rl:{digest}:28333333",
         f"redax:rl:{digest}:28333334",
     ]
