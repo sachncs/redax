@@ -262,16 +262,17 @@ export const FOOTER = {
 export const QUICKSTART: { curl: string[]; python: string[]; response: string[] } = {
   curl: [
     `curl -s -X POST http://localhost:8000/v1/redact \\`,
-    `  -H 'X-API-Key: local-compose-key' \\`,
+    `  -H "X-API-Key: $REDAX_API_KEY" \\`,
     `  -H 'Content-Type: application/json' \\`,
     `  -d '{"text": "Email me at alice@example.com or +1-415-555-2671."}'`,
   ],
   python: [
+    `import os`,
     `import httpx`,
     ``,
     `response = httpx.post(`,
     `    "http://localhost:8000/v1/redact",`,
-    `    headers={"X-API-Key": "local-compose-key"},`,
+    `    headers={"X-API-Key": os.environ["REDAX_API_KEY"]},`,
     `    json={"text": "Email me at alice@example.com."},`,
     `)`,
     `print(response.json()["text"])`,

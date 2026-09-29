@@ -29,12 +29,15 @@ git clone https://github.com/sachncs/redax.git
 cd redax
 # Create local configuration and replace the generated-secret placeholders.
 cp .env.example .env
+# Generate an API key, put it in REDAX_API_KEYS in .env, and export it for this shell:
+python3.13 -c 'import secrets; print(secrets.token_urlsafe(32))'
+export REDAX_API_KEY='the-same-value-you-put-in-REDAX_API_KEYS'
 # Generate a Fernet key, then put it in REDAX_JOB_PAYLOAD_ENCRYPTION_KEY in .env:
 python3.13 -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'
 docker compose up --build
 curl -s http://localhost:8000/v1/redact \
   -H 'Content-Type: application/json' \
-  -H 'X-API-Key: local-compose-key' \
+  -H "X-API-Key: ${REDAX_API_KEY}" \
   -d '{"text":"Email alice@example.com"}'
 ```
 
