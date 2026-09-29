@@ -72,6 +72,20 @@ if ARGV[5] ~= '' then
 end
 return 1
 """
+    TERMINAL_SCRIPT = """
+local status = redis.call('HGET', KEYS[1], 'status')
+if status ~= 'queued' and status ~= 'running' then return 0 end
+redis.call('HSET', KEYS[1], 'status', ARGV[1], 'result', ARGV[2], 'error', ARGV[3])
+redis.call('EXPIRE', KEYS[1], ARGV[4])
+local owner = redis.call('HGET', KEYS[1], 'owner')
+if owner ~= false and owner ~= '' then
+  local owner_count = tonumber(redis.call('GET', KEYS[2]) or '0')
+  if owner_count <= 1 then redis.call('DEL', KEYS[2]) else redis.call('DECR', KEYS[2]) end
+end
+local total = tonumber(redis.call('GET', KEYS[3]) or '0')
+if total <= 1 then redis.call('DEL', KEYS[3]) else redis.call('DECR', KEYS[3]) end
+return 1
+"""
 
     def __init__(
         self,
@@ -223,28 +237,36 @@ return 1
         await client.expire(key, self.ttl_seconds)
 
     async def set_result(self, job_id: str, result: dict[str, Any]) -> None:
-        """Mark the job as ``done``, store its result, and release the per-key slot."""
+        """Atomically mark the job done, store its result, and release capacity."""
         client = self.client
         if client is None:
             raise RuntimeError("JobStore.start() must run before set_result()")
-        key = self._key(job_id)
-        await client.hset(key, "result", json.dumps(result))  # type: ignore[misc]
-        await client.hset(key, "status", "done")  # type: ignore[misc]
-        await client.expire(key, self.ttl_seconds)
-        await release_owner_count(client, key, self.namespace)
-        await release_total_count(client, self._total_count_key())
+        await set_terminal(
+            client,
+            self._key(job_id),
+            self._total_count_key(),
+            self.namespace,
+            "done",
+            json.dumps(result),
+            "",
+            self.ttl_seconds,
+        )
 
     async def set_error(self, job_id: str, error: str) -> None:
-        """Mark the job as ``failed``, record the error, and release the per-key slot."""
+        """Atomically mark the job failed, record the error, and release capacity."""
         client = self.client
         if client is None:
             raise RuntimeError("JobStore.start() must run before set_error()")
-        key = self._key(job_id)
-        await client.hset(key, "error", error)  # type: ignore[misc]
-        await client.hset(key, "status", "failed")  # type: ignore[misc]
-        await client.expire(key, self.ttl_seconds)
-        await release_owner_count(client, key, self.namespace)
-        await release_total_count(client, self._total_count_key())
+        await set_terminal(
+            client,
+            self._key(job_id),
+            self._total_count_key(),
+            self.namespace,
+            "failed",
+            "",
+            error,
+            self.ttl_seconds,
+        )
 
     async def set_record(self, record: JobRecord) -> None:
         """Write the full :class:`JobRecord` fields into the job hash.
@@ -268,6 +290,32 @@ return 1
             },
         )
         await client.expire(key, self.ttl_seconds)
+
+
+async def set_terminal(
+    client: aioredis.Redis,
+    job_key: str,
+    total_key: str,
+    namespace: str,
+    status: str,
+    result: str,
+    error: str,
+    ttl_seconds: int,
+) -> None:
+    """Atomically complete a job and release its admission counters."""
+    owner = await client.hget(job_key, "owner")  # type: ignore[misc]
+    owner_key = JobStore.COUNT_KEY_TEMPLATE.format(ns=namespace, owner=owner or "")
+    await client.eval(  # type: ignore[misc]
+        JobStore.TERMINAL_SCRIPT,
+        3,
+        job_key,
+        owner_key,
+        total_key,
+        status,
+        result,
+        error,
+        str(ttl_seconds),
+    )
 
 
 async def release_owner_count(

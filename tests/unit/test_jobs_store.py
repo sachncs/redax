@@ -53,6 +53,26 @@ class FakeRedis:
     async def eval(
         self, _script: str, _numkeys: int, job_key: str, owner_key: str, total_key: str, *args: str
     ) -> int:
+        if len(args) == 4:
+            status, result, error, ttl = args
+            record = self.records.get(job_key, {})
+            if record.get("status") not in {"queued", "running"}:
+                return 0
+            record.update({"status": status, "result": result, "error": error})
+            await self.expire(job_key, int(ttl))
+            owner = record.get("owner", "")
+            if owner:
+                count = self.counter.get(owner_key, 0)
+                if count <= 1:
+                    await self.delete(owner_key)
+                else:
+                    await self.decr(owner_key)
+            count = self.counter.get(total_key, 0)
+            if count <= 1:
+                await self.delete(total_key)
+            else:
+                await self.decr(total_key)
+            return 1
         job_id, status, result, error, owner, ttl, max_total, max_owner = args
         total = self.counter.get(total_key, 0)
         owner_count = self.counter.get(owner_key, 0)
