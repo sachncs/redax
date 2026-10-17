@@ -12,7 +12,7 @@ authors = [{ name = "sachin", email = "sachncs@gmail.com" }]
 #   - transformers==5.17.0 is pinned because gliner2==2.0.0 requires
 #     transformers<5.
 #   - redis==8.1.0 is the latest 5.x; arq==0.28.0 requires redis<6.
-#   - huggingface-hub==0.36.2 is the latest compatible 0.x release;
+#   - huggingface-hub==2.2.0 is the latest compatible 0.x release;
 #     transformers==5.17.0
 #     requires huggingface-hub<1.0.
 dependencies = [
@@ -31,7 +31,7 @@ dependencies = [
     "opentelemetry-exporter-otlp==1.45.1",
     "gliner2[local]==2.0.0",
     "transformers==5.17.0",
-    "huggingface-hub==0.36.2",
+    "huggingface-hub==2.2.0",
     "pyyaml==6.0.3",
 ]
 
