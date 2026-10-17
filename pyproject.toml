@@ -9,16 +9,16 @@ authors = [{ name = "sachin", email = "sachncs@gmail.com" }]
 # Exact pins only. Range specifiers are banned: the locking workflow
 # (pip-compile -> requirements.lock) is the only sanctioned upgrade path.
 # Deliberate version notes:
-#   - transformers==5.17.0 is pinned because gliner2==2.0.0 requires
+#   - transformers==5.19.0 is pinned because gliner2==2.1.0 requires
 #     transformers<5.
 #   - redis==8.1.0 is the latest 5.x; arq==0.28.0 requires redis<6.
 #   - huggingface-hub==0.36.2 is the latest compatible 0.x release;
-#     transformers==5.17.0
+#     transformers==5.19.0
 #     requires huggingface-hub<1.0.
 dependencies = [
-    "fastapi==0.142.2",
+    "fastapi==0.143.0",
     "uvicorn[standard]==0.54.0",
-    "pydantic==2.13.5",
+    "pydantic==2.14.1",
     "pydantic-settings==2.15.0",
     "structlog==26.1.0",
     "httpx==0.28.1",
@@ -29,8 +29,8 @@ dependencies = [
     "opentelemetry-api==1.45.1",
     "opentelemetry-sdk==1.45.1",
     "opentelemetry-exporter-otlp==1.45.1",
-    "gliner2[local]==2.0.0",
-    "transformers==5.17.0",
+    "gliner2[local]==2.1.0",
+    "transformers==5.19.0",
     "huggingface-hub==0.36.2",
     "pyyaml==6.0.3",
 ]
@@ -42,14 +42,14 @@ dev = [
     "pytest==9.1.1",
     "pytest-asyncio==1.4.0",
     "pytest-approvaltests==0.2.4",
-    "hypothesis==6.168.5",
+    "hypothesis==6.169.0",
     "locust==2.46.7",
-    "ruff==0.16.10",
+    "ruff==0.17.0",
     "mypy==2.4.0",
     "datasets==5.1.0",
-    "pip-tools==7.6.1",
+    "pip-tools==7.6.2",
     "optimum==2.3.0",
-    "onnxruntime==1.30.0",
+    "onnxruntime==1.31.0",
     "pytest-cov==7.1.0",
 ]
 
