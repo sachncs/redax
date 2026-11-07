@@ -9,28 +9,28 @@ authors = [{ name = "sachin", email = "sachncs@gmail.com" }]
 # Exact pins only. Range specifiers are banned: the locking workflow
 # (pip-compile -> requirements.lock) is the only sanctioned upgrade path.
 # Deliberate version notes:
-#   - transformers==5.17.0 is pinned because gliner2==2.0.0 requires
+#   - transformers==5.22.1 is pinned because gliner2==2.1.0 requires
 #     transformers<5.
 #   - redis==8.1.0 is the latest 5.x; arq==0.28.0 requires redis<6.
 #   - huggingface-hub==0.36.2 is the latest compatible 0.x release;
-#     transformers==5.17.0
+#     transformers==5.22.1
 #     requires huggingface-hub<1.0.
 dependencies = [
-    "fastapi==0.142.2",
+    "fastapi==0.162.0",
     "uvicorn[standard]==0.54.0",
-    "pydantic==2.13.5",
-    "pydantic-settings==2.15.0",
+    "pydantic==2.14.2",
+    "pydantic-settings==2.16.2",
     "structlog==26.1.0",
     "httpx==0.28.1",
     "redis==8.1.0",
     "arq==0.28.0",
     "cryptography==46.0.5",
     "prometheus-client==0.26.0",
-    "opentelemetry-api==1.45.1",
-    "opentelemetry-sdk==1.45.1",
-    "opentelemetry-exporter-otlp==1.45.1",
-    "gliner2[local]==2.0.0",
-    "transformers==5.17.0",
+    "opentelemetry-api==1.45.2",
+    "opentelemetry-sdk==1.45.2",
+    "opentelemetry-exporter-otlp==1.45.2",
+    "gliner2[local]==2.1.0",
+    "transformers==5.22.1",
     "huggingface-hub==0.36.2",
     "pyyaml==6.0.3",
 ]
@@ -39,17 +39,17 @@ dependencies = [
 # Build-time only: optimum + onnxruntime are used by the WASM ONNX export
 # pipeline (scripts/export_onnx.py, scripts/quantize.py), never at runtime.
 dev = [
-    "pytest==9.1.1",
-    "pytest-asyncio==1.4.0",
+    "pytest==9.2.0",
+    "pytest-asyncio==1.4.1.post1",
     "pytest-approvaltests==0.2.4",
-    "hypothesis==6.168.5",
-    "locust==2.46.7",
-    "ruff==0.16.10",
-    "mypy==2.4.0",
+    "hypothesis==6.170.14",
+    "locust==2.47.0",
+    "ruff==0.17.3",
+    "mypy==2.4.1",
     "datasets==5.1.0",
-    "pip-tools==7.6.1",
+    "pip-tools==7.6.2",
     "optimum==2.3.0",
-    "onnxruntime==1.30.0",
+    "onnxruntime==1.31.1",
     "pytest-cov==7.1.0",
 ]
 
